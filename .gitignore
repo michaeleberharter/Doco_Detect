@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+calibration/*.json
+calibration/*.png
+data/captures/
+data/reference/
+*.sqlite3
+.DS_Store

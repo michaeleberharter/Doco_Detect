@@ -1,0 +1,53 @@
+# Doco_Detect – zentrale Konfiguration
+# Alle Längen in mm, alle Schwellen dokumentiert.
+
+camera:
+  index: 0                # OpenCV Device-Index
+  width: 3840
+  height: 2160
+  fourcc: MJPG            # nötig für 4K über USB
+  autofocus: false        # MUSS false sein für reproduzierbare Messungen
+  focus_value: 30         # fester Fokuswert (0-255, beim Kalibrieren ermitteln)
+  warmup_frames: 10       # Frames verwerfen bis Belichtung stabil ist
+
+geometry:
+  camera_height_mm: 300.0     # Kamera über Boxboden (Box 40x30x30)
+  # Höhenkompensation: true_size = measured * (Z - h) / Z, h = Artikelhöhe
+
+calibration:
+  aruco_dict: DICT_4X4_50
+  marker_id: 0
+  marker_size_mm: 50.0
+  file: calibration/calibration.json
+  background_file: calibration/background.png
+
+segmentation:
+  blur_kernel: 7              # Gauss-Blur vor Differenzbildung
+  diff_threshold: 30          # Graustufen-Differenz zur Hintergrundreferenz
+  morph_kernel: 15            # Closing gegen Löcher (Reflexionen auf Porzellan)
+  min_area_px: 20000          # kleinere Konturen = Rauschen, ignorieren
+  border_margin_px: 5         # Kontur näher am Rand => "Objekt abgeschnitten"
+
+matching:
+  # Stufe 1: geometrischer Filter
+  diameter_tolerance_mm: 6.0  # Kandidat bleibt, wenn |gemessen - DB| <= Toleranz
+  area_tolerance_pct: 12.0    # zusätzlicher Flächenfilter in Prozent
+  # Scoring-Gewichte (Summe beliebig, wird normiert)
+  weights:
+    geometry: 0.5
+    color: 0.3
+    shape: 0.2
+  # Entscheidungsschwellen
+  auto_accept_score: 0.85     # >= : automatisch buchen
+  auto_accept_margin: 0.15    # Mindestabstand zum zweitbesten Kandidaten
+  top_k: 3                    # Vorschläge bei manueller Bestätigung
+
+stage2:
+  enabled: false              # DINOv2 + FAISS erst aktivieren, wenn Stufe 1
+  model: dinov2_vits14        # nicht ausreicht (siehe README)
+  index_file: calibration/faiss.index
+
+paths:
+  db_file: doco_detect.sqlite3
+  reference_dir: data/reference
+  captures_dir: data/captures

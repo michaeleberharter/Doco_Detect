@@ -1,0 +1,7 @@
+article_number,name,category,diameter_mm,width_mm,depth_mm,height_mm,color_desc,notes
+TELLER-27-WEISS,Speiseteller flach 27cm,Teller,270,,,25,weiss,Standard Business
+TELLER-25-WEISS,Speiseteller flach 25cm,Teller,250,,,24,weiss,
+TELLER-21-WEISS,Dessertteller 21cm,Teller,210,,,22,weiss,
+SCHUESSEL-16,Schuessel rund 16cm,Schuessel,160,,,65,weiss,
+TASSE-KAFFEE,Kaffeetasse,Tasse,85,,,70,weiss,Henkel -> geringere Rundheit
+PLATTE-OVAL-32,Servierplatte oval,Platte,,320,220,30,weiss,nicht rund
