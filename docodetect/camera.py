@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+import platform
 
 import cv2
 import numpy as np
@@ -36,7 +37,8 @@ class BoxCamera:
         self.close()
 
     def open(self) -> None:
-        cap = cv2.VideoCapture(self.cfg["index"])
+        backend = cv2.CAP_DSHOW if platform.system() == "Windows" else cv2.CAP_ANY
+        cap = cv2.VideoCapture(self.cfg["index"], backend)
         if not cap.isOpened():
             raise CameraError(
                 f"Cannot open camera index {self.cfg['index']}. "

@@ -3,8 +3,8 @@
 
 camera:
   index: 0                # OpenCV Device-Index
-  width: 3840
-  height: 2160
+  width: 1920
+  height: 1080
   fourcc: MJPG            # nötig für 4K über USB
   autofocus: false        # MUSS false sein für reproduzierbare Messungen
   focus_value: 30         # fester Fokuswert (0-255, beim Kalibrieren ermitteln)
