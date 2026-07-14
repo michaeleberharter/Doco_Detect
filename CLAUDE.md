@@ -69,10 +69,19 @@ Data flow for `identify()`:
 ```
 image (BGR ndarray)
   → segmentation.segment()   background diff (gray+saturation) → contour, border-touch flag
-  → features.extract()       contour+calibration → mm-correct geometry, HSV color, Hu-moment shape
-  → matcher.match()          per-article height-compensated geometry filter → weighted score → decision
-  → MatchResult(decision: auto|confirm|no_match, candidates, message)
+  → features.extract()       contour+calibration → mm-correct geometry, ring-zone Lab/H-S color
+                             (center vs. rim), Hu-moment shape, solidity
+  → matcher.match()          per-article height-compensated geometry filter → statistical
+                             scoring (z-scores vs. enrollment stats, Fisher-adaptive weights)
+  → MatchReport(decision: accept|ambiguous|reject, per-feature z/logL breakdown,
+                posterior, gate status – fully JSON-serializable)
 ```
+Every `identify()` also writes the capture JPG + the `MatchReport` JSON to
+`paths.captures_dir` (skipped when that config key is absent, e.g. in
+synthetic tests). The Streamlit page `pages/1_Scoring_Analyse.py` renders
+ONLY these reports (live or loaded from disk) — it never re-implements
+scoring; batch aggregation lives in `docodetect/reporting.py`, shared by
+CLI `evaluate` and the UI.
 
 Key invariants that explain a lot of the code:
 
@@ -94,9 +103,10 @@ Key invariants that explain a lot of the code:
   cannot be measured correctly. `segmentation.py` detects this
   (`touches_border`) and `pipeline.analyze()` raises `SegmentationError`
   rather than returning a wrong measurement. `pipeline.identify()` catches
-  that and turns it into a `no_match` `MatchResult` with an explanatory
-  message; `pipeline.enroll()` does **not** catch it — callers must handle
-  `SegmentationError` themselves when enrolling.
+  that and turns it into a `reject` `MatchReport` with an explanatory
+  message (so the failure still lands in the captures log); `pipeline.enroll()`
+  does **not** catch it — callers must handle `SegmentationError` themselves
+  when enrolling.
 - **Autofocus must be off.** `camera.py`'s `BoxCamera` locks focus via UVC
   properties on open; a fixed focus value is required because the
   px→mm scale (from calibration) drifts if focus changes between shots.
@@ -106,11 +116,18 @@ Key invariants that explain a lot of the code:
   device free).
 - **Stage 1 matcher decision logic** (`matcher.py`): a hard geometry
   tolerance filter first (usually collapses hundreds of articles to a
-  handful), then soft scoring blending geometry/color/shape (weights in
-  config). `auto` requires both a score threshold *and* a margin over the
-  runner-up *and* enrolled references to exist for that article —
-  articles with no enrolled reference photos are geometry-only and capped
-  below the auto-accept score so they can never auto-accept blindly.
+  handful), then statistical scoring: per feature z = distance / sigma_eff
+  with sigma_eff = sqrt(sigma_enroll² + sigma_floor²) (enrollment stats from
+  the `reference_stats` table, floors from `matching.sigma_floors`), log-
+  likelihood −0.5z², Fisher-adaptive weights over the candidate set
+  (`adaptive_weight_alpha`), softmax posterior. `accept` requires the
+  winner's max|z| ≤ `max_z_accept` *and* a log-score margin ≥
+  `min_llr_margin` over the runner-up *and* enrolled references —
+  articles without references are geometry-only and can never accept.
+  Failing the z-gate means `reject` ("probably not in the database"),
+  which must never be booked automatically. Candidates with enrollment
+  stats are compared floor-plane vs. floor-plane (no double height
+  correction); only the pre-filter uses `height_corrected_scale`.
 - **`database.py`** is a thin SQLite wrapper (`articles` = master data
   imported from CSV, `reference_features` = enrolled photos' `Features` as
   JSON) explicitly designed to be swapped for the real DO&CO database

@@ -99,8 +99,13 @@ CREATE_CFG = {
     "segmentation": CFG["segmentation"],
     "matching": {
         "diameter_tolerance_mm": 6.0, "area_tolerance_pct": 12.0,
-        "weights": {"geometry": 0.5, "color": 0.3, "shape": 0.2},
-        "auto_accept_score": 0.85, "auto_accept_margin": 0.15, "top_k": 3,
+        "sigma_floors": {"diameter_mm": 1.5, "circularity": 0.02, "solidity": 0.015,
+                         "delta_e": 3.0, "hist_bhattacharyya": 0.05, "hu_log": 0.15},
+        "feature_weights": {"diameter_mm": 0.50, "circularity": 0.07, "solidity": 0.06,
+                            "delta_e_center": 0.08, "delta_e_rim": 0.08,
+                            "hist_center": 0.07, "hist_rim": 0.07, "hu_log": 0.07},
+        "adaptive_weight_alpha": 2.0, "softmax_temperature": 1.0,
+        "max_z_accept": 3.5, "min_llr_margin": 2.0, "top_k": 3,
     },
     "create": {"round_circularity_min": 0.80, "round_aspect_min": 0.80,
                "article_number_prefix": ""},
@@ -142,7 +147,7 @@ def test_create_round_article_then_identify(tmp_path):
         # stored as a reference -> identifiable immediately, not geometry-only
         result = match(feats, pipe.db, CAL, cfg)
         assert result.candidates
-        assert result.candidates[0].article.article_number == article.article_number
+        assert result.candidates[0].article_number == article.article_number
         assert result.candidates[0].has_references
     finally:
         pipe.db.close()
@@ -160,7 +165,7 @@ def test_create_elongated_article_survives_area_check(tmp_path):
         assert article.width_mm > article.depth_mm
         result = match(feats, pipe.db, CAL, cfg)
         assert result.candidates, "elongated article must survive geometry+area filter"
-        assert result.candidates[0].article.article_number == article.article_number
+        assert result.candidates[0].article_number == article.article_number
     finally:
         pipe.db.close()
 

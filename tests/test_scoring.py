@@ -211,3 +211,225 @@ def test_migration_backfills_stats_for_existing_db(tmp_path):
         assert db2.stats_for("TELLER-200") is not None
     finally:
         db2.close()
+
+
+# ---------- Teil 3: statistischer Matcher ----------
+
+from docodetect.matcher import MatchReport, match  # noqa: E402
+
+MATCH_CFG = {"matching": {
+    "diameter_tolerance_mm": 6.0, "area_tolerance_pct": 12.0,
+    "sigma_floors": {"diameter_mm": 1.5, "circularity": 0.02, "solidity": 0.015,
+                     "delta_e": 3.0, "hist_bhattacharyya": 0.05, "hu_log": 0.15},
+    "feature_weights": {"diameter_mm": 0.50, "circularity": 0.07, "solidity": 0.06,
+                        "delta_e_center": 0.08, "delta_e_rim": 0.08,
+                        "hist_center": 0.07, "hist_rim": 0.07, "hu_log": 0.07},
+    "adaptive_weight_alpha": 2.0, "softmax_temperature": 1.0,
+    "max_z_accept": 3.5, "min_llr_margin": 2.0, "top_k": 3,
+}}
+
+
+def _matcher_db(tmp_path, articles):
+    """articles: list of (nr, nominal_d, [ref-Features])"""
+    db = _db(tmp_path)
+    for nr, d, refs in articles:
+        _add_article(db, nr, d)
+        for f in refs:
+            db.add_reference(nr, f)
+    return db
+
+
+def test_sigma_floor_dominates_when_enrollment_std_zero(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full(), fake_features_full()])])
+    try:
+        rep = match(fake_features_full(), db, CAL, MATCH_CFG)
+        fs = {f.feature: f for f in rep.candidates[0].features}
+        assert fs["diameter_mm"].sigma_eff == pytest.approx(1.5)
+        assert fs["delta_e_center"].sigma_eff == pytest.approx(3.0)
+        assert fs["diameter_mm"].z == pytest.approx(0.0)
+        assert rep.candidates[0].log_score == pytest.approx(0.0)
+    finally:
+        db.close()
+
+
+def test_sigma_eff_combines_enroll_and_floor(tmp_path):
+    shots = [fake_features_full(diameter=198.0), fake_features_full(diameter=202.0)]
+    db = _matcher_db(tmp_path, [("A", 200.0, shots)])
+    try:
+        rep = match(fake_features_full(diameter=200.0), db, CAL, MATCH_CFG)
+        fs = {f.feature: f for f in rep.candidates[0].features}
+        expected = math.sqrt(np.std([198.0, 202.0], ddof=1) ** 2 + 1.5 ** 2)
+        assert fs["diameter_mm"].sigma_eff == pytest.approx(expected, abs=1e-3)
+    finally:
+        db.close()
+
+
+def test_geometry_only_candidate_scored_on_diameter_alone(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 200.0, [])])
+    try:
+        rep = match(fake_features_full(diameter=202.0), db, CAL, MATCH_CFG)
+        c = rep.candidates[0]
+        assert not c.has_references
+        assert [f.feature for f in c.features] == ["diameter_mm"]
+        assert c.features[0].reference == pytest.approx(200.0)
+        assert c.features[0].distance == pytest.approx(2.0)
+    finally:
+        db.close()
+
+
+def test_matchreport_json_roundtrip(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full()])])
+    try:
+        rep = match(fake_features_full(), db, CAL, MATCH_CFG,
+                    image_path="x.jpg", label="A", contour=[[1, 2], [3, 4]],
+                    touches_border=False)
+        rep2 = MatchReport.from_json(rep.to_json())
+        assert rep2.to_dict() == rep.to_dict()
+        assert rep2.candidates[0].features[0].feature == rep.candidates[0].features[0].feature
+    finally:
+        db.close()
+
+
+def test_fisher_boosts_the_discriminative_feature(tmp_path):
+    """Konstruierter Fall: zwei Kandidaten, identisch bis auf die Zentrums-
+    farbe -> delta_e_center muss das höchste w_eff bekommen (Kern der
+    adaptiven Gewichtung). Uniforme Globalgewichte isolieren den Mechanismus
+    (mit Produktionsgewichten würde das dominante Ø-Gewicht den Boost-Faktor
+    1+alpha kaufmännisch überstimmen – gewollt, Ø ist dort bewusst schwer)."""
+    uniform = dict.fromkeys(MATCH_CFG["matching"]["feature_weights"], 1.0)
+    cfg = {"matching": {**MATCH_CFG["matching"], "feature_weights": uniform}}
+    a_shots = [fake_features_full(lab_c=(95.0, 0.0, 0.0))] * 2
+    b_shots = [fake_features_full(lab_c=(55.0, 10.0, 10.0))] * 2
+    db = _matcher_db(tmp_path, [("A", 200.0, a_shots), ("B", 200.0, b_shots)])
+    try:
+        rep = match(fake_features_full(lab_c=(95.0, 0.0, 0.0)), db, CAL, cfg)
+        assert max(rep.w_eff, key=rep.w_eff.get) == "delta_e_center"
+        assert rep.w_eff["delta_e_center"] > rep.w_global["delta_e_center"]
+        assert rep.fisher_d_norm["delta_e_center"] == max(rep.fisher_d_norm.values())
+        assert rep.candidates[0].article_number == "A"
+    finally:
+        db.close()
+
+
+def test_alpha_zero_keeps_global_weights(tmp_path):
+    cfg = {"matching": {**MATCH_CFG["matching"], "adaptive_weight_alpha": 0.0}}
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full()] * 2),
+                                ("B", 200.0, [fake_features_full(lab_c=(55.0, 0.0, 0.0))] * 2)])
+    try:
+        rep = match(fake_features_full(), db, CAL, cfg)
+        for f in rep.w_eff:
+            assert rep.w_eff[f] == pytest.approx(rep.w_global[f])
+    finally:
+        db.close()
+
+
+def test_single_candidate_skips_adaptation(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full()] * 2)])
+    try:
+        rep = match(fake_features_full(), db, CAL, MATCH_CFG)
+        assert rep.fisher_d == {}
+        assert rep.w_eff == pytest.approx(rep.w_global)
+    finally:
+        db.close()
+
+
+def test_decision_accept(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full()] * 3)])
+    try:
+        rep = match(fake_features_full(), db, CAL, MATCH_CFG)
+        assert rep.decision == "accept" and rep.gate_passed
+        assert rep.max_z_winner == pytest.approx(0.0)
+        assert rep.candidates[0].posterior == pytest.approx(1.0)
+    finally:
+        db.close()
+
+
+def test_decision_ambiguous_on_small_margin(tmp_path):
+    """Fast identische Artikel -> Gate ok, LLR-Margin < Schwelle -> ambiguous."""
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full()] * 2),
+                                ("B", 200.0, [fake_features_full(diameter=200.5)] * 2)])
+    try:
+        rep = match(fake_features_full(diameter=200.2), db, CAL, MATCH_CFG)
+        assert rep.decision == "ambiguous"
+        assert rep.gate_passed and rep.llr_margin is not None
+        assert rep.llr_margin < 2.0
+    finally:
+        db.close()
+
+
+def test_decision_reject_on_gate(tmp_path):
+    """Durchmesser passt, aber Farbe völlig anders -> max|z| >> 3.5 -> reject."""
+    db = _matcher_db(tmp_path, [("A", 200.0, [fake_features_full(lab_c=(95.0, 0.0, 0.0),
+                                                                 lab_r=(95.0, 0.0, 0.0))] * 2)])
+    try:
+        m = fake_features_full(lab_c=(20.0, 30.0, 30.0), lab_r=(20.0, 30.0, 30.0))
+        rep = match(m, db, CAL, MATCH_CFG)
+        assert rep.decision == "reject" and not rep.gate_passed
+        assert rep.max_z_winner > 3.5
+        assert "nicht in der Datenbank" in rep.message
+    finally:
+        db.close()
+
+
+def test_geometry_only_winner_never_accepts(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 200.0, [])])
+    try:
+        rep = match(fake_features_full(), db, CAL, MATCH_CFG)
+        assert rep.decision == "ambiguous"        # Gate ok, aber keine Referenzen
+    finally:
+        db.close()
+
+
+def test_no_candidate_is_reject(tmp_path):
+    db = _matcher_db(tmp_path, [("A", 300.0, [])])   # weit außerhalb der Toleranz
+    try:
+        rep = match(fake_features_full(diameter=200.0), db, CAL, MATCH_CFG)
+        assert rep.decision == "reject" and rep.candidates == []
+    finally:
+        db.close()
+
+
+# ---------- Teil 3: Pipeline speichert Capture + Report-JSON ----------
+
+from docodetect.pipeline import Pipeline  # noqa: E402
+
+
+def test_identify_writes_report_json(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)  # resolve() -> tmp
+    bg = _bg()
+    cfg = {"segmentation": SEG_CFG["segmentation"], "matching": MATCH_CFG["matching"],
+           "features": {}, "paths": {"db_file": str(tmp_path / "t.sqlite3"),
+                                     "captures_dir": "captures"}}
+    pipe = Pipeline.__new__(Pipeline)
+    pipe.cfg, pipe.cal, pipe.background = cfg, CAL, bg
+    pipe.db = Database(cfg); pipe.db.init_schema()
+    try:
+        img = _red_rim_plate(bg)
+        out = pipe.identify(img)
+        jsons = list((tmp_path / "captures").glob("*.json"))
+        jpgs = list((tmp_path / "captures").glob("*.jpg"))
+        assert len(jsons) == 1 and len(jpgs) == 1
+        rep = MatchReport.from_json(jsons[0].read_text(encoding="utf-8"))
+        assert rep.decision == out.report.decision
+        assert rep.image_path and rep.contour
+    finally:
+        pipe.db.close()
+
+
+def test_identify_border_touch_becomes_reject_report(tmp_path):
+    bg = _bg()
+    cfg = {"segmentation": SEG_CFG["segmentation"], "matching": MATCH_CFG["matching"],
+           "paths": {"db_file": str(tmp_path / "t.sqlite3")}}   # kein captures_dir -> kein IO
+    pipe = Pipeline.__new__(Pipeline)
+    pipe.cfg, pipe.cal, pipe.background = cfg, CAL, bg
+    pipe.db = Database(cfg); pipe.db.init_schema()
+    try:
+        img = bg.copy()
+        cv2.circle(img, (30, 540), 500, (250, 250, 250), -1)    # ragt aus dem Bild
+        out = pipe.identify(img)
+        assert out.report.decision == "reject"
+        assert "Segment" in out.report.message
+        assert out.report.candidates == []
+    finally:
+        pipe.db.close()
