@@ -14,12 +14,25 @@ Swap for the real company DB later by reimplementing this module's API.
 from __future__ import annotations
 
 import csv
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
 from .config import resolve
 from .features import Features
+
+# German umlauts -> ASCII, so auto-generated article numbers stay clean keys.
+_UMLAUT_MAP = str.maketrans({
+    "ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss",
+})
+
+
+def _slug(name: str) -> str:
+    """Uppercase ASCII slug of a free-text name, usable as an article_number."""
+    s = name.strip().translate(_UMLAUT_MAP)
+    s = re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-").upper()
+    return s or "ARTIKEL"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS articles (
@@ -100,6 +113,43 @@ class Database:
         self.conn.commit()
         print(f"[db] imported/updated {n} articles from {csv_path}")
         return n
+
+    def create_article(self, article: Article) -> None:
+        """Insert one brand-new article (master data), e.g. created live from a
+        camera measurement instead of a CSV. Raises if the number already
+        exists – use import_articles_csv for upserts."""
+        if self.get_article(article.article_number) is not None:
+            raise KeyError(f"Article '{article.article_number}' already exists.")
+        self.conn.execute(
+            f"""INSERT INTO articles ({",".join(CSV_COLUMNS)})
+                VALUES ({",".join(":" + c for c in CSV_COLUMNS)})""",
+            {c: getattr(article, c) for c in CSV_COLUMNS},
+        )
+        self.conn.commit()
+
+    def delete_article(self, article_number: str) -> bool:
+        """Remove an article AND all its enrolled reference features – e.g. a
+        live-created article whose measurement turned out wrong. Reference
+        photos on disk (data/reference/<nr>/) are kept. Returns True if the
+        article existed."""
+        self.conn.execute(
+            "DELETE FROM reference_features WHERE article_number = ?", (article_number,)
+        )
+        cur = self.conn.execute(
+            "DELETE FROM articles WHERE article_number = ?", (article_number,)
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def generate_article_number(self, name: str, prefix: str = "") -> str:
+        """Derive a unique article_number from a free-text name, appending
+        -2, -3, ... on collision."""
+        base = f"{prefix}{_slug(name)}"
+        candidate, n = base, 1
+        while self.get_article(candidate) is not None:
+            n += 1
+            candidate = f"{base}-{n}"
+        return candidate
 
     def get_article(self, article_number: str) -> Article | None:
         row = self.conn.execute(

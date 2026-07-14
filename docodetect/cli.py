@@ -4,6 +4,8 @@
     python -m docodetect.cli import-articles data/articles_example.csv
     python -m docodetect.cli capture-background
     python -m docodetect.cli calibrate [--image foto.jpg]
+    python -m docodetect.cli create-article "Suppenloeffel" [--height-mm 0]
+    python -m docodetect.cli delete-article ART-NR
     python -m docodetect.cli enroll ART-NR --shots 8 [--images dir/]
     python -m docodetect.cli identify [--image foto.jpg]
     python -m docodetect.cli evaluate data/testset/
@@ -26,6 +28,7 @@ from .camera import BoxCamera, load_image
 from .config import load_config, resolve
 from .database import Database
 from .pipeline import Pipeline
+from .segmentation import SegmentationError
 
 
 def _get_image(args, cfg):
@@ -55,6 +58,64 @@ def cmd_calibrate(args, cfg):
     run_calibration(img, cfg)
 
 
+def cmd_create_article(args, cfg):
+    """Create a new article live: object under the camera, pass a name, done."""
+    db = Database(cfg)
+    db.init_schema()
+    prefix = cfg.get("create", {}).get("article_number_prefix", "")
+    number = args.article_number or db.generate_article_number(args.name, prefix)
+    db.close()
+
+    pipe = Pipeline(cfg)
+    try:
+        img = _get_image(args, cfg)
+        # Persist the shot as a reference image only for live captures – and
+        # only write it AFTER the article was created, so a failed create
+        # leaves no orphaned jpg (possibly in another article's folder).
+        img_path = None
+        if not getattr(args, "image", None):
+            ref_dir = resolve(cfg["paths"]["reference_dir"]) / number
+            img_path = str(ref_dir / f"{int(time.time() * 1000)}.jpg")
+
+        try:
+            article, feats, _ = pipe.create_article(
+                img, args.name, article_number=number,
+                height_mm=args.height_mm, category=args.category,
+                image_path=img_path,
+            )
+        except SegmentationError as e:
+            sys.exit(f"[create] {e}")
+        except KeyError as e:
+            sys.exit(f"[create] {e}")
+
+        if img_path:
+            import cv2
+            Path(img_path).parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(img_path, img)
+
+        geo = (f"Ø {article.diameter_mm:.1f} mm" if article.diameter_mm
+               else f"{article.width_mm:.1f} × {article.depth_mm:.1f} mm")
+        print(f"[create] '{article.name}' angelegt als {article.article_number}  "
+              f"({geo}, Farbe: {article.color_desc}).")
+        print("[create] 1 Referenzfoto gespeichert – Artikel ist sofort erkennbar.")
+    finally:
+        pipe.close()
+
+
+def cmd_delete_article(args, cfg):
+    db = Database(cfg)
+    db.init_schema()  # fresh DB: clean "not found" instead of OperationalError
+    try:
+        removed = db.delete_article(args.article_number)
+    finally:
+        db.close()
+    if removed:
+        print(f"[delete] {args.article_number} gelöscht (inkl. Referenzen; "
+              "Fotos unter data/reference/ bleiben liegen).")
+    else:
+        sys.exit(f"[delete] Artikel '{args.article_number}' nicht gefunden.")
+
+
 def cmd_enroll(args, cfg):
     pipe = Pipeline(cfg)
     ref_dir = resolve(cfg["paths"]["reference_dir"]) / args.article_number
@@ -65,7 +126,7 @@ def cmd_enroll(args, cfg):
         if not paths:
             sys.exit(f"No images found in {args.images}")
         for p in paths:
-            feats = pipe.enroll(load_image(p), args.article_number, str(p))
+            feats, _ = pipe.enroll(load_image(p), args.article_number, str(p))
             print(f"  {p.name}: Ø {feats.circle_diameter_mm:.1f} mm (floor plane)")
         print(f"[enroll] {len(paths)} references stored for {args.article_number}")
         return
@@ -80,7 +141,7 @@ def cmd_enroll(args, cfg):
             img_path = ref_dir / f"{int(time.time() * 1000)}.jpg"
             import cv2
             cv2.imwrite(str(img_path), img)
-            feats = pipe.enroll(img, args.article_number, str(img_path))
+            feats, _ = pipe.enroll(img, args.article_number, str(img_path))
             print(f"    Ø {feats.circle_diameter_mm:.1f} mm, "
                   f"circularity {feats.circularity:.3f}")
     pipe.close()
@@ -154,6 +215,18 @@ def main(argv=None):
     p = sub.add_parser("calibrate")
     p.add_argument("--image", help="use an image file instead of the camera")
 
+    p = sub.add_parser("create-article", help="create a new article live from one shot")
+    p.add_argument("name", help="display name, e.g. \"Suppenloeffel\"")
+    p.add_argument("--article-number", default=None,
+                   help="explicit key (default: auto-derived from the name)")
+    p.add_argument("--height-mm", type=float, default=0.0,
+                   help="object height above the floor (0 = flat, e.g. a spoon)")
+    p.add_argument("--category", default=None, help="e.g. Loeffel / Teller / Tasse")
+    p.add_argument("--image", help="use an image file instead of the camera")
+
+    p = sub.add_parser("delete-article", help="remove an article incl. its references")
+    p.add_argument("article_number")
+
     p = sub.add_parser("enroll")
     p.add_argument("article_number")
     p.add_argument("--shots", type=int, default=8)
@@ -173,6 +246,8 @@ def main(argv=None):
         "import-articles": cmd_import_articles,
         "capture-background": cmd_capture_background,
         "calibrate": cmd_calibrate,
+        "create-article": cmd_create_article,
+        "delete-article": cmd_delete_article,
         "enroll": cmd_enroll,
         "identify": cmd_identify,
         "evaluate": cmd_evaluate,

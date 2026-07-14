@@ -7,3 +7,7 @@ data/captures/
 data/reference/
 *.sqlite3
 .DS_Store
+
+# KI-Segmentierung: Modell-Checkpoints und Download-Reste
+models/
+*.part

@@ -12,7 +12,13 @@ against an article database. Two stages:
 1. **Stage 1 (deterministic, always on):** background-subtraction
    segmentation → geometric measurement in mm (diameter, area, circularity,
    shape) + color histogram → hard geometry filter + weighted scoring
-   against the article DB.
+   against the article DB. The segmentation optionally refines its
+   silhouette with MobileSAM (`docodetect/neural_seg.py`,
+   `segmentation.neural.*` in config, `requirements-seg-neural.txt`):
+   prompts are derived automatically from the classical locator blob, and
+   any failure falls back to the classical refinement. IMPORTANT: neural
+   and classical silhouettes differ by ~2mm systematically – re-enroll
+   references after switching modes.
 2. **Stage 2 (optional, not yet wired into the pipeline):** DINOv2
    embeddings + FAISS nearest-neighbor for cases where stage 1 leaves
    ambiguous candidates. Lives entirely in `docodetect/embeddings.py`;

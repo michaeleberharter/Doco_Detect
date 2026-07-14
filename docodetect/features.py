@@ -67,6 +67,36 @@ def height_corrected_scale(measured_mm: float, object_height_mm: float,
     return measured_mm * (z - h) / z
 
 
+def min_area_rect_mm(contour: np.ndarray, cal: Calibration,
+                     object_height_mm: float = 0.0) -> tuple[float, float]:
+    """Long and short side of the minimum-area rectangle in mm, height-corrected.
+
+    Used when creating an elongated article (spoon, knife, oval platter): its
+    footprint is described by width/depth instead of a single diameter."""
+    (_, _), (rw, rh), _ = cv2.minAreaRect(contour)
+    z = cal.camera_height_mm
+    long_mm = height_corrected_scale(max(rw, rh) * cal.mm_per_px, object_height_mm, z)
+    short_mm = height_corrected_scale(min(rw, rh) * cal.mm_per_px, object_height_mm, z)
+    return round(long_mm, 2), round(short_mm, 2)
+
+
+def describe_color_hsv(mean_hsv: list) -> str:
+    """Rough German colour name from mean HSV (OpenCV ranges: H 0-180, S/V
+    0-255). Cosmetic only – fills the article's `color_desc` for the DB view;
+    the matcher compares colour via the enrolled histograms, not this string."""
+    if not mean_hsv or len(mean_hsv) < 3:
+        return ""
+    h, s, v = mean_hsv[0], mean_hsv[1], mean_hsv[2]
+    if s < 40:
+        return "schwarz" if v < 60 else "grau" if v < 170 else "weiß"
+    for bound, name in ((10, "rot"), (25, "orange"), (35, "gelb"), (85, "grün"),
+                        (100, "türkis"), (130, "blau"), (150, "violett"),
+                        (170, "pink")):
+        if h <= bound:
+            return name
+    return "rot"
+
+
 def extract(image: np.ndarray, seg: SegmentationResult, cal: Calibration) -> Features:
     c = seg.contour
     s = cal.mm_per_px

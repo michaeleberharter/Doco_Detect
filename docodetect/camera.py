@@ -5,9 +5,14 @@ Key points:
   back to low resolution.
 - Autofocus MUST be disabled and a fixed focus value set; otherwise the
   px->mm scale drifts between shots and geometry measurements are useless.
-- A few warmup frames are discarded so auto-exposure settles (exposure/WB
-  can stay automatic since the box lighting is constant; lock them too if
-  color features turn out noisy).
+- Exposure and white balance SHOULD be locked too (config: camera.lock_exposure
+  / lock_white_balance). Constant box lighting does NOT keep the camera response
+  constant: the sensor's auto-gain reacts to scene content, so an empty (dark)
+  box and a shiny object are captured at different brightness. Background
+  subtraction then measures the auto-gain reaction instead of the object. After
+  locking (or changing) exposure/WB the background reference MUST be recaptured.
+- Not every UVC camera honours these properties; open() reads the values back
+  and warns when a requested lock did not take effect.
 """
 
 from __future__ import annotations
@@ -55,6 +60,8 @@ class BoxCamera:
             cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
             cap.set(cv2.CAP_PROP_FOCUS, float(self.cfg.get("focus_value", 30)))
 
+        self._lock_exposure_wb(cap)
+
         actual_w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         actual_h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         if (actual_w, actual_h) != (self.cfg["width"], self.cfg["height"]):
@@ -64,6 +71,47 @@ class BoxCamera:
 
         self._cap = cap
         self._warmup()
+
+    def _lock_exposure_wb(self, cap: cv2.VideoCapture) -> None:
+        """Optionally pin auto-exposure/gain and auto-white-balance so the
+        empty-box background and the object frame share the same camera
+        response (required for valid background subtraction). No-op unless
+        camera.lock_exposure / lock_white_balance are true, so absent config
+        keys reproduce the previous focus-only behaviour."""
+        checks: list[tuple[str, int, float]] = []  # (label, prop, requested)
+
+        if self.cfg.get("lock_exposure", False):
+            # Order matters: switch to manual BEFORE writing the exposure value,
+            # otherwise many UVC drivers ignore it. 0.25 = manual, 0.75 = auto
+            # on most DSHOW/UVC cams (not 0/1) -> keep it configurable.
+            manual = float(self.cfg.get("auto_exposure_manual_value", 0.25))
+            cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, manual)
+            cap.read()  # throwaway grab so the mode switch takes effect
+            checks.append(("auto_exposure", cv2.CAP_PROP_AUTO_EXPOSURE, manual))
+            if "exposure" in self.cfg:
+                exp = float(self.cfg["exposure"])
+                cap.set(cv2.CAP_PROP_EXPOSURE, exp)
+                checks.append(("exposure", cv2.CAP_PROP_EXPOSURE, exp))
+            if "gain" in self.cfg:
+                gain = float(self.cfg["gain"])
+                cap.set(cv2.CAP_PROP_GAIN, gain)
+                checks.append(("gain", cv2.CAP_PROP_GAIN, gain))
+
+        if self.cfg.get("lock_white_balance", False):
+            cap.set(cv2.CAP_PROP_AUTO_WB, 0.0)
+            checks.append(("auto_wb", cv2.CAP_PROP_AUTO_WB, 0.0))
+            if "wb_temperature" in self.cfg:
+                wb = float(self.cfg["wb_temperature"])
+                cap.set(cv2.CAP_PROP_WB_TEMPERATURE, wb)
+                checks.append(("wb_temperature", cv2.CAP_PROP_WB_TEMPERATURE, wb))
+
+        for label, prop, requested in checks:
+            actual = cap.get(prop)
+            if abs(actual - requested) > max(1.0, abs(requested) * 0.1):
+                print(f"[camera] WARNING: {label} requested {requested}, camera "
+                      f"reports {actual}. This UVC camera may ignore the property; "
+                      "exposure/WB may still be automatic (recapture background "
+                      "after any change, or set it via the camera's own tool).")
 
     def _warmup(self) -> None:
         assert self._cap is not None

@@ -1,0 +1,9 @@
+# Optionale KI-Silhouette (MobileSAM, automatisch gepromptet) fuer die
+# Segmentierung von spiegelndem Besteck. CPU reicht (Windows-PyPI-Wheels von
+# torch sind ohnehin CPU-only). Der ~40-MB-Checkpoint wird beim ersten Lauf
+# automatisch nach models/mobile_sam.pt geladen (config: segmentation.neural).
+torch>=2.2
+torchvision>=0.17
+timm>=0.9
+segment-anything-hq>=0.3
+mobile-sam @ git+https://github.com/ChaoningZhang/MobileSAM.git

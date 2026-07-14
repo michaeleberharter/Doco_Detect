@@ -9,6 +9,16 @@ camera:
   autofocus: false        # MUSS false sein für reproduzierbare Messungen
   focus_value: 30         # fester Fokuswert (0-255, beim Kalibrieren ermitteln)
   warmup_frames: 10       # Frames verwerfen bis Belichtung stabil ist
+  # Belichtung/WB fixieren -> gleiche Kamera-Antwort für Hintergrund UND Objekt
+  # (nötig für gültige Hintergrund-Subtraktion). Nach Aktivieren/Ändern:
+  # HINTERGRUND NEU AUFNEHMEN. Nicht jede Kamera unterstützt die Props
+  # (camera.py liest die Ist-Werte zurück und warnt).
+  lock_exposure: false             # true = feste Belichtung/Gain
+  auto_exposure_manual_value: 0.25 # DSHOW/UVC: 0.25 = manuell, 0.75 = auto
+  exposure: -6                     # UVC-Belichtung (kameraspezifisch; per Sweep ermitteln)
+  gain: 0                          # optionaler fester Gain
+  lock_white_balance: false        # true = fester Weißabgleich
+  wb_temperature: 4600             # Kelvin, nur wirksam wenn AUTO_WB=0
 
 geometry:
   camera_height_mm: 300.0     # Kamera über Boxboden (Box 40x30x30)
@@ -27,6 +37,55 @@ segmentation:
   morph_kernel: 15            # Closing gegen Löcher (Reflexionen auf Porzellan)
   min_area_px: 20000          # kleinere Konturen = Rauschen, ignorieren
   border_margin_px: 5         # Kontur näher am Rand => "Objekt abgeschnitten"
+  # --- Recovery-Cues für spiegelnde/kontrastarme Objekte (z.B. Besteck auf ---
+  # --- dunklem Grund). Region-Differenz bleibt maßgeblich, wenn sie greift. ---
+  use_edge_cue: true          # Canny-Silhouette, findet Objekte ohne Helligkeitsdiff
+  canny_low: 40               # Canny untere Hysterese
+  canny_high: 90              # obere Hysterese; 90 statt 120, damit ein nur ~25
+                              # Graustufen hellerer Stiel noch einen Kanten-Seed bekommt
+  sat_min_value: 40           # Sättigungs-Diff nur werten, wo V >= Wert ist (HSV-S
+                              # ist bei fast-schwarzen Pixeln instabil -> Phantome)
+  edge_dilate_kernel: 5       # Kantenlücken schließen vor dem Füllen
+  recover_close_kernel: 25    # Silhouette schließen / Recovery-Blob verfestigen
+  use_texture_cue: true       # lokale Std (Glanzlichter/Reflexe vs. matter Grund)
+  texture_kernel: 15          # Fenster für lokale Mittelwert/Varianz
+  texture_threshold: 12.0     # Std-Schwelle, ab der ein Pixel als "texturiert" gilt
+  min_solidity: 0.30          # Nicht-Groß-Blobs darunter = unplausibel -> verwerfen
+  border_contact_max_frac: 0.35  # max. Rand-Anteil für einen Nicht-Groß-Blob
+  large_object_area_frac: 0.02   # Blob >= Anteil der Bildfläche -> nie als Rand-Rauschen verwerfen
+  border_penalty_weight: 0.5  # Score-Abschlag pro Rand-Anteil bei der Objektauswahl
+  carve_concavities: true     # offene, hintergrundfarbene Einbuchtungen (Gabelzacken-
+                              # Schlitze) wieder freischneiden, die das Closing überbrückt hat
+  carve_min_frac: 0.55        # Not-Sicherung: bliebe nach dem Freischneiden weniger übrig,
+                              # wird verworfen. Muss < 0.6 sein: offene Gabelschlitze sind
+                              # real 30-40% der Silhouette (Schutz leisten primär die
+                              # Schlitz-Kriterien schmal/tief/enge Mündung)
+  carve_max_width_px: 32      # nur SCHMALE Einbuchtungen bis zu dieser Breite freischneiden;
+                              # breitere hintergrundähnliche Flächen sind eher ein spiegelnder
+                              # Stiel als ein Zackenschlitz und bleiben erhalten
+  carve_min_depth_px: 15      # nur TIEFE Einbuchtungen freischneiden; flache Säume entlang
+                              # der Kontur (Blur-Übergang, schattierter Tellerrand) bleiben
+  carve_max_mouth_px: 48      # Schlitze öffnen sich durch eine SCHMALE Mündung nach außen;
+                              # öffnet sich eine Einbuchtung über eine breitere Front, ist es
+                              # die dunkle Schattenseite einer Laffe/Schüssel -> bleibt
+  refine_diff_threshold: 15   # Recovery-Silhouette auf Pixel-Evidenz zurückziehen: Diff ab
+                              # diesem (niedrigen) Wert zählt als Objekt -> Kontur liegt an
+  refine_min_frac: 0.5        # Sicherung: deckt die Evidenz weniger als diesen Anteil des
+                              # Blobs ab, bleibt die großzügige Recovery-Silhouette
+  # --- KI-Silhouette (MobileSAM, automatisch gepromptet - niemand markiert etwas) ---
+  # Die klassischen Cues FINDEN das Objekt; Box + Innen-Punkte werden daraus
+  # abgeleitet und MobileSAM liefert die pixelgenaue Silhouette. Fehlt das
+  # Paket/Modell oder ist die Ausgabe unplausibel, laeuft automatisch die
+  # klassische Verfeinerung. Installation: pip install -r requirements-seg-neural.txt
+  neural:
+    enabled: true
+    model: hq_tiny            # hq_tiny (Light HQ-SAM, feinere Kanten) | mobile_sam
+    auto_download: true       # ~40 MB beim ersten Lauf automatisch laden
+    device: cpu
+    points: 5                 # automatische Positiv-Punkte entlang des Objekts
+    roi_pad_px: 60            # Rand um die Objekt-Box fuer den SAM-Ausschnitt (kleiner =
+                              # mehr effektive Aufloesung fuer duenne Zackenschlitze)
+  illum_normalize: false      # Helligkeits-Offset (Randring) vor Diff ausgleichen (Fallback bei Auto-Belichtung)
 
 matching:
   # Stufe 1: geometrischer Filter
@@ -41,6 +100,15 @@ matching:
   auto_accept_score: 0.85     # >= : automatisch buchen
   auto_accept_margin: 0.15    # Mindestabstand zum zweitbesten Kandidaten
   top_k: 3                    # Vorschläge bei manueller Bestätigung
+
+create:
+  # Erstmaliges Anlegen neuer Artikel direkt per Kamera (ohne CSV).
+  # Rund (>= beide Schwellen) -> diameter_mm wird gesetzt; sonst laenglich
+  # -> width_mm/depth_mm (sonst wuerde der Flaechen-Check den Loeffel u.ae.
+  # bei der Wiedererkennung faelschlich verwerfen).
+  round_circularity_min: 0.80
+  round_aspect_min: 0.80
+  article_number_prefix: ""   # optionaler Praefix fuer auto-generierte Nummern
 
 stage2:
   enabled: false              # DINOv2 + FAISS erst aktivieren, wenn Stufe 1

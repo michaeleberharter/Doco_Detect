@@ -57,10 +57,19 @@ python -m docodetect.cli init-db
 python -m docodetect.cli import-articles data/articles_example.csv
 
 # 2. Kalibrieren (ArUco-Marker DICT_4X4_50, ID 0, 50 mm, flach auf Boxboden)
+#    Empfohlen VORHER: in config/config.yaml camera.lock_exposure/lock_white_balance
+#    = true setzen (feste Kamera-Antwort). Danach IMMER den Hintergrund neu aufnehmen.
 python -m docodetect.cli capture-background      # leere Box fotografieren
 python -m docodetect.cli calibrate               # Marker liegt in der Box
 
-# 3. Artikel einlernen (Referenzmerkmale, mehrere Rotationen)
+# 2b. Neuen Artikel direkt per Kamera anlegen (ohne CSV): Objekt in die Box
+#     legen, Namen angeben - Maße werden gemessen, das Foto wird sofort als
+#     erste Referenz gespeichert. --height-mm nur für erhöhte Teile (Tasse).
+python -m docodetect.cli create-article "Suppenloeffel"
+python -m docodetect.cli create-article "Kaffeetasse weiss" --height-mm 80
+python -m docodetect.cli delete-article SUPPENLOEFFEL   # falsch vermessen? Löschen + neu anlegen
+
+# 3. Artikel einlernen (weitere Referenzmerkmale, mehrere Rotationen)
 python -m docodetect.cli enroll TELLER-27-WEISS --shots 8
 
 # 4. Identifizieren
@@ -74,7 +83,7 @@ python -m docodetect.cli evaluate data/testset/
 ## Test-UI (Streamlit)
 
 Browser-Oberfläche für denselben Workflow (Hintergrund, Kalibrieren,
-Identifizieren, Einlernen) mit Live-Kamera-Vorschau – praktisch zum Testen,
+Identifizieren, Neuer Artikel, Einlernen) mit Live-Kamera-Vorschau – praktisch zum Testen,
 ohne jeden Schritt über die CLI einzutippen. Nutzt intern ausschließlich
 `docodetect/pipeline.py`, `calibration.py`, `camera.py` und `database.py`
 (kein Bild-Upload, keine synthetischen Testbilder – jede Aktion löst die
@@ -89,6 +98,56 @@ streamlit run app.py
 Live-Vorschau läuft oder eine Aufnahme passiert, und danach wieder
 freigegeben (Sidebar-Button "🔌 Kamera freigeben" schließt sie auch manuell) –
 so blockiert die UI das Kamera-Device nicht dauerhaft für die CLI.
+
+## Segmentierung spiegelnder Objekte (Besteck auf dunklem Grund)
+
+Spiegelnder Edelstahl reflektiert den dunklen Untergrund und hebt sich dann
+farblich/hell kaum ab – reine Hintergrund-Differenz übersieht ihn. Zwei Dinge
+adressieren das:
+
+1. **Belichtung/Weißabgleich fixieren** (`camera.lock_exposure` /
+   `lock_white_balance` in `config/config.yaml`). Ohne Lock regelt die
+   Kamera-Automatik bei leerer (dunkler) Box anders als mit glänzendem Objekt →
+   Hintergrund- und Objektbild unterscheiden sich global und die Differenz misst
+   die Kamera-Regelung statt des Objekts. **Nach dem Aktivieren/Ändern den
+   Hintergrund neu aufnehmen.** `exposure` ist kameraspezifisch (per Sweep im
+   Config-Tab ermitteln); manche UVC-Kameras ignorieren die Props – `camera.py`
+   liest die Ist-Werte zurück und warnt.
+
+2. **Recovery-Cues** in `segmentation.py`: zusätzlich zur Region-Differenz eine
+   **Kanten-** (`use_edge_cue`) und **Textur-**Erkennung (`use_texture_cue`,
+   lokale Varianz – Glanzlichter/Reflexe gegen den matten Grund). Für kontrast-
+   starke Teile (weißes Porzellan) bleibt die Region-Differenz maßgeblich, die
+   Maße ändern sich also nicht. Stellschrauben: `texture_threshold` (kleiner =
+   empfindlicher), `refine_diff_threshold`, `recover_close_kernel` – live im
+   Streamlit-Config-Tab. Zusätzlich verwirft die Objektauswahl randklebende
+   Rausch-Blobs (Score aus Fläche/Solidität/Zentrierung/Randkontakt).
+
+Billigster Zusatz-Hebel, falls möglich: ein **matt-mittelgrauer** Untergrund
+statt Schwarz verbessert den Kontrast zu dunklem Besteck deutlich (etwas
+schlechter für weißes Geschirr – der Algorithmus deckt beide Fälle ab).
+
+### KI-Silhouette (MobileSAM, automatisch – niemand markiert etwas)
+
+Für pixelgenaue Silhouetten auf spiegelndem Besteck gibt es eine optionale
+neuronale Stufe: Die klassischen Cues **finden** das Objekt wie bisher, daraus
+werden **automatisch** eine Bounding-Box und Innen-Punkte abgeleitet, und
+MobileSAM liefert die präzise Maske. Kein Klicken, kein Markieren. Fällt das
+Modell aus (nicht installiert, Checkpoint fehlt, Ausgabe unplausibel), läuft
+automatisch die klassische Verfeinerung.
+
+```bash
+pip install -r requirements-seg-neural.txt   # torch (CPU) + MobileSAM, einmalig
+# Checkpoint (~40 MB) lädt beim ersten Lauf automatisch nach models/
+```
+
+Ein-/ausschalten über `segmentation.neural.enabled` in config/config.yaml oder
+den Schalter im ⚙️-Tab der Test-UI. Der 🔬-Debug-Expander zeigt die KI-Maske
+als eigene Spalte.
+
+**Wichtig:** KI- und klassische Silhouette unterscheiden sich systematisch um
+~2 mm (die KI ist die genauere). Nach dem Umschalten des Modus daher Artikel
+**neu anlegen bzw. Referenzen neu einlernen**, sonst sinken die Match-Scores.
 
 ## Repo-Struktur
 
