@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./.venv/Scripts/python.exe:*)",
+      "Bash(python:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(streamlit run:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(tasklist:*)",
+      "PowerShell(Get-CimInstance:*)",
+      "Bash(rm -f doco_detect.sqlite3)",
+      "Bash(pkill -f \"streamlit run app.py\")"
+    ]
+  },
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "superpowers@superpowers-dev": true
+  }
+}

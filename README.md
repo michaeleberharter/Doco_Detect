@@ -71,6 +71,25 @@ python -m docodetect.cli identify --image foto.jpg
 python -m docodetect.cli evaluate data/testset/
 ```
 
+## Test-UI (Streamlit)
+
+Browser-Oberfläche für denselben Workflow (Hintergrund, Kalibrieren,
+Identifizieren, Einlernen) mit Live-Kamera-Vorschau – praktisch zum Testen,
+ohne jeden Schritt über die CLI einzutippen. Nutzt intern ausschließlich
+`docodetect/pipeline.py`, `calibration.py`, `camera.py` und `database.py`
+(kein Bild-Upload, keine synthetischen Testbilder – jede Aktion löst die
+echte `BoxCamera` aus).
+
+```bash
+pip install -r requirements-ui.txt   # einmalig: streamlit, pandas
+streamlit run app.py
+```
+
+Öffnet auf http://localhost:8501. Die Kamera wird nur geöffnet, während die
+Live-Vorschau läuft oder eine Aufnahme passiert, und danach wieder
+freigegeben (Sidebar-Button "🔌 Kamera freigeben" schließt sie auch manuell) –
+so blockiert die UI das Kamera-Device nicht dauerhaft für die CLI.
+
 ## Repo-Struktur
 
 ```
