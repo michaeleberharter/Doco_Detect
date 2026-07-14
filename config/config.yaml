@@ -87,6 +87,17 @@ segmentation:
                               # mehr effektive Aufloesung fuer duenne Zackenschlitze)
   illum_normalize: false      # Helligkeits-Offset (Randring) vor Diff ausgleichen (Fallback bei Auto-Belichtung)
 
+features:
+  # Ring-Zonen über die Distanztransformation der Objektmaske:
+  # r = 1 - dist/dist_max, r=0 innerstes Pixel, r=1 Kontur.
+  # Zentrum r < center_max, Rand/Fahne r > rim_min; die Übergangszone
+  # dazwischen wird bewusst ignoriert (Dekorkante liegt nie exakt).
+  ring_zones:
+    center_max: 0.60
+    rim_min: 0.75
+  # H-S-Histogramm pro Zone: [Hue-Bins, Sättigungs-Bins] (OpenCV H 0-180, S 0-256)
+  hs_hist_bins: [16, 8]
+
 matching:
   # Stufe 1: geometrischer Filter
   diameter_tolerance_mm: 6.0  # Kandidat bleibt, wenn |gemessen - DB| <= Toleranz
