@@ -160,3 +160,72 @@ def shape_distance(a: Features, b: Features) -> float:
     hu_d = float(np.abs(ha - hb).mean()) / 5.0  # empirical scale
     circ_d = abs(a.circularity - b.circularity)
     return float(np.clip(0.7 * hu_d + 0.3 * circ_d, 0.0, 1.0))
+
+
+# ---------- enrollment statistics (basis for the statistical matcher) ----------
+
+SCALAR_FEATURES = ("diameter_mm", "circularity", "solidity")
+PROTO_FEATURES = ("delta_e_center", "delta_e_rim", "hist_center", "hist_rim", "hu_log")
+ALL_FEATURES = SCALAR_FEATURES + PROTO_FEATURES
+
+
+def scalar_value(feats: Features, name: str) -> float | None:
+    """Scalar feature accessor. None = not present (old reference JSONs
+    predate solidity; 0 is the dataclass default and physically impossible)."""
+    if name == "diameter_mm":
+        return float(feats.circle_diameter_mm)
+    if name == "circularity":
+        return float(feats.circularity)
+    if name == "solidity":
+        s = float(getattr(feats, "solidity", 0.0))
+        return s if s > 0.0 else None
+    raise KeyError(name)
+
+
+def hu_log_distance(a: list, b: list) -> float:
+    return float(np.abs(np.asarray(a, dtype=np.float64)
+                        - np.asarray(b, dtype=np.float64)).mean())
+
+
+@dataclass
+class EnrollmentStats:
+    """Per-article statistics over all enrolled shots. Scalars get mean+std;
+    vector features get a prototype (mean vector) + the RMS of the per-shot
+    distances to that prototype as spread. Keys absent = feature not
+    available for this article (e.g. references enrolled before ring zones
+    existed)."""
+    n_shots: int
+    scalar_mean: dict = field(default_factory=dict)
+    scalar_std: dict = field(default_factory=dict)
+    proto: dict = field(default_factory=dict)
+    proto_std: dict = field(default_factory=dict)
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @staticmethod
+    def from_json(s: str) -> "EnrollmentStats":
+        return EnrollmentStats(**json.loads(s))
+
+
+def _proto_stats(vectors: list, dist_fn) -> tuple[list, float]:
+    arr = np.asarray(vectors, dtype=np.float64)
+    proto = arr.mean(axis=0)
+    if len(vectors) < 2:
+        return proto.tolist(), 0.0
+    d = [dist_fn(v, proto.tolist()) for v in vectors]
+    return proto.tolist(), float(np.sqrt(np.mean(np.square(d))))
+
+
+def compute_enrollment_stats(feats_list: list[Features]) -> EnrollmentStats:
+    st = EnrollmentStats(n_shots=len(feats_list))
+    for name in SCALAR_FEATURES:
+        vals = [v for f in feats_list if (v := scalar_value(f, name)) is not None]
+        if not vals:
+            continue
+        st.scalar_mean[name] = float(np.mean(vals))
+        st.scalar_std[name] = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+    hu = [f.hu_moments for f in feats_list if f.hu_moments]
+    if hu:
+        st.proto["hu_log"], st.proto_std["hu_log"] = _proto_stats(hu, hu_log_distance)
+    return st

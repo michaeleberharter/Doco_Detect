@@ -91,6 +91,17 @@ matching:
   # Stufe 1: geometrischer Filter
   diameter_tolerance_mm: 6.0  # Kandidat bleibt, wenn |gemessen - DB| <= Toleranz
   area_tolerance_pct: 12.0    # zusätzlicher Flächenfilter in Prozent
+  # Mess-Rauschboden pro Merkmal: sigma_eff = sqrt(sigma_enroll^2 + sigma_floor^2).
+  # Startwerte geschätzt - aus echten Messreihen justieren: denselben Artikel
+  # 15-20x neu auflegen, die Standardabweichung je Merkmal ist der Floor
+  # (siehe README, Abschnitt "Scoring").
+  sigma_floors:
+    diameter_mm: 1.5          # mm
+    circularity: 0.02
+    solidity: 0.015
+    delta_e: 3.0              # Delta-E CIE76, gilt für Zentrum- UND Rand-Zone
+    hist_bhattacharyya: 0.05  # gilt für beide Zonen-Histogramme
+    hu_log: 0.15              # mittlere |Differenz| der log-Hu-Momente
   # Scoring-Gewichte (Summe beliebig, wird normiert)
   weights:
     geometry: 0.5

@@ -129,6 +129,7 @@ def cmd_enroll(args, cfg):
             feats, _ = pipe.enroll(load_image(p), args.article_number, str(p))
             print(f"  {p.name}: Ø {feats.circle_diameter_mm:.1f} mm (floor plane)")
         print(f"[enroll] {len(paths)} references stored for {args.article_number}")
+        _print_enroll_stats(pipe, args.article_number)
         return
 
     print(f"[enroll] {args.shots} shots for {args.article_number}. "
@@ -144,7 +145,18 @@ def cmd_enroll(args, cfg):
             feats, _ = pipe.enroll(img, args.article_number, str(img_path))
             print(f"    Ø {feats.circle_diameter_mm:.1f} mm, "
                   f"circularity {feats.circularity:.3f}")
+    _print_enroll_stats(pipe, args.article_number)
     pipe.close()
+
+
+def _print_enroll_stats(pipe, article_number):
+    """Nach dem Einlernen die aggregierte Statistik zeigen – die Streuung
+    hier ist die Basis für sigma_eff im Matcher."""
+    st = pipe.db.stats_for(article_number)
+    if st and "diameter_mm" in st.scalar_mean:
+        print(f"[enroll] Statistik ({st.n_shots} Shots): "
+              f"Ø {st.scalar_mean['diameter_mm']:.1f} ± {st.scalar_std['diameter_mm']:.2f} mm, "
+              f"Rundheit {st.scalar_mean['circularity']:.3f} ± {st.scalar_std['circularity']:.4f}")
 
 
 def _print_result(outcome):
