@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from collections import Counter, defaultdict
 from pathlib import Path
 
 from .calibration import run_calibration, save_background
@@ -183,35 +182,23 @@ def cmd_identify(args, cfg):
 
 
 def cmd_evaluate(args, cfg):
+    """Gelabelten Testordner durch identify() jagen und aggregieren – die
+    Report-JSONs landen dabei in data/captures/ (Futter für den Batch-Tab
+    der Scoring-Analyse, gleiche Aggregationslogik: reporting.py)."""
+    from .reporting import format_summary, predicted_article, summarize
     pipe = Pipeline(cfg)
-    testset = Path(args.testset)
-    per_class = defaultdict(Counter)
-    confusions = Counter()
-    total = correct = 0
-
-    for class_dir in sorted(p for p in testset.iterdir() if p.is_dir()):
+    reports = []
+    for class_dir in sorted(p for p in Path(args.testset).iterdir() if p.is_dir()):
         truth = class_dir.name
         for img_path in sorted(class_dir.glob("*.[jp][pn]g")):
             outcome = pipe.identify(load_image(img_path),
                                     source_path=str(img_path), label=truth)
-            pred = (outcome.report.candidates[0].article_number
-                    if outcome.report.candidates else "NO_MATCH")
-            total += 1
-            per_class[truth][pred] += 1
-            if pred == truth:
-                correct += 1
-            else:
-                confusions[(truth, pred)] += 1
-                print(f"  MISS {img_path.name}: {truth} -> {pred}")
-
-    print(f"\n=== top-1 accuracy: {correct}/{total} "
-          f"({100.0 * correct / max(total, 1):.1f} %) ===")
-    if confusions:
-        print("confusion pairs (truth -> predicted):")
-        for (t, p), n in confusions.most_common():
-            print(f"  {t} -> {p}: {n}x")
-        print("\nThese pairs are the shortlist for stage 2 (embeddings) "
-              "or for tightening tolerances/features.")
+            reports.append(outcome.report)
+            pred = predicted_article(outcome.report)
+            if pred != truth:
+                print(f"  MISS {img_path.name}: {truth} -> {pred} "
+                      f"[{outcome.report.decision}]")
+    print(format_summary(summarize(reports)))
     pipe.close()
 
 

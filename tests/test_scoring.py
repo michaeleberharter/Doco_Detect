@@ -511,3 +511,41 @@ def test_unknown_object_rejected(tmp_path):
         assert out.report.decision == "reject"
     finally:
         pipe.db.close()
+
+
+# ---------- Teil 4: Batch-Aggregation (reporting.py) ----------
+
+from docodetect.matcher import CandidateReport  # noqa: E402
+from docodetect.reporting import load_reports, summarize  # noqa: E402
+
+
+def _mini_report(decision, label, winner, posterior) -> MatchReport:
+    cand = [CandidateReport(article_number=winner, name=winner, nominal_size_mm=200.0,
+                            height_mm=0.0, corrected_diameter_mm=200.0,
+                            geometry_error_mm=0.0, has_references=True, n_shots=2,
+                            features=[], log_score=-0.1, posterior=posterior,
+                            max_abs_z=0.5)] if winner != "NO_MATCH" else []
+    return MatchReport(decision=decision, message="", candidates=cand,
+                       gate_passed=decision != "reject",
+                       timestamp="2026-07-15T12:00:00", label=label)
+
+
+def test_summarize_accuracy_confusion_and_posteriors():
+    reps = [_mini_report("accept", "A", "A", 0.9),
+            _mini_report("ambiguous", "A", "B", 0.6),
+            _mini_report("reject", "C", "NO_MATCH", 0.0),
+            _mini_report("accept", None, "A", 0.8)]      # ungelabelt zählt nicht in accuracy
+    s = summarize(reps)
+    assert s.total == 4 and s.labeled == 3 and s.correct == 1
+    assert s.accuracy == pytest.approx(1 / 3)
+    assert s.decision_counts == {"accept": 2, "ambiguous": 1, "reject": 1}
+    assert ("A", "B", 1) in s.confusion and ("C", "NO_MATCH", 1) in s.confusion
+    assert s.posteriors_correct == [0.9] and 0.6 in s.posteriors_wrong
+
+
+def test_load_reports_skips_broken_json(tmp_path):
+    (tmp_path / "a.json").write_text(_mini_report("accept", "A", "A", 0.9).to_json(),
+                                     encoding="utf-8")
+    (tmp_path / "broken.json").write_text("{not json", encoding="utf-8")
+    loaded = load_reports(tmp_path)
+    assert len(loaded) == 1 and loaded[0][1].decision == "accept"

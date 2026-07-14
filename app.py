@@ -12,76 +12,21 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-import cv2
-import numpy as np
 import pandas as pd
 import streamlit as st
 import yaml
 
 from docodetect import config as cfg_module
 from docodetect.calibration import run_calibration, save_background
-from docodetect.camera import BoxCamera, CameraError
+from docodetect.camera import CameraError
 from docodetect.config import load_config, resolve
 from docodetect.database import Database
 from docodetect.pipeline import Pipeline
 from docodetect.segmentation import SegmentationError
+from ui_common import (CAMERA_HINT, capture_frame, get_camera, make_overlay,
+                       release_camera, resize_width)
 
 st.set_page_config(page_title="Doco_Detect – Live-Test-UI", layout="wide")
-
-CAMERA_HINT = "Prüfe `camera.index` (und USB-Verbindung) in config/config.yaml."
-
-
-# ---------- Kamera: ein gemeinsames, sauber verwaltetes BoxCamera-Objekt ----------
-#
-# Es existiert höchstens EIN offenes BoxCamera-Objekt pro Session
-# (st.session_state.cam). Es wird nur geöffnet, wenn die Live-Vorschau läuft
-# oder gerade eine Aufnahme passiert, und danach wieder freigegeben, damit
-# das USB-Gerät nicht dauerhaft blockiert wird (z.B. für die CLI parallel).
-
-def get_camera(cfg: dict) -> BoxCamera:
-    cam = st.session_state.get("cam")
-    if cam is None:
-        cam = BoxCamera(cfg)
-        cam.open()
-        st.session_state.cam = cam
-    return cam
-
-
-def release_camera() -> None:
-    cam = st.session_state.get("cam")
-    if cam is not None:
-        cam.close()
-    st.session_state.cam = None
-
-
-def capture_frame(cfg: dict) -> np.ndarray:
-    """One fresh 4K frame via the shared BoxCamera. Opens the camera on
-    demand (full warm-up) and closes it again unless the live preview is
-    active, so a single action never leaves the device locked open."""
-    st.session_state.capturing = True
-    try:
-        cam = get_camera(cfg)
-        return cam.capture()
-    finally:
-        st.session_state.capturing = False
-        if not st.session_state.get("preview_on"):
-            release_camera()
-
-
-def resize_width(image: np.ndarray, width: int) -> np.ndarray:
-    h, w = image.shape[:2]
-    if w <= width:
-        return image
-    scale = width / w
-    return cv2.resize(image, (width, int(round(h * scale))))
-
-
-def make_overlay(image: np.ndarray, seg) -> np.ndarray:
-    color_mask = np.zeros_like(image)
-    color_mask[seg.mask > 0] = (0, 255, 0)
-    blended = cv2.addWeighted(image, 0.8, color_mask, 0.2, 0)
-    cv2.drawContours(blended, [seg.contour], -1, (0, 0, 255), 3)
-    return blended
 
 
 def render_features(feats) -> None:
