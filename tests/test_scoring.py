@@ -433,3 +433,81 @@ def test_identify_border_touch_becomes_reject_report(tmp_path):
         assert out.report.candidates == []
     finally:
         pipe.db.close()
+
+
+# ---------- Teil 5: synthetisches Testkit end-to-end ----------
+
+# Weitwinkligere Test-Kalibrierung: bei 0.2 mm/px passt ein 270er-Teller nicht
+# in 1920x1080 (die reale FOV-Limitierung!); mit 0.3 mm/px passen 250 UND 270.
+CAL_WIDE = Calibration(mm_per_px=0.3, camera_height_mm=300.0, image_width=1920,
+                       image_height=1080, marker_size_mm=50.0, created_unix=0.0)
+
+
+def _synth_pipeline(tmp_path, bg, matching_overrides=None, cal=CAL):
+    cfg = {"segmentation": SEG_CFG["segmentation"], "features": {},
+           "matching": {**MATCH_CFG["matching"], **(matching_overrides or {})},
+           "create": {"round_circularity_min": 0.80, "round_aspect_min": 0.80,
+                      "article_number_prefix": ""},
+           "paths": {"db_file": str(tmp_path / "t.sqlite3")}}
+    pipe = Pipeline.__new__(Pipeline)
+    pipe.cfg, pipe.cal, pipe.background = cfg, cal, bg
+    pipe.db = Database(cfg)
+    pipe.db.init_schema()
+    return pipe
+
+
+def _plate(bg, d_mm, jitter=0, mm_per_px=MM_PER_PX):
+    img = bg.copy()
+    r = int(round(d_mm / mm_per_px / 2)) + jitter
+    cv2.circle(img, (960, 540), r, (250, 250, 250), -1)
+    cv2.circle(img, (960, 540), r, (150, 150, 150), 3)
+    return img
+
+
+def test_plates_250_vs_270_cleanly_separated(tmp_path):
+    """Regime 'ähnliche Größe': Toleranz so weit, dass BEIDE Teller den
+    Vorfilter überleben - das Scoring (Fisher boostet den Ø) muss trennen."""
+    bg = _bg()
+    pipe = _synth_pipeline(tmp_path, bg, {"diameter_tolerance_mm": 25.0},
+                           cal=CAL_WIDE)
+    try:
+        for nr, d in (("TELLER-250", 250.0), ("TELLER-270", 270.0)):
+            _add_article(pipe.db, nr, d)
+            for j in (-1, 0, 1):                      # 3 Shots mit Pixel-Jitter
+                seg, feats = pipe.analyze(_plate(bg, d, j, mm_per_px=0.3))
+                pipe.db.add_reference(nr, feats)
+        for truth, d in (("TELLER-250", 250.0), ("TELLER-270", 270.0)):
+            out = pipe.identify(_plate(bg, d, mm_per_px=0.3))
+            rep = out.report
+            assert len(rep.candidates) == 2           # beide im Kandidatenset
+            assert rep.candidates[0].article_number == truth
+            assert rep.decision == "accept", rep.message
+            assert rep.w_eff["diameter_mm"] > rep.w_global["diameter_mm"]  # Fisher greift
+    finally:
+        pipe.db.close()
+
+
+def test_border_clipped_plate_is_segmentation_reject_not_scored(tmp_path):
+    bg = _bg()
+    pipe = _synth_pipeline(tmp_path, bg)
+    try:
+        _add_article(pipe.db, "TELLER-210", 210.0)
+        img = bg.copy()
+        cv2.circle(img, (30, 540), int(210.0 / MM_PER_PX / 2), (250, 250, 250), -1)
+        out = pipe.identify(img)
+        assert out.report.decision == "reject"
+        assert "Segment" in out.report.message and out.report.candidates == []
+    finally:
+        pipe.db.close()
+
+
+def test_unknown_object_rejected(tmp_path):
+    """Testkit-Bild 5: Objekt, das keiner Artikelgeometrie entspricht."""
+    bg = _bg()
+    pipe = _synth_pipeline(tmp_path, bg)
+    try:
+        _add_article(pipe.db, "TELLER-270", 270.0)
+        out = pipe.identify(_plate(bg, 120.0))        # viel zu klein
+        assert out.report.decision == "reject"
+    finally:
+        pipe.db.close()
