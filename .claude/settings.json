@@ -13,7 +13,11 @@
       "Bash(tasklist:*)",
       "PowerShell(Get-CimInstance:*)",
       "Bash(rm -f doco_detect.sqlite3)",
-      "Bash(pkill -f \"streamlit run app.py\")"
+      "Bash(pkill -f \"streamlit run app.py\")",
+      "Bash(git add *)",
+      "Bash(git check-ignore *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   },
   "enabledPlugins": {
