@@ -160,21 +160,24 @@ def _print_enroll_stats(pipe, article_number):
 
 
 def _print_result(outcome):
-    r = outcome.result
+    r = outcome.report
     print(f"\n[{r.decision.upper()}] {r.message}")
     if outcome.features:
         f = outcome.features
         print(f"  measured (floor plane): Ø {f.circle_diameter_mm:.1f} mm, "
               f"area {f.area_mm2 / 100:.1f} cm², circularity {f.circularity:.3f}")
-    for i, c in enumerate(r.candidates, 1):
-        ref = "" if c.has_references else "  [no references – geometry only]"
-        print(f"  {i}. {c.article.article_number}  {c.article.name}  "
-              f"score {c.score:.2f}  Δgeo {c.geometry_error_mm:.1f} mm{ref}")
+    top_k = int(r.thresholds.get("top_k", 3))
+    for i, c in enumerate(r.candidates[:top_k], 1):
+        ref = "" if c.has_references else "  [keine Referenzen – nur Geometrie]"
+        print(f"  {i}. {c.article_number}  {c.name}  "
+              f"Posterior {c.posterior:.0%}  log-Score {c.log_score:.2f}  "
+              f"max|z| {c.max_abs_z:.1f}  Δgeo {c.geometry_error_mm:.1f} mm{ref}")
 
 
 def cmd_identify(args, cfg):
     pipe = Pipeline(cfg)
-    outcome = pipe.identify(_get_image(args, cfg))
+    outcome = pipe.identify(_get_image(args, cfg),
+                            source_path=getattr(args, "image", None))
     _print_result(outcome)
     pipe.close()
 
@@ -189,9 +192,10 @@ def cmd_evaluate(args, cfg):
     for class_dir in sorted(p for p in testset.iterdir() if p.is_dir()):
         truth = class_dir.name
         for img_path in sorted(class_dir.glob("*.[jp][pn]g")):
-            outcome = pipe.identify(load_image(img_path))
-            pred = (outcome.result.candidates[0].article.article_number
-                    if outcome.result.candidates else "NO_MATCH")
+            outcome = pipe.identify(load_image(img_path),
+                                    source_path=str(img_path), label=truth)
+            pred = (outcome.report.candidates[0].article_number
+                    if outcome.report.candidates else "NO_MATCH")
             total += 1
             per_class[truth][pred] += 1
             if pred == truth:

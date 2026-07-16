@@ -47,9 +47,11 @@ features:
   hs_hist_bins: [16, 8]
 
 matching:
-  # Stufe 1: geometrischer Filter
+  # --- Stufe 1a: harter geometrischer Vorfilter (höhenkompensiert pro Artikel) ---
   diameter_tolerance_mm: 6.0  # Kandidat bleibt, wenn |gemessen - DB| <= Toleranz
-  area_tolerance_pct: 12.0    # zusätzlicher Flächenfilter in Prozent
+  area_tolerance_pct: 12.0    # zusätzlicher Flächenfilter in Prozent (nur Vorfilter,
+                              # Fläche geht NICHT ins Scoring - korreliert voll mit Ø)
+  # --- Stufe 1b: statistisches Scoring (Formeln: siehe README "Scoring") ---
   # Mess-Rauschboden pro Merkmal: sigma_eff = sqrt(sigma_enroll^2 + sigma_floor^2).
   # Startwerte geschätzt - aus echten Messreihen justieren: denselben Artikel
   # 15-20x neu auflegen, die Standardabweichung je Merkmal ist der Floor
@@ -61,15 +63,25 @@ matching:
     delta_e: 3.0              # Delta-E CIE76, gilt für Zentrum- UND Rand-Zone
     hist_bhattacharyya: 0.05  # gilt für beide Zonen-Histogramme
     hu_log: 0.15              # mittlere |Differenz| der log-Hu-Momente
-  # Scoring-Gewichte (Summe beliebig, wird normiert)
-  weights:
-    geometry: 0.5
-    color: 0.3
-    shape: 0.2
-  # Entscheidungsschwellen
-  auto_accept_score: 0.85     # >= : automatisch buchen
-  auto_accept_margin: 0.15    # Mindestabstand zum zweitbesten Kandidaten
-  top_k: 3                    # Vorschläge bei manueller Bestätigung
+  # Globale Merkmalsgewichte (werden normiert; nur das Verhältnis zählt).
+  # Ø ist bewusst schwer - er ist das verlässlichste Merkmal in der Box.
+  feature_weights:
+    diameter_mm: 0.50
+    circularity: 0.07
+    solidity: 0.06
+    delta_e_center: 0.08
+    delta_e_rim: 0.08
+    hist_center: 0.07
+    hist_rim: 0.07
+    hu_log: 0.07
+  # Fisher-adaptive Gewichtung über das Kandidatenset:
+  # w_eff = w_global * (1 + alpha * D_norm). alpha=0 = reine Globalgewichte.
+  adaptive_weight_alpha: 2.0
+  softmax_temperature: 1.0    # Posterior = softmax(log_score / T); T>1 = weicher
+  # Entscheidungsschwellen (ersetzen die alten auto_accept_score/auto_accept_margin):
+  max_z_accept: 3.5           # absolutes Gate: max |z| des Siegers über alle Merkmale
+  min_llr_margin: 2.0         # Log-Likelihood-Vorsprung Platz 1 vs. 2 (2.0 ≈ e² ≈ 7.4x)
+  top_k: 3                    # Vorschläge bei AMBIGUOUS
 
 create:
   # Erstmaliges Anlegen neuer Artikel direkt per Kamera (ohne CSV).

@@ -7,14 +7,17 @@ process stays identical everywhere.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
+import cv2
 import numpy as np
 
 from .calibration import Calibration, load_background, load_calibration
+from .config import resolve
 from .database import Article, Database
 from .features import (Features, describe_color_hsv, extract,
                        height_corrected_scale, min_area_rect_mm)
-from .matcher import MatchResult, match
+from .matcher import DECISION_REJECT, MatchReport, match
 from .segmentation import SegmentationError, SegmentationResult, segment
 
 
@@ -22,7 +25,17 @@ from .segmentation import SegmentationError, SegmentationResult, segment
 class IdentifyOutcome:
     features: Features | None
     segmentation: SegmentationResult | None
-    result: MatchResult
+    report: MatchReport
+
+
+def _thin_contour(seg: SegmentationResult | None) -> list | None:
+    """Konturpolygon fürs Report-Overlay – ausgedünnt, ein 4K-Teller braucht
+    keine 10k Punkte im JSON."""
+    if seg is None or seg.contour is None:
+        return None
+    pts = seg.contour.reshape(-1, 2)
+    step = max(1, len(pts) // 400)
+    return pts[::step].astype(int).tolist()
 
 
 class Pipeline:
@@ -44,16 +57,45 @@ class Pipeline:
         feats = extract(image, seg, self.cal, self.cfg)
         return seg, feats
 
-    def identify(self, image: np.ndarray) -> IdentifyOutcome:
+    def identify(self, image: np.ndarray, *, source_path: str | None = None,
+                 label: str | None = None) -> IdentifyOutcome:
         try:
             seg, feats = self.analyze(image)
         except SegmentationError as e:
             # Keep the (border-touching) segmentation, if any, so the UI can
             # still show the contour that caused the rejection.
-            return IdentifyOutcome(None, e.segmentation,
-                                   MatchResult("no_match", [], f"Segmentation: {e}"))
-        result = match(feats, self.db, self.cal, self.cfg)
-        return IdentifyOutcome(feats, seg, result)
+            seg_err = e.segmentation
+            report = MatchReport(
+                decision=DECISION_REJECT, message=f"Segmentierung: {e}",
+                contour=_thin_contour(seg_err),
+                touches_border=getattr(seg_err, "touches_border", None),
+                timestamp=datetime.now().isoformat(timespec="seconds"),
+                image_path=source_path, label=label)
+            self._save_capture_and_report(report, image)
+            return IdentifyOutcome(None, seg_err, report)
+        report = match(feats, self.db, self.cal, self.cfg,
+                       image_path=source_path, label=label,
+                       contour=_thin_contour(seg), touches_border=seg.touches_border)
+        self._save_capture_and_report(report, image)
+        return IdentifyOutcome(feats, seg, report)
+
+    def _save_capture_and_report(self, report: MatchReport,
+                                 image: np.ndarray | None) -> None:
+        """Jede Identifikation hinterlässt Capture + Report-JSON in
+        data/captures/ – Futter für das Scoring-Dashboard (Batch-Analyse).
+        Ohne paths.captures_dir (z.B. synthetische Tests) wird nichts
+        geschrieben; bei identify --image bleibt image_path das Original."""
+        cap = self.cfg.get("paths", {}).get("captures_dir")
+        if not cap:
+            return
+        d = resolve(cap)
+        d.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+        if report.image_path is None and image is not None:
+            p = d / f"{ts}.jpg"
+            cv2.imwrite(str(p), image)
+            report.image_path = str(p)
+        (d / f"{ts}.json").write_text(report.to_json(), encoding="utf-8")
 
     def enroll(self, image: np.ndarray, article_number: str,
                image_path: str | None = None) -> tuple[Features, SegmentationResult]:

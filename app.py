@@ -358,13 +358,13 @@ with tab_identify:
             except Exception as e:
                 st.error(f"Fehler: {e}")
             else:
-                r = outcome.result
-                if r.decision == "auto":
-                    st.success(f"AUTO — {r.message}")
-                elif r.decision == "confirm":
-                    st.warning(f"CONFIRM — {r.message}")
+                r = outcome.report
+                if r.decision == "accept":
+                    st.success(f"🟢 ACCEPT — {r.message}")
+                elif r.decision == "ambiguous":
+                    st.warning(f"🟡 AMBIGUOUS — {r.message}")
                 else:
-                    st.error(f"NO MATCH — {r.message}")
+                    st.error(f"🔴 REJECT — {r.message}")
 
                 col1, col2 = st.columns(2)
                 col1.image(resize_width(frame, 960), channels="BGR", caption="Original")
@@ -379,19 +379,21 @@ with tab_identify:
                     render_features(outcome.features)
 
                 if r.candidates:
-                    st.subheader("Top-3-Kandidaten")
+                    st.subheader("Top-Kandidaten")
                     rows = [{
                         "Rang": i + 1,
-                        "Artikel": c.article.article_number,
-                        "Name": c.article.name,
-                        "Score": c.score,
+                        "Artikel": c.article_number,
+                        "Name": c.name,
+                        "Posterior": f"{c.posterior:.0%}",
+                        "log-Score": round(c.log_score, 2),
+                        "max |z|": round(c.max_abs_z, 2),
                         "Δ Geometrie (mm)": c.geometry_error_mm,
                         "Ø korrigiert (mm)": c.corrected_diameter_mm,
-                        "Farbdistanz": c.color_dist,
-                        "Formdistanz": c.shape_dist,
                         "Referenzen?": c.has_references,
                     } for i, c in enumerate(r.candidates[:3])]
                     st.dataframe(pd.DataFrame(rows), width="stretch")
+                    st.caption("Volle Aufschlüsselung (z-Werte, Gewichte, "
+                               "Top-1-vs-Top-2): Seite **📊 Scoring-Analyse** in der Sidebar.")
 
 
 # ---------- Tab: Neuer Artikel ----------
@@ -660,8 +662,12 @@ with tab_config:
     m = cfg["matching"]
     m["diameter_tolerance_mm"] = st.slider("diameter_tolerance_mm", 0.0, 30.0, float(m["diameter_tolerance_mm"]))
     m["area_tolerance_pct"] = st.slider("area_tolerance_pct", 0.0, 50.0, float(m["area_tolerance_pct"]))
-    m["auto_accept_score"] = st.slider("auto_accept_score", 0.0, 1.0, float(m["auto_accept_score"]))
-    m["auto_accept_margin"] = st.slider("auto_accept_margin", 0.0, 1.0, float(m["auto_accept_margin"]))
+    m["max_z_accept"] = st.slider("max_z_accept (absolutes Gate: max |z| des Siegers)",
+                                  1.0, 6.0, float(m.get("max_z_accept", 3.5)))
+    m["min_llr_margin"] = st.slider("min_llr_margin (Log-Likelihood-Vorsprung 1. vs 2.)",
+                                    0.0, 10.0, float(m.get("min_llr_margin", 2.0)))
+    m["adaptive_weight_alpha"] = st.slider("adaptive_weight_alpha (0 = keine Fisher-Adaption)",
+                                           0.0, 5.0, float(m.get("adaptive_weight_alpha", 2.0)))
 
     st.caption("Änderungen wirken sofort auf Identify/Enroll in dieser Session.")
     if st.button("💾 Dauerhaft in config.yaml speichern"):
