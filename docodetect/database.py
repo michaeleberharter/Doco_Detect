@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import resolve
-from .features import Features
+from .features import EnrollmentStats, Features, compute_enrollment_stats
 
 # German umlauts -> ASCII, so auto-generated article numbers stay clean keys.
 _UMLAUT_MAP = str.maketrans({
@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS reference_features (
     created_unix REAL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS idx_ref_article ON reference_features(article_number);
+
+CREATE TABLE IF NOT EXISTS reference_stats (
+    article_number TEXT PRIMARY KEY REFERENCES articles(article_number),
+    stats_json TEXT NOT NULL,
+    updated_unix REAL DEFAULT (unixepoch())
+);
 """
 
 CSV_COLUMNS = ["article_number", "name", "category", "diameter_mm", "width_mm",
@@ -84,7 +90,11 @@ class Database:
     def init_schema(self) -> None:
         self.conn.executescript(SCHEMA)
         self.conn.commit()
-        print(f"[db] schema ready at {self.path}")
+        # Migration for pre-stats databases: reference_stats is a pure cache
+        # over reference_features, so a full rebuild is always safe.
+        n = self.recompute_all_stats()
+        print(f"[db] schema ready at {self.path}"
+              + (f" ({n} Artikel-Statistiken aktualisiert)" if n else ""))
 
     # ---------- articles ----------
 
@@ -135,6 +145,9 @@ class Database:
         self.conn.execute(
             "DELETE FROM reference_features WHERE article_number = ?", (article_number,)
         )
+        self.conn.execute(
+            "DELETE FROM reference_stats WHERE article_number = ?", (article_number,)
+        )
         cur = self.conn.execute(
             "DELETE FROM articles WHERE article_number = ?", (article_number,)
         )
@@ -182,6 +195,7 @@ class Database:
             "VALUES (?, ?, ?)",
             (article_number, image_path, features.to_json()),
         )
+        self._recompute_stats(article_number)
         self.conn.commit()
 
     def references_for(self, article_number: str) -> list[Features]:
@@ -196,6 +210,36 @@ class Database:
             "SELECT DISTINCT article_number FROM reference_features"
         ).fetchall()
         return [r["article_number"] for r in rows]
+
+    # ---------- enrollment statistics (cache over reference_features) ----------
+
+    def _recompute_stats(self, article_number: str) -> None:
+        """reference_stats is a pure cache over reference_features – rebuilt on
+        every change so it can never go stale. Does not commit."""
+        feats = self.references_for(article_number)
+        if not feats:
+            self.conn.execute(
+                "DELETE FROM reference_stats WHERE article_number = ?",
+                (article_number,))
+            return
+        self.conn.execute(
+            "INSERT INTO reference_stats (article_number, stats_json) VALUES (?, ?) "
+            "ON CONFLICT(article_number) DO UPDATE SET stats_json=excluded.stats_json, "
+            "updated_unix=unixepoch()",
+            (article_number, compute_enrollment_stats(feats).to_json()))
+
+    def stats_for(self, article_number: str) -> EnrollmentStats | None:
+        row = self.conn.execute(
+            "SELECT stats_json FROM reference_stats WHERE article_number = ?",
+            (article_number,)).fetchone()
+        return EnrollmentStats.from_json(row["stats_json"]) if row else None
+
+    def recompute_all_stats(self) -> int:
+        nrs = self.articles_with_references()
+        for nr in nrs:
+            self._recompute_stats(nr)
+        self.conn.commit()
+        return len(nrs)
 
     def close(self) -> None:
         self.conn.close()
