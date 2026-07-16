@@ -85,12 +85,14 @@ image (BGR ndarray)
   → MatchReport(decision: accept|ambiguous|reject, per-feature z/logL breakdown,
                 posterior, gate status – fully JSON-serializable)
 ```
-Every `identify()` also writes the capture JPG + the `MatchReport` JSON to
-`paths.captures_dir` (skipped when that config key is absent, e.g. in
-synthetic tests). The Streamlit page `pages/1_Scoring_Analyse.py` renders
-ONLY these reports (live or loaded from disk) — it never re-implements
-scoring; batch aggregation lives in `docodetect/reporting.py`, shared by
-CLI `evaluate` and the UI.
+Every `identify()` also writes the `MatchReport` JSON to
+`paths.captures_dir`, plus a capture JPG when no `source_path` was given
+(skipped entirely when the config key is absent, e.g. in synthetic tests).
+The Streamlit UI passes the raw `save_captures` PNG as `source_path`, so
+the report references that file instead of duplicating it. The page
+`pages/1_Scoring_Analyse.py` renders ONLY these reports (live or loaded
+from disk) — it never re-implements scoring; batch aggregation lives in
+`docodetect/reporting.py`, shared by CLI `evaluate` and the UI.
 
 Key invariants that explain a lot of the code:
 
