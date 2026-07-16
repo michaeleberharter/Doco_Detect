@@ -38,11 +38,16 @@ GOLDEN_AREAS = {
     "1784148001298": 71501,   # fork flat, pointing right
     "1784148023691": 80974,   # serving spoon
     "1784152895463": 80019,   # serving spoon flat
-    "1784152909645": 72168,   # fork diagonal (mirror heel – notch case)
+    "1784152909645": 74597,   # fork diagonal (mirror heel – seit dem
+                              # Transparent-Annex 2026-07-16 groesstenteils
+                              # gefuellt: die Stufe erfasst auch Spiegelkeile
+                              # mit eigener Umriss-Struktur)
     "1784152917062": 71666,   # fork flat
     "1784152931460": 45566,   # teaspoon bent
     "1784152943049": 73790,   # fork diagonal
     "1784152961451": 25238,   # small dim teaspoon (glow-fringe case)
+    "1784224022152": 313824,  # TRANSPARENT glass mug incl. handle (annex case)
+    "1784224012371": 313360,  # same mug, second shot
 }
 AREA_TOL = 0.08            # masks may drift this much before we call it regression
 MIN_STEEL_COVERAGE = 0.93  # strong-evidence pixels the mask must cover

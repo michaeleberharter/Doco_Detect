@@ -93,6 +93,20 @@ NOTCH_KERNEL = 181        # concavity candidates: mask-close up to this mouth
                           # by the kernel size)
 NOTCH_VIS_MAX = 0.45      # fill only if the boundary is INVISIBLE (slots have
 NOTCH_DENS_MIN = 0.35     # visible tine edges >=0.8) and non-floor inside
+TRANS_FAINT_GRAD = 12.0   # transparent-part annex: faint-edge floor (raised
+TRANS_FAINT_BG = 1.3      # onto the reference floor's own gradient noise)
+TRANS_CLOSE = 15          # weld a glass part's gapped outline + inner ripples
+TRANS_OPEN = 25           # into one blob, then WIDTH-gate it: anything
+                          # thinner than ~24px is halo/glow (thin boundary
+                          # phenomenon), wide structure is refracting material
+TRANS_MIN_AREA = 800
+CORE_ERODE = 19           # sustained presence-level evidence is a safe seed:
+                          # glow/bloom and edge-straddle texture are THIN
+                          # boundary phenomena (die under 9px erosion), real
+                          # material is AREAL - a transparent glass handle's
+                          # refracting interior survives and anchors parts
+                          # that sit far below the component's peak-scaled
+                          # seed level (user case: IKEA glass mug 2026-07-16)
 MIN_AREA_FRAC = 0.01      # smallest measurable item covers ~1% of the frame
 BORDER_MARGIN = 5         # px to the frame edge that count as "touching"
 ROI_PAD = 40              # initial ROI padding around strong evidence
@@ -327,6 +341,49 @@ def _enclosed_zones(gmag: np.ndarray, obj_mask: np.ndarray, grad_thr: float,
         [flab[0], flab[-1], flab[:, 0], flab[:, -1]]))
     outside = np.isin(flab, border_labels[border_labels != 0]) & (free > 0)
     return (free > 0) & ~outside
+
+
+def _annex_transparent_parts(mask: np.ndarray, gmag: np.ndarray,
+                             d_eff: np.ndarray, t_loc: float,
+                             bg_p: float, wall_grad: float) -> np.ndarray:
+    """Transparent material (a glass mug's handle) is nearly evidence-free
+    inside, but it is never STRUCTURE-free: refraction draws faint gapped
+    outline lines and inner caustic ripples. Weld that faint structure into
+    blobs (close) and WIDTH-gate them (open): halo/glow along the object is
+    a thin boundary band and dies, a glass handle is tens of px wide and
+    survives. Only blobs touching the object are annexed - free-standing
+    floor structure is never claimed."""
+    faint = max(TRANS_FAINT_GRAD, TRANS_FAINT_BG * bg_p)
+    # structure = faint EDGES only: glow pools can exceed even the presence
+    # level in brightness, but they are edge-free (smooth fade) - a glass
+    # part always draws refraction lines; its sustained-bright interior is
+    # already anchored by the core seeds and the cut
+    struct = np.where(gmag >= faint, np.uint8(255), np.uint8(0))
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (TRANS_CLOSE, TRANS_CLOSE))
+    struct = _close(struct, k)
+    cand = cv2.bitwise_and(struct, cv2.bitwise_not(mask))
+    ko = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (TRANS_OPEN, TRANS_OPEN))
+    cand = cv2.morphologyEx(cand, cv2.MORPH_OPEN, ko)
+    if not cand.any():
+        return mask
+    n, lab, st, _ = cv2.connectedComponentsWithStats(cand, connectivity=8)
+    near = cv2.dilate(mask, np.ones((9, 9), np.uint8))
+    out = mask.copy()
+    for j in range(1, n):
+        if st[j, cv2.CC_STAT_AREA] < TRANS_MIN_AREA:
+            continue
+        comp = lab == j
+        if not (near[comp] > 0).any():
+            continue
+        # a real transparent part draws its OWN crisp refraction lines
+        # (grip outline: Sobel 100+) AWAY from the junction with the body -
+        # a shadow/glow band hugging the object contains strong gradients
+        # only along that very contact line, never on its far side
+        own = comp & (near == 0)
+        if int((gmag[own] >= wall_grad).sum()) < 40:
+            continue
+        out[comp] = 255
+    return out
 
 
 def _fill_invisible_notches(mask: np.ndarray, gmag: np.ndarray,
@@ -580,6 +637,17 @@ def segment(image: np.ndarray, background: np.ndarray) -> SegmentationResult:
     # at any window size. Dim mirror parts are carried by neutrality +
     # edges, the weak pull, and the amodal completion stages instead.
 
+    # AREAL presence-level evidence is a safe anchor regardless of the
+    # component's peak: glow and straddle bands are thin (boundary
+    # phenomena), so anything at locator strength that survives a 9px
+    # erosion is real material - e.g. the refracting interior of a
+    # transparent glass handle, which sits far below the peak-scaled seed
+    # level of its own (highlight-rich) component
+    core = np.where(d_eff >= t_loc, np.uint8(255), np.uint8(0))
+    core = cv2.erode(core, cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (CORE_ERODE, CORE_ERODE)))
+    seeds[core > 0] = 255
+
     bx = min(b[cv2.CC_STAT_LEFT] for b in boxes)
     by = min(b[cv2.CC_STAT_TOP] for b in boxes)
     bx2 = max(b[cv2.CC_STAT_LEFT] + b[cv2.CC_STAT_WIDTH] for b in boxes)
@@ -671,7 +739,10 @@ def segment(image: np.ndarray, background: np.ndarray) -> SegmentationResult:
             y1 = min(H, y1 + grow)
         grow *= 2
 
-    # --- 4b. amodal fill of invisible-boundary mirror wedges (fork heel) ---
+    # --- 4b. transparent-part annex (glass handle) ---
+    completed = _annex_transparent_parts(completed, gmag, d_eff, t_loc,
+                                         bg_p, wall_grad)
+    # --- 4c. amodal fill of invisible-boundary mirror wedges (fork heel) ---
     completed = _fill_invisible_notches(completed, gmag, d_eff, ceil_d,
                                         wall_grad)
 
