@@ -61,7 +61,14 @@ def capture_frame(cfg: dict) -> np.ndarray:
     st.session_state.capturing = True
     try:
         cam = get_camera(cfg)
-        return cam.capture()
+        frame = cam.capture()
+        if cfg["paths"].get("save_captures", False):
+            # raw frames for building a REAL-image regression suite
+            import time as _time
+            cap_dir = resolve(cfg["paths"].get("captures_dir", "data/captures"))
+            cap_dir.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(cap_dir / f"{int(_time.time() * 1000)}.png"), frame)
+        return frame
     finally:
         st.session_state.capturing = False
         if not st.session_state.get("preview_on"):
@@ -95,28 +102,27 @@ def render_features(feats) -> None:
 
 
 def render_seg_debug(seg) -> None:
-    """Show the intermediate cue masks so on-site tuning is possible without
-    guessing: which channel (Differenz / Kante+Textur) saw which part?"""
+    """Show the intermediate stage masks so a wrong segmentation can be
+    understood at a glance (which stage saw what) – the engine itself has
+    no tunables; the capture in data/captures/ is the test case."""
     dbg = getattr(seg, "debug", None)
     if not dbg:
         return
     if dbg.get("n_plausible", 1) > 1:
-        st.warning(f"⚠️ {dbg['n_plausible']} plausible Teile erkannt – das Objekt ist "
-                   "in der Segmentierung möglicherweise zerfallen (z. B. Laffe und "
-                   "Stiel getrennt); vermessen wurde nur das best-bewertete Teil. "
-                   "Abhilfe: `recover_close_kernel` erhöhen oder `texture_threshold` "
-                   "senken (Tab ⚙️ Config).")
-    with st.expander("🔬 Cue-Masken (Debug): Was hat welcher Kanal gesehen?"):
-        st.caption("Fehlt der Stiel in **Region**, aber ist in **Kante+Textur** da? "
-                   "Dann greifen die Recovery-Cues. Fehlt er überall: "
-                   "`texture_threshold` senken / `canny_low` senken (Tab ⚙️ Config).")
+        st.warning(f"⚠️ {dbg['n_plausible']} plausible Teile erkannt – vermessen "
+                   "wurde nur das best-bewertete. Liegt wirklich nur EIN Objekt "
+                   "in der Box?")
+    with st.expander("🔬 Stufen-Ansicht (Debug): Evidenz → Graph-Cut → Abschluss"):
+        st.caption("**Evidenz** = Differenz+Textur zum leeren-Box-Referenzbild; "
+                   "**Graph-Cut** = global optimale Objekt/Boden-Aufteilung; "
+                   "**Abschluss** = kanten-umschlossene Spiegelzonen dem Objekt "
+                   "zugeschlagen. Die finale Kontur rastet danach auf den "
+                   "sichtbaren Bildkanten ein.")
         keys = [
-            ("region", "Region (Hintergrund-Differenz)"),
-            ("recover", "Kante + Textur (Recovery)"),
-            ("union", "Union (Kandidaten)"),
+            ("evidence", "Evidenz (Diff + Textur)"),
+            ("cut", "Graph-Cut (global optimal)"),
+            ("completed", "Kanten-Abschluss"),
         ]
-        if dbg.get("neural") is not None:
-            keys.append(("neural", "🧠 KI-Silhouette (MobileSAM)"))
         cols = st.columns(len(keys))
         for col, (key, label) in zip(cols, keys):
             m = dbg.get(key)
@@ -451,8 +457,7 @@ with tab_new:
                                            "– berührt den Rand")
                         render_seg_debug(seg_err)
                     else:
-                        col2.info("Kein Objekt sicher segmentiert (leere Box, "
-                                  "diff_threshold zu hoch?).")
+                        col2.info("Kein Objekt sicher segmentiert (leere Box?).")
             except Exception as e:
                 st.error(f"Fehler: {e}")
             else:
@@ -632,34 +637,10 @@ with tab_config:
     st.header("Parameter (nur diese Session, bis gespeichert)")
 
     st.subheader("Segmentierung")
-    seg = cfg["segmentation"]
-    seg["diff_threshold"] = st.slider("diff_threshold", 0, 100, int(seg.get("diff_threshold", 30)))
-    seg["morph_kernel"] = st.slider("morph_kernel (ungerade)", 1, 51, int(seg.get("morph_kernel", 15)), step=2)
-    seg["min_area_px"] = st.number_input("min_area_px", value=int(seg.get("min_area_px", 20000)), step=1000)
-    seg["border_margin_px"] = st.number_input("border_margin_px", value=int(seg.get("border_margin_px", 5)))
-
-    st.markdown("**Recovery-Cues** – finden spiegelnde/kontrastarme Objekte (z. B. Besteck), "
-                "die sich farblich kaum vom Grund abheben.")
-    seg["use_edge_cue"] = st.toggle("use_edge_cue (Kanten-Silhouette)",
-                                    value=bool(seg.get("use_edge_cue", True)))
-    seg["use_texture_cue"] = st.toggle("use_texture_cue (lokale Textur / Glanzlichter)",
-                                       value=bool(seg.get("use_texture_cue", True)))
-    seg["texture_threshold"] = st.slider("texture_threshold (kleiner = empfindlicher)",
-                                         0.0, 60.0, float(seg.get("texture_threshold", 12.0)))
-    seg["refine_diff_threshold"] = st.slider(
-        "refine_diff_threshold (kleiner = Kontur schließt dunklere Randbereiche mit ein)",
-        0, 40, int(seg.get("refine_diff_threshold", 15)))
-    seg["carve_concavities"] = st.toggle(
-        "carve_concavities (Gabelzacken-Schlitze freischneiden, klassischer Pfad)",
-        value=bool(seg.get("carve_concavities", True)))
-    ncfg = seg.setdefault("neural", {})
-    ncfg["enabled"] = st.toggle(
-        "🧠 KI-Silhouette (MobileSAM, automatisch gepromptet – kein Markieren)",
-        value=bool(ncfg.get("enabled", False)))
-    st.caption("Benötigt einmalig `pip install -r requirements-seg-neural.txt`; "
-               "ohne Installation läuft automatisch die klassische Segmentierung. "
-               "⚠️ Nach dem Umschalten Artikel neu anlegen/einlernen – KI- und "
-               "klassische Maße unterscheiden sich um ~2 mm.")
+    st.info("Die Segmentierung hat **keine Stellschrauben** – sie kalibriert "
+            "jede Schwelle selbst am Bildpaar (Boden-Rauschdecke, Kantenstärke, "
+            "Objekt-Anker). Stimmt eine Segmentierung nicht, ist das Foto der "
+            "Testfall: es liegt automatisch in `data/captures/`.")
 
     st.subheader("Kamera – Belichtung / Weißabgleich")
     st.warning("⚠️ Nach jeder Änderung hier: **Hintergrund neu aufnehmen** (Tab 1️⃣). "

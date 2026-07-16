@@ -9,16 +9,25 @@ overhead camera (UGREEN FineCam Lite 4K, 300 mm above the floor) identifies
 plates/bowls/cups by measuring their geometry and color, then matching
 against an article database. Two stages:
 
-1. **Stage 1 (deterministic, always on):** background-subtraction
-   segmentation → geometric measurement in mm (diameter, area, circularity,
-   shape) + color histogram → hard geometry filter + weighted scoring
-   against the article DB. The segmentation optionally refines its
-   silhouette with MobileSAM (`docodetect/neural_seg.py`,
-   `segmentation.neural.*` in config, `requirements-seg-neural.txt`):
-   prompts are derived automatically from the classical locator blob, and
-   any failure falls back to the classical refinement. IMPORTANT: neural
-   and classical silhouettes differ by ~2mm systematically – re-enroll
-   references after switching modes.
+1. **Stage 1 (deterministic, always on):** graph-cut segmentation →
+   geometric measurement in mm (diameter, area, circularity, shape) + color
+   histogram → hard geometry filter + weighted scoring against the article
+   DB. The segmentation (`docodetect/segmentation.py`) is ONE global
+   optimization instead of a rule cascade, and it is **fully
+   self-calibrating – it has NO config keys** (`segment(image, background)`,
+   no cfg parameter): every threshold derives from the image pair (floor
+   noise ceiling via sigma clipping, per-component object seeds = top half
+   of each component's own evidence range, texture seeds gated by per-pixel
+   non-floorness, edge scale from the reference floor). Stages: evidence →
+   exact min-cut (scipy `maximum_flow`, data term claims only certainty,
+   everything else neutral so the boundary lands on the strongest edge) →
+   edge-sealed reachability completion + amodal bridging (distance lens
+   between split components; invisible-boundary notch fill; fork-tine slots
+   open through edge-free mouths stay floor) → contour snap with
+   outward-only edge reach. Development/validation happens against REAL
+   captures in `data/captures/` pinned by `tests/test_real_captures.py`
+   goldens (`paths.save_captures`). `docodetect/neural_seg.py` (MobileSAM)
+   is retired from the pipeline and kept only for experiments.
 2. **Stage 2 (optional, not yet wired into the pipeline):** DINOv2
    embeddings + FAISS nearest-neighbor for cases where stage 1 leaves
    ambiguous candidates. Lives entirely in `docodetect/embeddings.py`;
@@ -68,7 +77,7 @@ setup actions like capturing a background or importing articles).
 Data flow for `identify()`:
 ```
 image (BGR ndarray)
-  → segmentation.segment()   background diff (gray+saturation) → contour, border-touch flag
+  → segmentation.segment()   evidence (channel-diff + texture) → graph cut → edge completion → contour, border-touch flag
   → features.extract()       contour+calibration → mm-correct geometry, HSV color, Hu-moment shape
   → matcher.match()          per-article height-compensated geometry filter → weighted score → decision
   → MatchResult(decision: auto|confirm|no_match, candidates, message)
@@ -84,11 +93,15 @@ Key invariants that explain a lot of the code:
   `features.py` itself, since the correction depends on which article is
   being tested.
 - **`config/config.yaml` is the single source of truth** for every
-  tunable (camera, geometry, calibration, segmentation thresholds,
-  matching tolerances/weights/decision thresholds, paths). Load it via
+  tunable (camera, geometry, calibration, matching tolerances/weights/
+  decision thresholds, paths). Load it via
   `docodetect.config.load_config()`; never hardcode a parameter that
   already has a config key. `config.resolve()` turns a config-relative
   path into an absolute one (project root = parent of `config/`).
+  **Exception by design: the segmentation has NO config keys at all** – it
+  self-calibrates on the image pair. Do not add segmentation tunables; if
+  a segmentation is wrong, the capture in `data/captures/` is the test
+  case and the fix is a better rule, not a knob (user decision 2026-07-16).
 - **FOV limitation:** at 70° diagonal FOV / 300 mm height the visible
   floor is ~37×21 cm; objects whose contour touches the frame border
   cannot be measured correctly. `segmentation.py` detects this

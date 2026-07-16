@@ -196,7 +196,7 @@ def neural_silhouette(image_bgr: np.ndarray, blob_mask: np.ndarray,
 
     Returns a uint8 {0,255} mask or None when the model is unavailable or its
     output fails the plausibility checks (caller falls back to classical)."""
-    ncfg = cfg["segmentation"].get("neural", {})
+    ncfg = cfg.get("segmentation", {}).get("neural", {})
     try:
         with _lock:  # load once + serialized inference (shared predictor state)
             predictor = _load_predictor(ncfg)

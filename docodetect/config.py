@@ -16,7 +16,9 @@ import yaml
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
 
-_REQUIRED_SECTIONS = ("camera", "geometry", "calibration", "segmentation", "matching", "paths")
+# NOTE: no "segmentation" section – the segmentation engine self-calibrates
+# and deliberately has no config keys (see docodetect/segmentation.py).
+_REQUIRED_SECTIONS = ("camera", "geometry", "calibration", "matching", "paths")
 
 
 def load_config(path: str | Path | None = None) -> dict:
