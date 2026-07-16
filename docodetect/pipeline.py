@@ -41,7 +41,7 @@ class Pipeline:
                 "Center the item; if it does not fit, see README (FOV limitation).",
                 segmentation=seg,
             )
-        feats = extract(image, seg, self.cal)
+        feats = extract(image, seg, self.cal, self.cfg)
         return seg, feats
 
     def identify(self, image: np.ndarray) -> IdentifyOutcome:
