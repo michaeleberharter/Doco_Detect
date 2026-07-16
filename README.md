@@ -104,6 +104,38 @@ Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
    (Danach ggf. die Test-Referenzen wieder löschen: `delete-article` + neu
    anlegen, damit die 20 Messreihen-Shots nicht als Referenzen bleiben.)
 
+### Testphase: Validieren statt Schwellen raten
+
+Einzelne gute (oder schlechte) Ergebnisse sind keine Basis für Tuning.
+Bevor an `max_z_accept` / `min_llr_margin` / Gewichten gedreht wird, in
+dieser Reihenfolge vorgehen:
+
+1. **sigma_floors aus einer echten Messreihe bestimmen** (Anleitung oben).
+   Das ist der einzige noch geschätzte Wert, und die gesamte z-Skala hängt
+   daran — erst die Floors festnageln, dann über Schwellen reden.
+2. **Beim Einlernen Rotationen abdecken:** pro Artikel ~8 Shots, zwischen
+   den Shots anheben, drehen, leicht verschieben. Gerade bei poliertem
+   Stahl leben die Farb-/Textur-Merkmale von den Reflexionen — die Streuung
+   über Rotationen muss in sigma_enroll enthalten sein, sonst wirkt ein
+   anders gedrehter Löffel künstlich „falsch".
+3. **Batch-Daten sammeln statt raten:** gelabeltes Testset anlegen
+   (`data/testset/<artikelnummer>/*.jpg`, pro Artikel 10–20 Aufnahmen in
+   verschiedenen Rotationen), `evaluate` laufen lassen und im Batch-Tab der
+   **📊 Scoring-Analyse** die Posterior-Verteilung korrekt vs. falsch
+   anschauen. Erst wenn sich die beiden Verteilungen überlappen, lohnt sich
+   Tuning an `min_llr_margin` oder `max_z_accept`.
+
+Leitplanken beim Lesen der Ergebnisse:
+
+- Gesund sieht so aus: korrekte Artikel bei max |z| ≈ 1–2, falsche bei 5+.
+  Dazwischen viel Luft → nichts anfassen.
+- Enden **korrekte** Artikel gelegentlich als REJECT (max |z| knapp über
+  3.5), sind die `sigma_floors` zu eng geschätzt → **Floors anheben**
+  (Schritt 1 wiederholen), NICHT das Gate aufweichen.
+- Häufen sich AMBIGUOUS-Fälle, ist das kein Fehler, sondern die Vorlage für
+  Stufe 2 (DINOv2) — der Übergabepunkt ist in `matcher.py` als
+  `TODO(stage-2)` markiert.
+
 ## Installation
 
 ```bash
@@ -259,5 +291,9 @@ data/reference/    Eingelernte Referenzfotos pro Artikel
 - [ ] FOV-Test mit größtem Teller → ggf. Kamerahöhe/Box anpassen
 - [ ] Echte Artikelliste aus DO&CO-Datenbank exportieren (Mapping auf CSV-Schema)
 - [ ] Beleuchtung finalisieren (diffus, konstant — Voraussetzung für Farbmerkmale)
-- [ ] Toleranzen in config.yaml anhand echter Messreihen justieren
-- [ ] Stufe 2 aktivieren, falls Stufe-1-Confusion-Matrix Mehrdeutigkeiten zeigt
+- [ ] sigma_floors aus 15–20er-Messreihe bestimmen (siehe „Testphase" im
+      Scoring-Abschnitt) — davor keine Schwellen anfassen
+- [ ] Gelabeltes Testset aufbauen + `evaluate`/Batch-Tab: Posterior-Verteilung
+      korrekt vs. falsch prüfen, erst bei Überlappung Schwellen justieren
+- [ ] Stufe 2 aktivieren, falls Batch-Auswertung/Verwechslungsmatrix
+      AMBIGUOUS-Häufungen zeigt (Hook: `TODO(stage-2)` in matcher.py)
