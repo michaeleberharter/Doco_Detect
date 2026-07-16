@@ -41,6 +41,69 @@ Die Pixel→mm-Kalibrierung gilt für die Bodenebene. Ein Tellerrand liegt aber 
 mit dessen Höhe aus der Datenbank: `wahre_Größe = gemessene_Größe · (Z − h) / Z`.
 Darum ist die Spalte `height_mm` in der Artikeldatenbank wichtig.
 
+## Scoring (Stufe 1, statistisch)
+
+Nach dem harten Geometrie-Vorfilter (höhenkompensiert, `diameter_tolerance_mm` /
+`area_tolerance_pct`) wird jedes Merkmal f als Gauß-Messung modelliert:
+
+    sigma_eff(f) = sqrt(sigma_enroll(f)² + sigma_floor(f)²)
+    z(f)    = d(f) / sigma_eff(f)          d = Distanz Messung ↔ Enrollment-Referenz
+    logL(f) = −0.5 · z(f)²                 (Log-Likelihood bis auf Konstante)
+
+`sigma_enroll` kommt aus den Enrollment-Shots (Mittelwert/Std je Artikel,
+Tabelle `reference_stats` – wird bei jedem Einlernen automatisch neu berechnet),
+`sigma_floor` aus `matching.sigma_floors` (Mess-Rauschboden, verhindert
+Division durch ~0 bei wenigen Shots). Der Gesamt-Log-Score eines Kandidaten
+ist das gewichtete Mittel der logL über seine verfügbaren Merkmale; der
+Posterior ist ein Softmax der Log-Scores (`softmax_temperature`).
+
+**Merkmale:** Ø (mm), Rundheit 4πA/P², Solidity, ΔE-CIE76 + H-S-Histogramm
+getrennt für Zentrum (r < 0.6) und Rand/Fahne (r > 0.75, `features.ring_zones`;
+die Übergangszone wird ignoriert), log-Hu-Momente (rotationsinvariant –
+Draufsicht macht Tellerrotation irrelevant). Die Fläche ist nur Vorfilter
+(korreliert voll mit dem Durchmesser). Kandidaten mit Enrollment-Statistiken
+werden Floor-Ebene gegen Floor-Ebene verglichen (keine doppelte Höhenkorrektur);
+Artikel ohne Referenzen laufen geometry-only und können nie automatisch buchen.
+
+**Adaptive Gewichte (Fisher-Ratio):** pro Merkmal über das Kandidatenset
+
+    D_f = Var(Kandidaten-Lagen von f) / Mittel(sigma_eff(f)²)
+
+– trennt ein Merkmal die aktuellen Kandidaten gut, bekommt es mehr Gewicht:
+`w_eff = w_global · (1 + α · D_norm)`, danach normiert;
+α = `matching.adaptive_weight_alpha` (0 = aus). Bei nur einem Kandidaten
+entfällt die Adaption.
+
+**Entscheidung (drei Ausgänge):**
+
+- **ACCEPT:** max |z| des Siegers ≤ `max_z_accept` UND Log-Score-Vorsprung zu
+  Platz 2 ≥ `min_llr_margin` (2.0 ≈ e² ≈ 7,4× wahrscheinlicher) UND der Sieger
+  hat eingelernte Referenzen.
+- **AMBIGUOUS:** Gate bestanden, Margin nicht → Top-k zur manuellen Auswahl
+  (genau hier übernimmt später Stufe 2 / DINOv2).
+- **REJECT:** Gate verfehlt → „Objekt vermutlich nicht in der Datenbank",
+  wird niemals automatisch gebucht.
+
+Jede Identifikation legt Capture + `MatchReport`-JSON (alle Zwischengrößen:
+pro Kandidat und Merkmal Distanz, sigma, z, Log-Beitrag; Fisher-D, Gewichte,
+Posterior, Gate-Status) unter `data/captures/` ab. Die Streamlit-Seite
+**📊 Scoring-Analyse** schlüsselt jeden Report auf (Kandidatentabelle,
+Log-Beitrags-Chart, Top-1-vs-Top-2-Kontrast) und aggregiert ganze Ordner zu
+Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
+(`docodetect/reporting.py`).
+
+### sigma_floors aus einer echten Messreihe bestimmen
+
+1. Einen Artikel wählen und 15–20× neu in die Box legen (jedes Mal anheben,
+   leicht drehen/verschieben), z. B. per `enroll ART-NR --shots 20`.
+2. Pro Merkmal die Standardabweichung über die Messreihe ablesen: die Skalar-
+   Streuungen stehen nach dem Einlernen in `reference_stats` (`scalar_std`),
+   die Streuung der Farb-/Formdistanzen als `proto_std`; alternativ die
+   `measured`-Blöcke der Report-JSONs unter `data/captures/` auswerten.
+3. Diese Std je Merkmal ist der Floor → in `matching.sigma_floors` eintragen.
+   (Danach ggf. die Test-Referenzen wieder löschen: `delete-article` + neu
+   anlegen, damit die 20 Messreihen-Shots nicht als Referenzen bleiben.)
+
 ## Installation
 
 ```bash
@@ -75,6 +138,7 @@ python -m docodetect.cli enroll TELLER-27-WEISS --shots 8
 # 4. Identifizieren
 python -m docodetect.cli identify                # Live-Aufnahme
 python -m docodetect.cli identify --image foto.jpg
+#    -> legt Capture + Scoring-Report (JSON) unter data/captures/ ab
 
 # 5. Genauigkeit messen (Ordner mit gelabelten Testbildern)
 python -m docodetect.cli evaluate data/testset/
