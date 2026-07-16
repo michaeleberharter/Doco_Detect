@@ -1,4 +1,4 @@
-"""📊 Scoring-Analyse: rendert ausschließlich MatchReport-Objekte.
+"""Scoring-Analyse: rendert ausschließlich MatchReport-Objekte.
 
 Datenquellen: live (pipeline.identify über die echte BoxCamera) oder
 gespeicherte Report-JSONs aus data/captures/ (die Pipeline legt sie bei
@@ -30,7 +30,7 @@ from ui_common import (CAMERA_HINT, capture_frame, draw_report_overlay,
                        resize_width)
 
 st.set_page_config(page_title="Scoring-Analyse", layout="wide")
-st.title("📊 Scoring-Analyse")
+st.title("Scoring-Analyse")
 
 if "cfg" not in st.session_state:
     st.session_state.cfg = load_config()
@@ -52,9 +52,9 @@ def z_style(z):
 
 
 def show_decision(report) -> None:
-    badge = {"accept": ("🟢 ACCEPT", st.success),
-             "ambiguous": ("🟡 AMBIGUOUS", st.warning),
-             "reject": ("🔴 REJECT", st.error)}
+    badge = {"accept": ("ACCEPT", st.success),
+             "ambiguous": ("AMBIGUOUS", st.warning),
+             "reject": ("REJECT", st.error)}
     label, fn = badge.get(report.decision, (report.decision.upper(), st.info))
     fn(f"{label} — {report.message}")
 
@@ -85,7 +85,7 @@ def render_image(report) -> None:
         return
     col1, col2 = st.columns(2)
     col1.image(resize_width(img, 960), channels="BGR", caption="Aufnahme")
-    border = ("⚠️ berührt den Bildrand" if report.touches_border
+    border = ("berührt den Bildrand!" if report.touches_border
               else "Randprüfung ok")
     col2.image(resize_width(draw_report_overlay(img, report), 960), channels="BGR",
                caption=f"Kontur aus dem Report — {border}")
@@ -118,7 +118,7 @@ def render_candidate_tables(report) -> None:
     st.subheader("Kandidaten: Merkmals-Aufschlüsselung")
     top_k = int((report.thresholds or {}).get("top_k", 3))
     for i, c in enumerate(report.candidates):
-        ref = "" if c.has_references else " · ⚠️ keine Referenzen (nur Geometrie)"
+        ref = "" if c.has_references else " · keine Referenzen (nur Geometrie)"
         with st.expander(
                 f"#{i + 1}  {c.article_number} — {c.name} · log-Score "
                 f"{c.log_score:.3f} · Posterior {c.posterior:.0%}{ref}",
@@ -226,7 +226,7 @@ with tab_single:
     captures_dir = resolve(cfg["paths"].get("captures_dir", "data/captures"))
     col_live, col_pick = st.columns([1, 2])
     with col_live:
-        if st.button("🔍 Live identifizieren", type="primary"):
+        if st.button("Live identifizieren", type="primary"):
             try:
                 frame = capture_frame(cfg)
                 pipe = Pipeline(cfg)

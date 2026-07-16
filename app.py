@@ -47,10 +47,10 @@ def render_seg_debug(seg) -> None:
     if not dbg:
         return
     if dbg.get("n_plausible", 1) > 1:
-        st.warning(f"⚠️ {dbg['n_plausible']} plausible Teile erkannt – vermessen "
+        st.warning(f"{dbg['n_plausible']} plausible Teile erkannt – vermessen "
                    "wurde nur das best-bewertete. Liegt wirklich nur EIN Objekt "
                    "in der Box?")
-    with st.expander("🔬 Stufen-Ansicht (Debug): Evidenz → Graph-Cut → Abschluss"):
+    with st.expander("Stufen-Ansicht (Debug): Evidenz → Graph-Cut → Abschluss"):
         st.caption("**Evidenz** = Differenz+Textur zum leeren-Box-Referenzbild; "
                    "**Graph-Cut** = global optimale Objekt/Boden-Aufteilung; "
                    "**Abschluss** = kanten-umschlossene Spiegelzonen dem Objekt "
@@ -88,7 +88,7 @@ if "cfg_path" not in st.session_state:
 st.sidebar.title("Doco_Detect")
 st.sidebar.text_input("Config-Pfad", key="cfg_path")
 
-if "cfg" not in st.session_state or st.sidebar.button("🔄 Config neu laden"):
+if "cfg" not in st.session_state or st.sidebar.button("Config neu laden"):
     try:
         st.session_state.cfg = load_config(st.session_state.cfg_path)
     except Exception as e:
@@ -104,12 +104,12 @@ for label, path in {
     "Hintergrund": resolve(cfg["calibration"]["background_file"]),
     "Kalibrierung": resolve(cfg["calibration"]["file"]),
 }.items():
-    st.sidebar.markdown(f"{'✅' if path.exists() else '❌'} {label} — `{path.name}`")
+    st.sidebar.markdown(f"{'[OK]' if path.exists() else '[fehlt]'} {label} — `{path.name}`")
 
 st.sidebar.subheader("Kamera")
 st.sidebar.caption(f"Index {cfg['camera']['index']}  ·  "
                    f"{cfg['camera']['width']}×{cfg['camera']['height']}")
-if st.sidebar.button("🔌 Kamera freigeben"):
+if st.sidebar.button("Kamera freigeben"):
     release_camera()
     st.session_state.preview_on = False
     st.sidebar.success("Kamera geschlossen.")
@@ -117,7 +117,7 @@ if st.sidebar.button("🔌 Kamera freigeben"):
 
 # ---------- Live-Vorschau (verkleinert, ~3 fps, pausiert während Capture) ----------
 
-st.subheader("📹 Live-Vorschau")
+st.subheader("Live-Vorschau")
 st.toggle("Vorschau aktiv – Objekt in der Box positionieren", key="preview_on", value=False)
 
 
@@ -127,7 +127,7 @@ def live_preview():
         st.caption("Vorschau aus.")
         return
     if st.session_state.get("capturing"):
-        st.caption("⏸️ Vorschau pausiert – Aufnahme läuft…")
+        st.caption("Vorschau pausiert – Aufnahme läuft…")
         return
     try:
         cam = get_camera(cfg)
@@ -146,8 +146,8 @@ st.divider()
 
 (tab_db, tab_bg, tab_cal, tab_identify, tab_new, tab_enroll,
  tab_config) = st.tabs([
-    "🗄️ Datenbank", "1️⃣ Hintergrund", "2️⃣ Kalibrieren",
-    "3️⃣ Identifizieren", "➕ Neuer Artikel", "4️⃣ Einlernen", "⚙️ Config",
+    "Datenbank", "1. Hintergrund", "2. Kalibrieren",
+    "3. Identifizieren", "Neuer Artikel", "4. Einlernen", "Config",
 ])
 
 
@@ -198,7 +198,7 @@ with tab_db:
             del_nr = st.selectbox("Artikelnummer",
                                   [a.article_number for a in articles], key="del_article")
             del_sure = st.checkbox("Ja, wirklich löschen", key="del_sure")
-            if st.button("🗑️ Löschen", disabled=not del_sure):
+            if st.button("Löschen", disabled=not del_sure):
                 db = Database(cfg)
                 try:
                     removed = db.delete_article(del_nr)
@@ -225,9 +225,9 @@ with tab_bg:
     st.header("1. Hintergrund aufnehmen")
     st.write("Box **leer** stellen, dann aufnehmen. Das Foto dient als Referenz "
              "für die Hintergrund-Segmentierung.")
-    st.caption("Wichtig: nach jeder Änderung von Belichtung/Weißabgleich (Tab ⚙️ Config) "
+    st.caption("Wichtig: nach jeder Änderung von Belichtung/Weißabgleich (Tab Config) "
                "hier den Hintergrund **neu aufnehmen** – sonst stimmt die Differenz nicht.")
-    if st.button("📸 Hintergrund aufnehmen", type="primary"):
+    if st.button("Hintergrund aufnehmen", type="primary"):
         try:
             frame = capture_frame(cfg)
         except CameraError as e:
@@ -251,7 +251,7 @@ with tab_cal:
                 f"**{cfg['calibration']['marker_id']}**, "
                 f"**{cfg['calibration']['marker_size_mm']} mm** Kantenlänge flach in "
                 "die Box legen, dann kalibrieren.")
-        if st.button("📐 Kalibrieren", type="primary"):
+        if st.button("Kalibrieren", type="primary"):
             try:
                 frame = capture_frame(cfg)
             except CameraError as e:
@@ -283,7 +283,7 @@ with tab_identify:
         st.warning("Erst Hintergrund + Kalibrierung anlegen (Schritte 1-2).")
     else:
         st.write("Objekt in die Box legen, dann auslösen.")
-        if st.button("🔍 Identifizieren", type="primary"):
+        if st.button("Identifizieren", type="primary"):
             try:
                 frame = capture_frame(cfg)
                 pipe = Pipeline(cfg)
@@ -299,11 +299,11 @@ with tab_identify:
             else:
                 r = outcome.report
                 if r.decision == "accept":
-                    st.success(f"🟢 ACCEPT — {r.message}")
+                    st.success(f"ACCEPT — {r.message}")
                 elif r.decision == "ambiguous":
-                    st.warning(f"🟡 AMBIGUOUS — {r.message}")
+                    st.warning(f"AMBIGUOUS — {r.message}")
                 else:
-                    st.error(f"🔴 REJECT — {r.message}")
+                    st.error(f"REJECT — {r.message}")
 
                 col1, col2 = st.columns(2)
                 col1.image(resize_width(frame, 960), channels="BGR", caption="Original")
@@ -332,7 +332,7 @@ with tab_identify:
                     } for i, c in enumerate(r.candidates[:3])]
                     st.dataframe(pd.DataFrame(rows), width="stretch")
                     st.caption("Volle Aufschlüsselung (z-Werte, Gewichte, "
-                               "Top-1-vs-Top-2): Seite **📊 Scoring-Analyse** in der Sidebar.")
+                               "Top-1-vs-Top-2): Seite **Scoring-Analyse** in der Sidebar.")
 
 
 # ---------- Tab: Neuer Artikel ----------
@@ -362,7 +362,7 @@ with tab_new:
         if create_msg := st.session_state.pop("create_msg", None):
             st.success(create_msg)
 
-        if st.button("📸 Aufnehmen & prüfen", type="primary", key="create_capture",
+        if st.button("Aufnehmen & prüfen", type="primary", key="create_capture",
                      disabled=not new_name.strip()):
             st.session_state.pop("create_pending", None)
             frame = None
@@ -439,7 +439,7 @@ with tab_new:
                            "für die alten Werte. Speichern ist gesperrt: bitte neu "
                            "aufnehmen oder verwerfen.")
             c_ok, c_no = st.columns(2)
-            if c_ok.button("✅ Artikel speichern", type="primary", key="create_commit",
+            if c_ok.button("Artikel speichern", type="primary", key="create_commit",
                            disabled=inputs_changed):
                 try:
                     pipe = Pipeline(cfg)
@@ -460,7 +460,7 @@ with tab_new:
                         st.rerun()
                     finally:
                         pipe.close()
-            if c_no.button("❌ Verwerfen", key="create_discard"):
+            if c_no.button("Verwerfen", key="create_discard"):
                 st.session_state.pop("create_pending", None)
                 st.rerun()
 
@@ -492,7 +492,7 @@ with tab_enroll:
             if enroll_msg := st.session_state.pop("enroll_msg", None):
                 st.success(enroll_msg)
 
-            if st.button("📸 Aufnehmen & prüfen", type="primary", key="enroll_capture"):
+            if st.button("Aufnehmen & prüfen", type="primary", key="enroll_capture"):
                 st.session_state.pop("enroll_pending", None)
                 frame = None
                 try:
@@ -549,7 +549,7 @@ with tab_enroll:
                                "gesperrt: Auswahl zurückstellen oder verwerfen und "
                                "neu aufnehmen.")
                 e_ok, e_no = st.columns(2)
-                if e_ok.button("✅ Referenz speichern", type="primary", key="enroll_commit",
+                if e_ok.button("Referenz speichern", type="primary", key="enroll_commit",
                                disabled=sel_changed):
                     try:
                         pipe = Pipeline(cfg)
@@ -567,7 +567,7 @@ with tab_enroll:
                         st.session_state["enroll_msg"] = (
                             f"Referenz für {pending['article_number']} gespeichert.")
                         st.rerun()
-                if e_no.button("❌ Verwerfen", key="enroll_discard"):
+                if e_no.button("Verwerfen", key="enroll_discard"):
                     st.session_state.pop("enroll_pending", None)
                     st.rerun()
 
@@ -584,7 +584,7 @@ with tab_config:
             "Testfall: es liegt automatisch in `data/captures/`.")
 
     st.subheader("Kamera – Belichtung / Weißabgleich")
-    st.warning("⚠️ Nach jeder Änderung hier: **Hintergrund neu aufnehmen** (Tab 1️⃣). "
+    st.warning("Nach jeder Änderung hier: **Hintergrund neu aufnehmen** (Tab 1). "
                "Sonst passen Hintergrund- und Objektbild nicht zusammen und die "
                "Segmentierung wird falsch. Änderungen greifen beim nächsten Kamera-Öffnen.")
     cam = cfg["camera"]
@@ -609,7 +609,7 @@ with tab_config:
                                            0.0, 5.0, float(m.get("adaptive_weight_alpha", 2.0)))
 
     st.caption("Änderungen wirken sofort auf Identify/Enroll in dieser Session.")
-    if st.button("💾 Dauerhaft in config.yaml speichern"):
+    if st.button("Dauerhaft in config.yaml speichern"):
         with open(st.session_state.cfg_path, "w", encoding="utf-8") as fh:
             yaml.safe_dump(cfg, fh, allow_unicode=True, sort_keys=False)
         st.success(f"Gespeichert nach {st.session_state.cfg_path}")
