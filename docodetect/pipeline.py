@@ -34,7 +34,7 @@ class Pipeline:
 
     def analyze(self, image: np.ndarray) -> tuple[SegmentationResult, Features]:
         """Segment and measure – shared by enroll and identify."""
-        seg = segment(image, self.background, self.cfg)
+        seg = segment(image, self.background)
         if seg.touches_border:
             raise SegmentationError(
                 "Object touches the frame border – measurement would be wrong. "

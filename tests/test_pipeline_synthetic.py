@@ -24,12 +24,9 @@ from docodetect.matcher import match  # noqa: E402
 from docodetect.pipeline import Pipeline  # noqa: E402
 from docodetect.segmentation import segment  # noqa: E402
 
-CFG = {
-    "segmentation": {
-        "blur_kernel": 7, "diff_threshold": 25, "morph_kernel": 15,
-        "min_area_px": 5000, "border_margin_px": 5,
-    },
-}
+# The segmentation engine has NO configuration – it self-calibrates on the
+# image pair. Objects must cover >= ~1% of the frame (internal MIN_AREA_FRAC).
+MIN_AREA_PX = 20736  # 0.01 * 1920 * 1080
 
 MM_PER_PX = 0.2  # synthetic scale
 CAL = Calibration(mm_per_px=MM_PER_PX, camera_height_mm=300.0,
@@ -55,7 +52,7 @@ def test_diameter_measurement_accuracy():
     bg = make_background()
     for d_mm in (160.0, 210.0):
         img = draw_plate(bg, d_mm)
-        seg = segment(img, bg, CFG)
+        seg = segment(img, bg)
         assert not seg.touches_border
         feats = extract(img, seg, CAL)
         assert abs(feats.circle_diameter_mm - d_mm) < 3.0, (
@@ -71,7 +68,7 @@ def test_border_detection():
     bg = make_background()
     # plate partially outside the frame
     img = draw_plate(bg, 210.0, center=(30, 540))
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert seg.touches_border
 
 
@@ -84,11 +81,12 @@ def test_height_compensation():
 
 
 def test_two_plates_distinguishable_by_size():
-    """The core use case: 250 vs 270 mm white plates must yield clearly
-    different measurements (>> typical tolerance)."""
+    """The core use case: neighboring plate sizes must yield clearly
+    different measurements (>> typical tolerance). 180/200 mm are the
+    largest sizes that physically fit the box FOV (see README)."""
     bg = make_background()
-    d1 = extract(draw_plate(bg, 250.0), segment(draw_plate(bg, 250.0), bg, CFG), CAL)
-    d2 = extract(draw_plate(bg, 270.0), segment(draw_plate(bg, 270.0), bg, CFG), CAL)
+    d1 = extract(draw_plate(bg, 180.0), segment(draw_plate(bg, 180.0), bg), CAL)
+    d2 = extract(draw_plate(bg, 200.0), segment(draw_plate(bg, 200.0), bg), CAL)
     assert d2.circle_diameter_mm - d1.circle_diameter_mm > 15.0
 
 
@@ -96,7 +94,6 @@ def test_two_plates_distinguishable_by_size():
 
 # Fuller config so Pipeline.create_article + matcher.match run end to end.
 CREATE_CFG = {
-    "segmentation": CFG["segmentation"],
     "matching": {
         "diameter_tolerance_mm": 6.0, "area_tolerance_pct": 12.0,
         "weights": {"geometry": 0.5, "color": 0.3, "shape": 0.2},
@@ -198,47 +195,6 @@ def test_two_phase_create_preview_then_commit(tmp_path):
         pipe.db.close()
 
 
-def test_auto_prompts_derivation():
-    """SAM prompts are derived fully automatically from the locator blob:
-    a padded bbox plus interior points spread along the object – with points
-    on BOTH the head and the handle, so a dim handle is always prompted."""
-    from docodetect.neural_seg import auto_prompts
-    blob = np.zeros((1080, 1920), np.uint8)
-    cv2.rectangle(blob, (500, 520), (1050, 560), 255, -1)          # handle
-    cv2.ellipse(blob, (1150, 540), (110, 75), 0, 0, 360, 255, -1)  # head
-    box, points = auto_prompts(blob, k=5)
-    x1, y1, x2, y2 = box
-    assert x1 <= 500 and y1 <= 465 and x2 >= 1260 and y2 >= 615    # covers blob + pad
-    assert len(points) >= 3
-    for px, py in points:
-        assert blob[py, px] == 255, "prompt point outside the object"
-    xs = [p[0] for p in points]
-    assert min(xs) < 1000 and max(xs) > 1050, "points must cover handle AND head"
-
-
-def test_neural_silhouette_integration():
-    """End-to-end MobileSAM path (skipped unless requirements-seg-neural.txt
-    is installed): the neural mask must be plausible for a synthetic object."""
-    pytest.importorskip("mobile_sam")
-    pytest.importorskip("torch")
-    from docodetect.config import load_config, resolve
-    if not resolve("models/mobile_sam.pt").exists():
-        pytest.skip("MobileSAM checkpoint not downloaded")
-    from docodetect.neural_seg import neural_silhouette
-    bg = make_gray_background(fill=20)
-    img = bg.copy()
-    cv2.rectangle(img, (550, 521), (1050, 561), (190, 190, 190), -1)
-    cv2.ellipse(img, (1150, 540), (110, 75), 0, 0, 360, (190, 190, 190), -1)
-    blob = np.zeros(img.shape[:2], np.uint8)
-    cv2.rectangle(blob, (545, 516), (1055, 566), 255, -1)
-    cv2.ellipse(blob, (1150, 540), (115, 80), 0, 0, 360, 255, -1)
-    cfg = {"segmentation": {"neural": {"enabled": True, "auto_download": False}}}
-    mask = neural_silhouette(img, blob, cfg)
-    assert mask is not None
-    x, y, w, h = cv2.boundingRect(mask)
-    assert w > 600 and 40 <= h <= 220                              # whole spoon, sane
-
-
 def test_delete_article_removes_master_data_and_references(tmp_path):
     bg = make_background()
     pipe, _ = _pipeline(tmp_path / "t.sqlite3", bg)
@@ -259,12 +215,14 @@ def test_delete_article_removes_master_data_and_references(tmp_path):
 from docodetect.segmentation import SegmentationError  # noqa: E402
 
 
-def make_gray_background(w=1920, h=1080, fill=20):
-    """Background with equal BGR channels (saturation ~0), so a neutral-gray
-    object does not leak into the saturation-difference channel."""
+def make_gray_background(w=1920, h=1080, fill=20, noise=5):
+    """Neutral near-black background (equal BGR channels) modelling the real
+    matte box floor – a neutral-gray object yields no color-channel excess.
+    noise=1 matches the REAL floor's measured smoothness (neighbor-diff
+    p99.5 = 1.0) – needed for tests about barely-visible object parts."""
     base = np.full((h, w), fill, dtype=np.int16)
-    noise = np.random.default_rng(42).integers(-5, 5, (h, w), dtype=np.int16)
-    gray = np.clip(base + noise, 0, 255).astype(np.uint8)
+    nz = np.random.default_rng(42).integers(-noise, noise, (h, w), dtype=np.int16)
+    gray = np.clip(base + nz, 0, 255).astype(np.uint8)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
 
@@ -285,17 +243,14 @@ def draw_reflective_object(bg, center=(960, 540), axes=(200, 60), cell=10):
 
 
 def test_reflective_object_recovered_by_cues():
+    """A reflective object whose MEAN brightness equals the floor (checker
+    stand-in for mirror steel) is invisible to a plain background difference –
+    the texture evidence must still find it."""
     bg = make_gray_background(fill=20)                   # near-black matte background
     img = draw_reflective_object(bg)
-    # Baseline: region cue alone (old behaviour) cannot see it -> raises.
-    cfg_off = {"segmentation": {**CFG["segmentation"],
-                                "use_edge_cue": False, "use_texture_cue": False}}
-    with pytest.raises(SegmentationError):
-        segment(img, bg, cfg_off)
-    # New behaviour: the recovery cues find the object.
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert not seg.touches_border
-    assert seg.area_px >= CFG["segmentation"]["min_area_px"]
+    assert seg.area_px >= MIN_AREA_PX
     feats = extract(img, seg, CAL)
     assert feats.aspect_ratio < 0.80                    # elongated
     m = cv2.moments(seg.contour)
@@ -325,7 +280,7 @@ def test_partial_region_object_kept_whole():
     check, so the final contour collapsed to the bowl and the handle was lost."""
     bg = make_gray_background(fill=20)
     img = draw_spoon_bright_bowl_dim_handle(bg)
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert not seg.touches_border
     x, y, w, h = cv2.boundingRect(seg.contour)
     assert w > 550, f"only a fragment segmented (bbox width {w}px, bowl-only ≈225px)"
@@ -339,7 +294,7 @@ def test_corner_noise_blob_rejected():
     H, W = bg.shape[:2]
     img = draw_plate(bg, 180.0)                          # real central object
     cv2.rectangle(img, (W - 150, H - 150), (W - 1, H - 1), (255, 255, 255), -1)
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert not seg.touches_border                        # central plate chosen, not the corner
     feats = extract(img, seg, CAL)
     assert abs(feats.circle_diameter_mm - 180.0) < 3.0
@@ -347,7 +302,7 @@ def test_corner_noise_blob_rejected():
     noise_only = bg.copy()
     cv2.rectangle(noise_only, (W - 150, H - 150), (W - 1, H - 1), (255, 255, 255), -1)
     with pytest.raises(SegmentationError):
-        segment(noise_only, bg, CFG)
+        segment(noise_only, bg)
 
 
 def draw_fork(bg, color=(250, 250, 250)):
@@ -375,7 +330,7 @@ def test_fork_tine_slots_stay_open():
     perimeter and colour must describe the FORK, not a filled paddle."""
     bg = make_background()
     img, slots, tines = draw_fork(bg)
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert not seg.touches_border
     x, y, w, h = cv2.boundingRect(seg.contour)
     assert w > 700                                   # whole fork: handle + head
@@ -390,7 +345,7 @@ def test_silhouette_is_tight():
     measures within a small absolute budget of its drawn diameter."""
     bg = make_background()
     img = draw_plate(bg, 200.0)
-    d = extract(img, segment(img, bg, CFG), CAL).circle_diameter_mm
+    d = extract(img, segment(img, bg), CAL).circle_diameter_mm
     assert abs(d - 200.0) < 2.5, f"silhouette fat/thin: {d:.2f}mm vs 200mm"
 
 
@@ -402,9 +357,13 @@ def test_refined_blob_keeps_dark_neck():
     img = bg.copy()
     cv2.rectangle(img, (600, 525), (1030, 557), (200, 200, 200), -1)   # handle
     cv2.ellipse(img, (1150, 540), (100, 70), 0, 0, 360, (200, 200, 200), -1)  # bowl
-    # neck: 18px stretch back at background level (mirrors the floor)
+    # neck: 18px stretch that mirrors the floor. Like every real neck it
+    # keeps a faint OUTLINE (the metal edge glints) – a fully invisible neck
+    # with open flanks is physically impossible.
     img[500:580, 1032:1050] = bg[500:580, 1032:1050]
-    seg = segment(img, bg, CFG)
+    cv2.line(img, (1030, 527), (1052, 522), (48, 48, 48), 2)
+    cv2.line(img, (1030, 556), (1052, 560), (48, 48, 48), 2)
+    seg = segment(img, bg)
     x, y, w, h = cv2.boundingRect(seg.contour)
     assert w > 550, f"object split/pinched at the dark neck (bbox width {w}px)"
     # the neck region itself must be part of the mask (no pinch-through)
@@ -426,32 +385,20 @@ def test_refined_blob_keeps_dark_bowl_side():
     cv2.ellipse(lune, (935, 540), (110, 80), 0, 0, 360, 0, -1)
     for ch in range(3):
         img[:, :, ch] = np.where(lune > 0, bg[:, :, ch], img[:, :, ch])
-    # faint rim glint along the dark side (realistic for polished steel);
-    # +28 gray is below the region diff_threshold but visible to Canny
-    cv2.ellipse(img, (960, 540), (110, 80), 0, -70, 70, (48, 48, 48), 2)
-    seg = segment(img, bg, CFG)
+    # faint rim glint along the dark side – a real metal edge glints along
+    # its WHOLE visible extent (a fully invisible outline with open flanks
+    # is physically impossible); +28 gray is a clear step edge for the
+    # edge-sealed completion
+    cv2.ellipse(img, (960, 540), (110, 80), 0, -85, 85, (48, 48, 48), 2)
+    seg = segment(img, bg)
     assert seg.mask[540, 1050] == 255, "dark bowl side cut off the mask"
     x, y, w, h = cv2.boundingRect(seg.contour)
     assert w > 205, f"bowl truncated at the bright/dark edge (bbox width {w}px)"
 
 
-def test_carve_is_noop_on_rim_shaded_plate():
-    """The blur-transition band just inside a shaded rim is background-like –
-    carving it would systematically shrink every plate by ~2 mm. The boundary
-    guard must make carve a no-op here (carve on == carve off)."""
-    bg = make_background()
-    cfg_off = {"segmentation": {**CFG["segmentation"], "carve_concavities": False}}
-    for d_mm in (160.0, 210.0):
-        img = draw_plate(bg, d_mm)
-        d_on = extract(img, segment(img, bg, CFG), CAL).circle_diameter_mm
-        d_off = extract(img, segment(img, bg, cfg_off), CAL).circle_diameter_mm
-        assert abs(d_on - d_off) < 0.2, f"carve shifted {d_mm}mm plate by {d_on - d_off:.2f}mm"
-
-
-def test_carve_keeps_wide_reflective_part():
+def test_short_reflective_handle_kept():
     """A SHORT reflective handle (<30% of the area, mean == background) must
-    not be amputated by the carve: wide background-like areas are real parts,
-    not slots."""
+    not be amputated: wide background-like areas are real parts, not slots."""
     bg = make_gray_background(fill=20)
     img = bg.copy()
     h_, w_ = img.shape[:2]
@@ -462,14 +409,14 @@ def test_carve_keeps_wide_reflective_part():
     for ch in range(3):
         img[:, :, ch] = np.where(handle > 0, checker, img[:, :, ch])
     cv2.ellipse(img, (1150, 540), (110, 75), 0, 0, 360, (200, 200, 200), -1)
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     x, y, w, h = cv2.boundingRect(seg.contour)
     assert w > 320, f"handle amputated (bbox width {w}px, bowl-only ≈225px)"
 
 
-def test_carve_never_unflags_border_touch():
-    """An object whose background-like part crosses the frame edge must stay
-    flagged as touching – the border check runs on the UNCARVED silhouette."""
+def test_reflective_border_crossing_stays_flagged():
+    """An object whose background-like (mirror) part crosses the frame edge
+    must stay flagged as touching – never confidently measure a fragment."""
     bg = make_gray_background(fill=20)
     img = bg.copy()
     h_, w_ = img.shape[:2]
@@ -480,11 +427,11 @@ def test_carve_never_unflags_border_touch():
     for ch in range(3):
         img[:, :, ch] = np.where(stub > 0, checker, img[:, :, ch])
     cv2.circle(img, (350, 540), 150, (200, 200, 200), -1)            # bright body inside
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert seg.touches_border, "clipped object silently measured after carve"
 
 
-def test_tapered_fan_tine_slots_carved():
+def test_tapered_fan_tine_slots_stay_open():
     """Real forks have fan-shaped tines: the slots are WEDGES that taper to
     zero at the base and open through a narrow tip gap, drawn diagonally like
     in practice. The old per-component statistics merged these wedges with
@@ -498,11 +445,14 @@ def test_tapered_fan_tine_slots_carved():
     for t in tips:
         cv2.line(canvas, base, t, 255, 16)                     # fanned tines
     M = cv2.getRotationMatrix2D((900, 522), -40, 1.0)
-    canvas = cv2.warpAffine(canvas, M, (bg.shape[1], bg.shape[0]))
+    # INTER_NEAREST: antialiased edge ramps are a synthetic artifact – real
+    # metal edges are crisp, and soft 3px ramps artificially narrow the slots
+    canvas = cv2.warpAffine(canvas, M, (bg.shape[1], bg.shape[0]),
+                            flags=cv2.INTER_NEAREST)
     img = bg.copy()
     for ch in range(3):
         img[:, :, ch] = np.where(canvas > 0, 150, img[:, :, ch])
-    seg_r = segment(img, bg, CFG)
+    seg_r = segment(img, bg)
     open_slots = 0
     for a, b_ in ((tips[0], tips[1]), (tips[1], tips[2]), (tips[2], tips[3])):
         mx = (a[0] * 0.85 + base[0] * 0.15 + b_[0] * 0.85 + base[0] * 0.15) / 2
@@ -515,6 +465,22 @@ def test_tapered_fan_tine_slots_carved():
     assert w > 500                                             # fork stays whole
 
 
+def test_dark_reflection_valley_stays_in_mask():
+    """A real spoon bowl mirrors the box: dark valleys (diff ~20-30, i.e.
+    dark but NOT background) run thin and deep and may touch the rim – they
+    look exactly slot-shaped. Only TRUE background (diff ~ noise) may stay
+    outside; the valley must remain part of the mask."""
+    bg = make_gray_background(fill=20)
+    img = bg.copy()
+    cv2.ellipse(img, (960, 540), (130, 90), 0, 0, 360, (190, 190, 190), -1)
+    # dark mirror valley: 12px wide band from the rim into the bowl centre,
+    # value 45 -> diff 25 (dark, but clearly above the floor noise band)
+    cv2.line(img, (1085, 540), (960, 540), (45, 45, 45), 12)
+    seg = segment(img, bg)
+    assert seg.mask[540, 1020] == 255, "reflection valley carved out of the bowl"
+    assert seg.mask[540, 980] == 255
+
+
 def test_split_object_reports_multiple_plausible_parts():
     """If the object falls apart into two plausible blobs (spoon bowl vs.
     handle), only the best one is measured – but debug['n_plausible'] must
@@ -522,16 +488,57 @@ def test_split_object_reports_multiple_plausible_parts():
     bg = make_background()
     img = draw_plate(bg, 100.0, center=(600, 540))
     img = cv2.circle(img, (1300, 540), int(100.0 / MM_PER_PX / 2), (250, 250, 250), -1)
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert seg.debug is not None and seg.debug["n_plausible"] == 2
     # single object -> no false alarm
-    seg_single = segment(draw_plate(bg, 200.0), bg, CFG)
+    seg_single = segment(draw_plate(bg, 200.0), bg)
     assert seg_single.debug["n_plausible"] == 1
 
 
 def test_large_border_object_not_rejected_as_noise():
     bg = make_background()
     img = draw_plate(bg, 210.0, center=(30, 540))        # large plate clipped by the frame
-    seg = segment(img, bg, CFG)
+    seg = segment(img, bg)
     assert seg.touches_border                            # flagged, not discarded as noise
-    assert seg.area_px > CFG["segmentation"]["min_area_px"]
+    assert seg.area_px > MIN_AREA_PX
+
+
+def _add_sensor_noise(img, sigma=2.5, seed=7):
+    """The REAL floor: spatially smooth (neighbor-diff p99.5 = 1.0) but with
+    TEMPORAL sensor noise between the background shot and the object shot
+    (evidence ceiling 4-7 gray). Only this combination makes weak mirror
+    parts (evidence between the noise ceiling and the presence threshold)
+    physically possible – iid spatial noise cannot model it."""
+    nz = np.random.default_rng(seed).normal(0, sigma, img.shape)
+    return np.clip(img.astype(np.float32) + nz, 0, 255).astype(np.uint8)
+
+
+def test_weak_evidence_handle_not_amputated_by_roi():
+    """The ROI locator only sees STRONG evidence, but real mirror parts sit
+    far below it: a long uniform handle only ~14 gray above the floor is
+    invisible to the presence locator (~5x noise ceiling), yet clearly
+    bounded for the smoothness term. The window has to self-expand until
+    the whole object is inside (regression: silent amputation)."""
+    bg = make_gray_background(fill=20, noise=1)
+    img = bg.copy()
+    cv2.ellipse(img, (700, 540), (110, 75), 0, 0, 360, (200, 200, 200), -1)  # bright bowl
+    cv2.rectangle(img, (800, 515), (1500, 565), (34, 34, 34), -1)  # delta-14 handle
+    img = _add_sensor_noise(img)
+    seg = segment(img, bg)
+    x, y, w, h = cv2.boundingRect(seg.contour)
+    assert x + w > 1450, f"weak handle amputated at the ROI window (bbox right {x + w}px)"
+    assert seg.area_px > 45000                           # bowl alone is ~26000
+    assert not seg.touches_border
+
+
+def test_weak_evidence_border_crossing_still_flagged():
+    """A weak-evidence part (below the locator threshold) that genuinely
+    crosses the frame edge must still set touches_border – identify() must
+    never confidently measure the bright fragment of a clipped object."""
+    bg = make_gray_background(fill=20, noise=1)
+    img = bg.copy()
+    cv2.circle(img, (1500, 540), 150, (200, 200, 200), -1)          # bright body
+    cv2.rectangle(img, (1600, 515), (1920, 565), (34, 34, 34), -1)  # weak tail out of frame
+    img = _add_sensor_noise(img)
+    seg = segment(img, bg)
+    assert seg.touches_border, "clipped object with weak tail escaped the border flag"

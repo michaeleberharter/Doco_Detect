@@ -1,7 +1,7 @@
-# Optionale KI-Silhouette (MobileSAM, automatisch gepromptet) fuer die
-# Segmentierung von spiegelndem Besteck. CPU reicht (Windows-PyPI-Wheels von
-# torch sind ohnehin CPU-only). Der ~40-MB-Checkpoint wird beim ersten Lauf
-# automatisch nach models/mobile_sam.pt geladen (config: segmentation.neural).
+# STILLGELEGT: der MobileSAM-Pfad ist nicht mehr in die Pipeline eingebunden
+# (der globale Graph-Cut in segmentation.py hat ihn ersetzt). Diese Abhaengig-
+# keiten braucht nur noch, wer mit docodetect/neural_seg.py experimentiert.
+# CPU reicht; der ~40-MB-Checkpoint laedt beim ersten Lauf nach models/.
 torch>=2.2
 torchvision>=0.17
 timm>=0.9

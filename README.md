@@ -99,7 +99,38 @@ Live-Vorschau läuft oder eine Aufnahme passiert, und danach wieder
 freigegeben (Sidebar-Button "🔌 Kamera freigeben" schließt sie auch manuell) –
 so blockiert die UI das Kamera-Device nicht dauerhaft für die CLI.
 
-## Segmentierung spiegelnder Objekte (Besteck auf dunklem Grund)
+## Segmentierung: EIN globaler Graph-Cut, KEINE Konfiguration
+
+Die Segmentierung löst das Problem so wie ein Mensch: nicht Pixel für Pixel
+klassifizieren, sondern **die geschlossene Region finden, deren Rand auf den
+sichtbaren Kanten liegt** – als globale Optimierung (Min-Cut, scipy).
+**Es gibt keine Stellschrauben**: jede Schwelle wird pro Bild selbst
+kalibriert (Boden-Rauschdecke per Sigma-Clipping, Objekt-Anker = obere
+Hälfte des Evidenzbereichs jedes Teils, Kantenmaß am Referenzboden).
+
+1. **Evidenz** je Pixel: Differenz + Textur gegenüber dem leeren-Box-
+   Referenzbild (Textur zählt nur, wo das Pixel selbst messbar vom Boden
+   abweicht – sonst würden schmale Gabelschlitze Textur der Zinken erben).
+2. **Graph-Cut**: der Datenterm beansprucht nur Sicheres (Boden unter der
+   Rauschdecke, Anker auf dem Objekt) – alles dazwischen ist neutral, und
+   die Grenze legt sich zwingend auf die stärkste sichtbare Kante. Der
+   Glüh-Saum (Bloom) um helles Metall hat keine Außenkante und fällt so
+   von selbst an den Boden.
+3. **Amodale Vervollständigung**: von Kanten umschlossene Spiegelzonen
+   gehören zum Objekt; getrennte Teile (Spiegel-Hals einer vertikalen
+   Gabel) werden über die Distanz-Linse gebrückt, wenn der Korridor
+   Nicht-Boden-Material trägt; Einbuchtungen mit unsichtbarer Grenze und
+   Evidenz-Inhalt werden gefüllt. Gabelschlitze münden kantenfrei nach
+   außen und bleiben offen – ihre Grenze ist sichtbar.
+4. **Kontur-Snap** auf die stärksten Bildkanten; Punkte ganz ohne Kante
+   suchen nur nach außen die verpasste Kontur ("keine Grenze ohne Kante").
+
+Validiert und gepinnt an echten Aufnahmen (`data/captures/` +
+`tests/test_real_captures.py`, 12 Goldens); ~0,7–1,5 s pro Bild, rein CPU
+(opencv+scipy). Der frühere MobileSAM-Pfad ist stillgelegt
+(`docodetect/neural_seg.py` bleibt nur für Experimente).
+
+## Ältere Hinweise (Beleuchtung/Untergrund)
 
 Spiegelnder Edelstahl reflektiert den dunklen Untergrund und hebt sich dann
 farblich/hell kaum ab – reine Hintergrund-Differenz übersieht ihn. Zwei Dinge
@@ -114,40 +145,32 @@ adressieren das:
    Config-Tab ermitteln); manche UVC-Kameras ignorieren die Props – `camera.py`
    liest die Ist-Werte zurück und warnt.
 
-2. **Recovery-Cues** in `segmentation.py`: zusätzlich zur Region-Differenz eine
-   **Kanten-** (`use_edge_cue`) und **Textur-**Erkennung (`use_texture_cue`,
-   lokale Varianz – Glanzlichter/Reflexe gegen den matten Grund). Für kontrast-
-   starke Teile (weißes Porzellan) bleibt die Region-Differenz maßgeblich, die
-   Maße ändern sich also nicht. Stellschrauben: `texture_threshold` (kleiner =
-   empfindlicher), `refine_diff_threshold`, `recover_close_kernel` – live im
-   Streamlit-Config-Tab. Zusätzlich verwirft die Objektauswahl randklebende
-   Rausch-Blobs (Score aus Fläche/Solidität/Zentrierung/Randkontakt).
+2. **Textur-Evidenz + Graph-Cut** in `segmentation.py`: zusätzlich zur
+   Kanal-Differenz misst die Evidenz die lokale Textur (Reflex-Schlieren
+   gegen den matten Grund), und der Graph-Cut behandelt Spiegelzonen als
+   neutral – die sichtbaren Kanten entscheiden. Es gibt **keine
+   Stellschrauben** (alles selbstkalibrierend); stimmt eine Segmentierung
+   nicht, ist die automatisch gespeicherte Aufnahme in `data/captures/`
+   der Testfall für eine Regel-Verbesserung. Zusätzlich verwirft die
+   Objektauswahl randklebende Rausch-Blobs (Score aus Fläche/Solidität/
+   Zentrierung/Randkontakt).
 
-Billigster Zusatz-Hebel, falls möglich: ein **matt-mittelgrauer** Untergrund
-statt Schwarz verbessert den Kontrast zu dunklem Besteck deutlich (etwas
-schlechter für weißes Geschirr – der Algorithmus deckt beide Fälle ab).
+**Untergrund: SCHWARZ (matt) ist die richtige Wahl.** Ein grauer Untergrund
+wurde real getestet (2026-07-16) und ist messbar schlechter: Spiegel-Stahl
+reflektiert dann die graue Box-Umgebung und trifft die Boden-Helligkeit
+großflächig (halbe Laffen "verschwinden"), und an den Tangential-Flächen
+verschwindet sogar die Umriss-Kante selbst – dort kann keine Vervollständigung
+mehr greifen. Auf Schwarz sind die Spiegel-Zonen von sichtbaren Glanz-Kanten
+umschlossen und werden amodal ergänzt; zudem wirft Schwarz keine sichtbaren
+Schatten. Der komplette Golden-Bestand ist auf schwarzem Boden validiert.
 
-### KI-Silhouette (MobileSAM, automatisch – niemand markiert etwas)
+### Stillgelegt: KI-Silhouette (MobileSAM)
 
-Für pixelgenaue Silhouetten auf spiegelndem Besteck gibt es eine optionale
-neuronale Stufe: Die klassischen Cues **finden** das Objekt wie bisher, daraus
-werden **automatisch** eine Bounding-Box und Innen-Punkte abgeleitet, und
-MobileSAM liefert die präzise Maske. Kein Klicken, kein Markieren. Fällt das
-Modell aus (nicht installiert, Checkpoint fehlt, Ausgabe unplausibel), läuft
-automatisch die klassische Verfeinerung.
-
-```bash
-pip install -r requirements-seg-neural.txt   # torch (CPU) + MobileSAM, einmalig
-# Checkpoint (~40 MB) lädt beim ersten Lauf automatisch nach models/
-```
-
-Ein-/ausschalten über `segmentation.neural.enabled` in config/config.yaml oder
-den Schalter im ⚙️-Tab der Test-UI. Der 🔬-Debug-Expander zeigt die KI-Maske
-als eigene Spalte.
-
-**Wichtig:** KI- und klassische Silhouette unterscheiden sich systematisch um
-~2 mm (die KI ist die genauere). Nach dem Umschalten des Modus daher Artikel
-**neu anlegen bzw. Referenzen neu einlernen**, sonst sinken die Match-Scores.
+Der frühere neuronale Pfad ist **nicht mehr in die Pipeline eingebunden** –
+der globale Graph-Cut hat ihn ersetzt (SAM versiegelte z. B. schmale
+Gabelschlitze). `docodetect/neural_seg.py` und
+`requirements-seg-neural.txt` bleiben nur für Experimente im Repo; es gibt
+keinen `segmentation.neural`-Config-Block und keinen UI-Schalter mehr.
 
 ## Repo-Struktur
 
@@ -155,7 +178,7 @@ als eigene Spalte.
 docodetect/
   camera.py        Kamera-Capture (4K, MJPG, Autofokus-Lock)
   calibration.py   ArUco-Kalibrierung px→mm, Hintergrund-Referenz
-  segmentation.py  Hintergrund-Differenz → Objektkontur + Randprüfung
+  segmentation.py  Globaler Graph-Cut (Evidenz → Min-Cut → Kanten-Abschluss → Snap)
   features.py      Geometrie (mm-korrekt) + Farbe + Formmerkmale
   database.py      SQLite: Artikelstammdaten + Referenzmerkmale
   matcher.py       Stufe 1: Kandidatenfilter + Scoring + Confidence
