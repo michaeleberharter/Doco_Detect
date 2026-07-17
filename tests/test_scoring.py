@@ -541,6 +541,50 @@ def test_summarize_accuracy_confusion_and_posteriors():
     assert s.posteriors_correct == [0.9] and 0.6 in s.posteriors_wrong
 
 
+def test_save_verdict_updates_report_json(tmp_path, monkeypatch):
+    """Menschliches Feedback (richtig/falsch) muss im gespeicherten Report-JSON
+    landen, damit der Batch-Tab die Erfolgsrate rechnen kann."""
+    import docodetect.config as cfgmod
+    from docodetect.reporting import judgement, save_verdict
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    bg = _bg()
+    cfg = {"matching": MATCH_CFG["matching"], "features": {},
+           "paths": {"db_file": str(tmp_path / "t.sqlite3"),
+                     "captures_dir": "captures"}}
+    pipe = Pipeline.__new__(Pipeline)
+    pipe.cfg, pipe.cal, pipe.background = cfg, CAL, bg
+    pipe.db = Database(cfg); pipe.db.init_schema()
+    try:
+        out = pipe.identify(_red_rim_plate(bg))
+        assert out.report.report_path                      # Pipeline merkt sich den Ablageort
+        save_verdict(out.report, True)
+        (_, rep), = load_reports(tmp_path / "captures")
+        assert rep.verdict == "correct" and judgement(rep) is True
+        save_verdict(rep, False, "TELLER-200")             # Umbewerten überschreibt
+        (_, rep2), = load_reports(tmp_path / "captures")
+        assert rep2.verdict == "wrong" and rep2.label == "TELLER-200"
+        assert judgement(rep2) is False
+    finally:
+        pipe.db.close()
+
+
+def test_summarize_prefers_human_verdict():
+    """verdict schlägt den Label-Vergleich; 'falsch' ohne bekannten wahren
+    Artikel zählt in die Fehlerrate und taucht in der Confusion als '?' auf."""
+    r_ok = _mini_report("accept", None, "A", 0.9)
+    r_ok.verdict, r_ok.label = "correct", "A"
+    r_bad = _mini_report("accept", None, "A", 0.8)
+    r_bad.verdict = "wrong"                                # Wahrheit unbekannt
+    r_override = _mini_report("accept", "B", "A", 0.7)     # Label sagt falsch...
+    r_override.verdict = "correct"                         # ...Mensch überstimmt
+    unrated = _mini_report("accept", None, "A", 0.5)       # ohne Feedback/Label
+    s = summarize([r_ok, r_bad, r_override, unrated])
+    assert s.total == 4 and s.labeled == 3 and s.correct == 2
+    assert s.accuracy == pytest.approx(2 / 3)
+    assert ("?", "A", 1) in s.confusion
+    assert s.posteriors_wrong == [0.8]
+
+
 def test_load_reports_skips_broken_json(tmp_path):
     (tmp_path / "a.json").write_text(_mini_report("accept", "A", "A", 0.9).to_json(),
                                      encoding="utf-8")

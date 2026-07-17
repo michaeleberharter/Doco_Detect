@@ -24,6 +24,39 @@ def predicted_article(report: MatchReport) -> str:
     return report.candidates[0].article_number if report.candidates else NO_MATCH
 
 
+def judgement(report: MatchReport) -> bool | None:
+    """War die Vorhersage richtig? True/False wenn beurteilbar, None wenn
+    weder menschliches Feedback (verdict) noch ein Label vorliegt. Ein
+    manuelles Urteil hat Vorrang vor dem Label-Vergleich."""
+    if report.verdict == "correct":
+        return True
+    if report.verdict == "wrong":
+        return False
+    if report.label:
+        return predicted_article(report) == report.label
+    return None
+
+
+def save_verdict(report: MatchReport, correct: bool,
+                 true_article: str | None = None) -> Path:
+    """Menschliches Feedback ("stimmt" / "stimmt nicht") in das gespeicherte
+    Report-JSON zurückschreiben – Grundlage für Erfolgsrate und Fehlerliste
+    im Batch-Tab. Bei "richtig" wird die Top-1-Vorhersage als Label
+    übernommen; bei "falsch" der übergebene wahre Artikel (None = unbekannt,
+    ein evtl. vorhandenes evaluate-Label bleibt dann stehen)."""
+    if not report.report_path:
+        raise ValueError("Report wurde nie gespeichert (paths.captures_dir "
+                         "fehlte) – Bewertung kann nicht abgelegt werden.")
+    report.verdict = "correct" if correct else "wrong"
+    if correct:
+        report.label = predicted_article(report)
+    elif true_article:
+        report.label = true_article
+    p = Path(report.report_path)
+    p.write_text(report.to_json(), encoding="utf-8")
+    return p
+
+
 @dataclass
 class BatchSummary:
     total: int = 0
@@ -46,15 +79,18 @@ def summarize(reports: list[MatchReport]) -> BatchSummary:
         decisions[r.decision] += 1
         pred = predicted_article(r)
         top_post = r.candidates[0].posterior if r.candidates else 0.0
-        if not r.label:
-            continue
+        ok = judgement(r)
+        if ok is None:
+            continue                       # weder Feedback noch Label -> unbewertet
         s.labeled += 1
-        per_class[r.label][pred] += 1
-        if pred == r.label:
+        if r.label:
+            per_class[r.label][pred] += 1
+        if ok:
             s.correct += 1
             s.posteriors_correct.append(top_post)
         else:
-            confusion[(r.label, pred)] += 1
+            # unbekannte Wahrheit (Feedback "falsch" ohne Artikelangabe) -> "?"
+            confusion[(r.label or "?", pred)] += 1
             s.posteriors_wrong.append(top_post)
     s.accuracy = s.correct / s.labeled if s.labeled else 0.0
     s.decision_counts = dict(decisions)
@@ -74,9 +110,13 @@ def load_reports(folder: str | Path,
     for p in sorted(folder.glob("*.json"), key=lambda p: p.stat().st_mtime,
                     reverse=True):
         try:
-            out.append((p, MatchReport.from_json(p.read_text(encoding="utf-8"))))
+            rep = MatchReport.from_json(p.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, TypeError, KeyError):
             continue
+        # tatsächlichen Ablageort setzen (überschreibt evtl. veraltete Pfade
+        # von anderen Rechnern) -> save_verdict schreibt garantiert hierhin
+        rep.report_path = str(p)
+        out.append((p, rep))
         if limit is not None and len(out) >= limit:
             break
     return out

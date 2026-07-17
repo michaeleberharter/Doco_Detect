@@ -25,9 +25,10 @@ import streamlit as st
 from docodetect.camera import CameraError
 from docodetect.config import load_config, resolve
 from docodetect.pipeline import Pipeline
-from docodetect.reporting import load_reports, predicted_article, summarize
+from docodetect.reporting import (judgement, load_reports, predicted_article,
+                                  summarize)
 from ui_common import (CAMERA_HINT, capture_frame, draw_report_overlay,
-                       resize_width)
+                       render_feedback, resize_width)
 
 st.set_page_config(page_title="Scoring-Analyse", layout="wide")
 st.title("Scoring-Analyse")
@@ -244,8 +245,14 @@ with tab_single:
     with col_pick:
         loaded = load_reports(captures_dir, limit=25)
         if loaded:
-            options = {f"{p.name} · {rep.decision} · {predicted_article(rep)}": rep
-                       for p, rep in loaded}
+            def _mark(rep):
+                if rep.verdict == "correct":
+                    return " · bewertet: richtig"
+                if rep.verdict == "wrong":
+                    return " · bewertet: FALSCH"
+                return ""
+            options = {f"{p.name} · {rep.decision} · {predicted_article(rep)}"
+                       f"{_mark(rep)}": rep for p, rep in loaded}
             choice = st.selectbox("Gespeicherten Report laden (neueste zuerst)",
                                   ["– aktuelle Live-Analyse –"] + list(options))
             if choice != "– aktuelle Live-Analyse –":
@@ -259,6 +266,8 @@ with tab_single:
         st.info("Live identifizieren oder oben einen gespeicherten Report wählen.")
     else:
         render_report(report)
+        st.divider()
+        render_feedback(report, cfg, key="analysis_fb")
 
 with tab_batch:
     folder = st.text_input("Report-Ordner",
@@ -269,14 +278,34 @@ with tab_batch:
         st.info("Keine Report-JSONs gefunden.")
     else:
         s = summarize(reports)
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Reports", s.total)
-        c2.metric("Top-1-Accuracy",
-                  f"{s.accuracy:.1%}" if s.labeled else "– (keine Labels)")
-        c3.metric("ACCEPT-Anteil",
+        c2.metric("Bewertet", f"{s.labeled}/{s.total}",
+                  help="Feedback (Richtig/Falsch) oder evaluate-Label vorhanden")
+        c3.metric("Erfolgsrate",
+                  f"{s.accuracy:.1%}" if s.labeled else "– (nichts bewertet)")
+        c4.metric("ACCEPT-Anteil",
                   f"{s.decision_counts.get('accept', 0) / s.total:.0%}")
-        c4.metric("REJECT-Anteil",
+        c5.metric("REJECT-Anteil",
                   f"{s.decision_counts.get('reject', 0) / s.total:.0%}")
+
+        wrong_reports = [r for r in reports if judgement(r) is False]
+        if wrong_reports:
+            st.subheader("Fehlerfälle – wo und wann es schiefging")
+            err_rows = [{
+                "Zeitpunkt": r.timestamp,
+                "Entscheidung": r.decision,
+                "Vorhersage": predicted_article(r),
+                "Wahrer Artikel": r.label or "?",
+                "Posterior Top-1": (r.candidates[0].posterior
+                                    if r.candidates else None),
+                "max |z|": r.max_z_winner,
+                "Report": Path(r.report_path).name if r.report_path else "",
+            } for r in wrong_reports]
+            st.dataframe(pd.DataFrame(err_rows), width="stretch", hide_index=True)
+            st.caption("Häufungen bei bestimmten Artikeln, Uhrzeiten (Licht!) "
+                       "oder Entscheidungstypen zeigen, wo nachgebessert werden "
+                       "muss – Details: Report im Einzel-Report-Tab öffnen.")
         st.plotly_chart(px.pie(names=list(s.decision_counts),
                                values=list(s.decision_counts.values()),
                                title="Entscheidungsverteilung"), width="stretch")

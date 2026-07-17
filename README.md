@@ -86,7 +86,11 @@ entfällt die Adaption.
 
 Jede Identifikation legt Capture + `MatchReport`-JSON (alle Zwischengrößen:
 pro Kandidat und Merkmal Distanz, sigma, z, Log-Beitrag; Fisher-D, Gewichte,
-Posterior, Gate-Status) unter `data/captures/` ab. Die Streamlit-Seite
+Posterior, Gate-Status) unter `data/captures/` ab. Unter jedem Ergebnis
+(Identify-Tab und Einzel-Report) kann per **Richtig/Falsch** bewertet werden,
+bei „Falsch" optional mit dem wahren Artikel — das Urteil wird ins Report-JSON
+zurückgeschrieben und fließt in Erfolgsrate, Fehlerliste und
+Verwechslungsmatrix des Batch-Tabs ein. Die Streamlit-Seite
 **📊 Scoring-Analyse** schlüsselt jeden Report auf (Kandidatentabelle,
 Log-Beitrags-Chart, Top-1-vs-Top-2-Kontrast) und aggregiert ganze Ordner zu
 Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
@@ -118,12 +122,15 @@ dieser Reihenfolge vorgehen:
    Stahl leben die Farb-/Textur-Merkmale von den Reflexionen — die Streuung
    über Rotationen muss in sigma_enroll enthalten sein, sonst wirkt ein
    anders gedrehter Löffel künstlich „falsch".
-3. **Batch-Daten sammeln statt raten:** gelabeltes Testset anlegen
-   (`data/testset/<artikelnummer>/*.jpg`, pro Artikel 10–20 Aufnahmen in
-   verschiedenen Rotationen), `evaluate` laufen lassen und im Batch-Tab der
-   **📊 Scoring-Analyse** die Posterior-Verteilung korrekt vs. falsch
-   anschauen. Erst wenn sich die beiden Verteilungen überlappen, lohnt sich
-   Tuning an `min_llr_margin` oder `max_z_accept`.
+3. **Batch-Daten sammeln statt raten:** entweder ein gelabeltes Testset
+   anlegen (`data/testset/<artikelnummer>/*.jpg`, pro Artikel 10–20 Aufnahmen
+   in verschiedenen Rotationen) und `evaluate` laufen lassen — oder einfach
+   beim Live-Testen jedes Ergebnis mit den **Richtig/Falsch**-Buttons
+   bewerten. Beides landet in denselben Report-JSONs; der Batch-Tab der
+   **Scoring-Analyse** zeigt daraus Erfolgsrate, Fehlerliste und die
+   Posterior-Verteilung korrekt vs. falsch. Erst wenn sich die beiden
+   Verteilungen überlappen, lohnt sich Tuning an `min_llr_margin` oder
+   `max_z_accept`.
 
 Leitplanken beim Lesen der Ergebnisse:
 

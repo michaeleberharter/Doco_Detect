@@ -86,6 +86,45 @@ def make_overlay(image: np.ndarray, seg) -> np.ndarray:
     return blended
 
 
+def render_feedback(report, cfg: dict, key: str) -> None:
+    """Richtig/Falsch-Bewertung unter einem Identifikations-Ergebnis.
+
+    Schreibt das Urteil in das gespeicherte Report-JSON (data/captures/)
+    zurück (reporting.save_verdict) – der Batch-Tab der Scoring-Analyse
+    rechnet daraus Erfolgsrate, Fehlerliste und Verwechslungsmatrix. Bei
+    "Falsch" kann optional der wahre Artikel angegeben werden."""
+    from docodetect.database import Database
+    from docodetect.reporting import save_verdict
+
+    st.markdown("**Ergebnis bewerten** – war die Identifikation richtig?")
+    if not getattr(report, "report_path", None):
+        st.caption("Report wurde nicht gespeichert (paths.captures_dir fehlt) – "
+                   "Bewertung nicht möglich.")
+        return
+    if report.verdict:
+        wort = "RICHTIG" if report.verdict == "correct" else "FALSCH"
+        truth = (f" (wahrer Artikel: {report.label})"
+                 if report.verdict == "wrong" and report.label else "")
+        st.info(f"Bereits bewertet als {wort}{truth} – erneutes Bewerten überschreibt.")
+    try:
+        db = Database(cfg)
+        articles = [a.article_number for a in db.all_articles()]
+        db.close()
+    except Exception:
+        articles = []
+    unknown = "– unbekannt / nicht in der Datenbank –"
+    c_ok, c_bad, c_truth = st.columns([1, 1, 2])
+    truth_choice = c_truth.selectbox("Wahrer Artikel (nur bei 'Falsch' relevant)",
+                                     [unknown] + articles, key=f"{key}_truth")
+    if c_ok.button("Richtig", type="primary", key=f"{key}_ok"):
+        save_verdict(report, True)
+        st.rerun()
+    if c_bad.button("Falsch", key=f"{key}_bad"):
+        save_verdict(report, False,
+                     None if truth_choice == unknown else truth_choice)
+        st.rerun()
+
+
 def draw_report_overlay(image: np.ndarray, report) -> np.ndarray:
     """Kontur-Overlay aus dem im MatchReport gespeicherten Polygon –
     funktioniert auch für aus JSON geladene Reports (keine

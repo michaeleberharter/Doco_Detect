@@ -95,7 +95,9 @@ class Pipeline:
             p = d / f"{ts}.jpg"
             cv2.imwrite(str(p), image)
             report.image_path = str(p)
-        (d / f"{ts}.json").write_text(report.to_json(), encoding="utf-8")
+        json_path = d / f"{ts}.json"
+        report.report_path = str(json_path)   # Feedback (richtig/falsch) schreibt hierhin zurück
+        json_path.write_text(report.to_json(), encoding="utf-8")
 
     def enroll(self, image: np.ndarray, article_number: str,
                image_path: str | None = None) -> tuple[Features, SegmentationResult]:

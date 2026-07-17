@@ -24,7 +24,7 @@ from docodetect.database import Database
 from docodetect.pipeline import Pipeline
 from docodetect.segmentation import SegmentationError
 from ui_common import (CAMERA_HINT, capture_frame, get_camera, make_overlay,
-                       release_camera, resize_width)
+                       release_camera, render_feedback, resize_width)
 
 st.set_page_config(page_title="Doco_Detect – Live-Test-UI", layout="wide")
 
@@ -284,6 +284,7 @@ with tab_identify:
     else:
         st.write("Objekt in die Box legen, dann auslösen.")
         if st.button("Identifizieren", type="primary"):
+            st.session_state.pop("identify_result", None)
             try:
                 frame = capture_frame(cfg)
                 pipe = Pipeline(cfg)
@@ -297,42 +298,55 @@ with tab_identify:
             except Exception as e:
                 st.error(f"Fehler: {e}")
             else:
-                r = outcome.report
-                if r.decision == "accept":
-                    st.success(f"ACCEPT — {r.message}")
-                elif r.decision == "ambiguous":
-                    st.warning(f"AMBIGUOUS — {r.message}")
-                else:
-                    st.error(f"REJECT — {r.message}")
+                # Ergebnis in der Session halten: jeder Button-Klick (z.B. die
+                # Richtig/Falsch-Bewertung) löst einen Rerun aus – die Anzeige
+                # muss ihn überleben.
+                st.session_state.identify_result = {
+                    "frame": frame, "report": outcome.report,
+                    "features": outcome.features, "seg": outcome.segmentation,
+                }
 
-                col1, col2 = st.columns(2)
-                col1.image(resize_width(frame, 960), channels="BGR", caption="Original")
-                if outcome.segmentation is not None:
-                    col2.image(resize_width(make_overlay(frame, outcome.segmentation), 960),
-                              channels="BGR", caption="Segmentierung (rot = Kontur, grün = Maske)")
-                    render_seg_debug(outcome.segmentation)
-                else:
-                    col2.info("Keine Segmentierung möglich (siehe Meldung oben).")
+        res = st.session_state.get("identify_result")
+        if res:
+            r = res["report"]
+            frame = res["frame"]
+            if r.decision == "accept":
+                st.success(f"ACCEPT — {r.message}")
+            elif r.decision == "ambiguous":
+                st.warning(f"AMBIGUOUS — {r.message}")
+            else:
+                st.error(f"REJECT — {r.message}")
 
-                if outcome.features is not None:
-                    render_features(outcome.features)
+            col1, col2 = st.columns(2)
+            col1.image(resize_width(frame, 960), channels="BGR", caption="Original")
+            if res["seg"] is not None:
+                col2.image(resize_width(make_overlay(frame, res["seg"]), 960),
+                           channels="BGR", caption="Segmentierung (rot = Kontur, grün = Maske)")
+                render_seg_debug(res["seg"])
+            else:
+                col2.info("Keine Segmentierung möglich (siehe Meldung oben).")
 
-                if r.candidates:
-                    st.subheader("Top-Kandidaten")
-                    rows = [{
-                        "Rang": i + 1,
-                        "Artikel": c.article_number,
-                        "Name": c.name,
-                        "Posterior": f"{c.posterior:.0%}",
-                        "log-Score": round(c.log_score, 2),
-                        "max |z|": round(c.max_abs_z, 2),
-                        "Δ Geometrie (mm)": c.geometry_error_mm,
-                        "Ø korrigiert (mm)": c.corrected_diameter_mm,
-                        "Referenzen?": c.has_references,
-                    } for i, c in enumerate(r.candidates[:3])]
-                    st.dataframe(pd.DataFrame(rows), width="stretch")
-                    st.caption("Volle Aufschlüsselung (z-Werte, Gewichte, "
-                               "Top-1-vs-Top-2): Seite **Scoring-Analyse** in der Sidebar.")
+            if res["features"] is not None:
+                render_features(res["features"])
+
+            if r.candidates:
+                st.subheader("Top-Kandidaten")
+                rows = [{
+                    "Rang": i + 1,
+                    "Artikel": c.article_number,
+                    "Name": c.name,
+                    "Posterior": f"{c.posterior:.0%}",
+                    "log-Score": round(c.log_score, 2),
+                    "max |z|": round(c.max_abs_z, 2),
+                    "Δ Geometrie (mm)": c.geometry_error_mm,
+                    "Ø korrigiert (mm)": c.corrected_diameter_mm,
+                    "Referenzen?": c.has_references,
+                } for i, c in enumerate(r.candidates[:3])]
+                st.dataframe(pd.DataFrame(rows), width="stretch")
+                st.caption("Volle Aufschlüsselung (z-Werte, Gewichte, "
+                           "Top-1-vs-Top-2): Seite **Scoring-Analyse** in der Sidebar.")
+
+            render_feedback(r, cfg, key="identify_fb")
 
 
 # ---------- Tab: Neuer Artikel ----------

@@ -117,6 +117,8 @@ class MatchReport:
     timestamp: str = ""
     image_path: str | None = None
     label: str | None = None                            # Ground-Truth (evaluate/Batch)
+    verdict: str | None = None                          # menschliches Feedback: "correct" | "wrong"
+    report_path: str | None = None                      # Ablageort dieses JSONs (für Feedback-Updates)
 
     def to_dict(self) -> dict:
         return asdict(self)
