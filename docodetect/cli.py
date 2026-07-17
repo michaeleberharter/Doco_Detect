@@ -205,9 +205,12 @@ def cmd_evaluate(args, cfg):
 def cmd_analyze(args, cfg):
     """Sechs Auswertungen (PNG + CSV/JSON) über gespeicherte Report-JSONs."""
     from .analysis import run_analysis
-    out = run_analysis(cfg, args.reports_dir, args.run_id)
+    out = run_analysis(cfg, args.reports_dir, args.run_id, archive=args.archive)
     print(f"[analyze] Artefakte unter {out}")
     print(f"[analyze] Bericht: {out / 'report.md'}")
+    if args.archive:
+        print("[analyze] Report-JSONs in den Lauf-Ordner verschoben – "
+              "nächste Testrunde startet leer.")
 
 
 def main(argv=None):
@@ -255,6 +258,9 @@ def main(argv=None):
                    help="Ordner mit Report-JSONs (Default: paths.captures_dir)")
     p.add_argument("--run-id", default=None,
                    help="Name des Auswertungslaufs (Default: Timestamp)")
+    p.add_argument("--archive", action="store_true",
+                   help="ausgewertete Report-JSONs in den Lauf-Ordner "
+                        "verschieben (nächste Testrunde startet leer)")
 
     args = parser.parse_args(argv)
     cfg = load_config(args.config)

@@ -162,6 +162,30 @@ def test_run_analysis_end_to_end(tmp_path, monkeypatch):
     assert "![confusion_matrix]" in md and "metrics.json" in md
 
 
+def test_run_analysis_archive_moves_jsons_but_keeps_images(tmp_path, monkeypatch):
+    """archive=True: ausgewertete Report-JSONs wandern in den Lauf-Ordner
+    (naechste Testrunde startet leer); Bilder bleiben in captures liegen
+    (Golden-PNGs der Segmentierungs-Regressionssuite!)."""
+    import docodetect.config as cfgmod
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    reports_dir = tmp_path / "caps"
+    reports_dir.mkdir()
+    _write(reports_dir, "a1", _rep(label="A", verdict="correct",
+                                   cands=[_cand("A", -0.1)]))
+    _write(reports_dir, "a2", _rep(label="A", verdict="correct",
+                                   cands=[_cand("A", -0.2)]))
+    (reports_dir / "1234.png").write_bytes(b"fake-golden")   # bleibt liegen
+    cfg = {"matching": dict(MATCHING), "analysis": {"output_dir": "r"},
+           "geometry": {"camera_height_mm": 300.0},
+           "paths": {"db_file": str(tmp_path / "t.sqlite3")}}
+    out = run_analysis(cfg, reports_dir, run_id="arch", archive=True)
+    assert list(reports_dir.glob("*.json")) == []            # Runde ist leer
+    assert (reports_dir / "1234.png").exists()               # Bild unberuehrt
+    archived = sorted(p.name for p in (out / "reports").glob("*.json"))
+    assert archived == ["a1.json", "a2.json"]
+    assert "archiviert" in (out / "report.md").read_text(encoding="utf-8")
+
+
 def test_run_analysis_survives_unlabeled_only(tmp_path, monkeypatch):
     """Nur unbewertete Reports: Auswertungen werden uebersprungen statt zu
     crashen, metrics.json + report.md entstehen trotzdem."""

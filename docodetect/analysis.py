@@ -30,6 +30,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import shutil
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -525,16 +526,23 @@ def _analysis_metrics(reports: list, out: Path, run_id: str, cfg: dict,
 # ---------- Einstiegspunkt ----------
 
 def run_analysis(cfg: dict, reports_dir: str | Path | None = None,
-                 run_id: str | None = None) -> Path:
+                 run_id: str | None = None, archive: bool = False) -> Path:
     """Alle sechs Auswertungen über einen Ordner voller Report-JSONs fahren.
-    Gibt den Artefakt-Ordner <analysis.output_dir>/<run_id>/ zurück."""
+    Gibt den Artefakt-Ordner <analysis.output_dir>/<run_id>/ zurück.
+
+    archive=True: die ausgewerteten Report-JSONs werden anschließend nach
+    <run_id>/reports/ verschoben – jede Testrunde bleibt komplett beisammen
+    und die nächste startet bei 0. Bilder (Roh-PNGs/JPGs) bleiben im
+    Quellordner: die PNGs sind die Golden-Testfälle der Segmentierungs-
+    Regressionssuite und werden von den Reports weiter referenziert."""
     src = Path(reports_dir) if reports_dir else resolve(
         cfg.get("paths", {}).get("captures_dir", "data/captures"))
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
     out = resolve(cfg.get("analysis", {}).get("output_dir", "reports/analysis")) / run_id
     out.mkdir(parents=True, exist_ok=True)
 
-    reports = [r for _, r in load_reports(src)]
+    loaded = load_reports(src)
+    reports = [r for _, r in loaded]
     sections = []
     if not reports:
         sections.append(_Section("Keine Reports"))
@@ -547,13 +555,28 @@ def run_analysis(cfg: dict, reports_dir: str | Path | None = None,
         sections.append(_analysis_position(reports, out, run_id, cfg))
         sections.append(_analysis_metrics(reports, out, run_id, cfg, str(src)))
 
+    archived_note = ""
+    if archive and loaded:
+        arch = out / "reports"
+        arch.mkdir(exist_ok=True)
+        for p, _ in loaded:
+            shutil.move(str(p), str(arch / p.name))
+        archived_note = (f"- Reports: {len(loaded)} JSONs nach `{arch}` "
+                         "archiviert – der Quellordner ist bereit für die "
+                         "nächste Testrunde (Bilder bleiben dort liegen).")
+
     judged_n = sum(1 for r in reports if judgement(r) is not None)
     head = [
         "# Scoring-Analyse – Auswertungslauf", "",
         f"- run_id: `{run_id}`",
         f"- erzeugt: {datetime.now().isoformat(timespec='seconds')}",
         f"- Quelle: `{src}`",
-        f"- Reports: {len(reports)} (davon bewertet/gelabelt: {judged_n})", "",
+        f"- Reports: {len(reports)} (davon bewertet/gelabelt: {judged_n})",
+    ]
+    if archived_note:
+        head.append(archived_note)
+    head += [
+        "",
         "Grafiken (PNG) für den Menschen, CSV/JSON für Diffs zwischen "
         "Testläufen. Bewertungen kommen aus den Richtig/Falsch-Buttons "
         "bzw. `evaluate`-Labels.", "",

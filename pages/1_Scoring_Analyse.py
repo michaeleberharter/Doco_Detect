@@ -292,14 +292,24 @@ with tab_batch:
     if name_taken:
         st.warning(f"Lauf `{run_id}` existiert schon unter `{out_base}` – "
                    "bitte anderen Namen wählen (Läufe werden nie überschrieben).")
+    do_archive = st.checkbox(
+        "Reports nach der Auswertung in den Lauf-Ordner verschieben "
+        "(jede Testrunde bleibt einzeln, die nächste startet bei 0)",
+        value=True, key="analysis_archive")
     if c_btn.button("Auswertung erstellen", type="primary",
                     disabled=not run_id or name_taken):
         from docodetect.analysis import run_analysis
         with st.spinner("Rechne die sechs Auswertungen…"):
-            out_dir = run_analysis(cfg, folder, run_id=run_id)
+            out_dir = run_analysis(cfg, folder, run_id=run_id,
+                                   archive=do_archive)
         st.session_state.last_analysis_dir = str(out_dir)
-        st.success(f"Fertig: {len(list(out_dir.iterdir()))} Artefakte unter "
-                   f"`{out_dir}` (report.md bindet alles ein).")
+        st.session_state.analysis_msg = (
+            f"Fertig: Artefakte unter `{out_dir}` (report.md bindet alles ein)."
+            + (" Die Report-JSONs wurden in den Lauf-Ordner verschoben – "
+               "die nächste Testrunde startet leer." if do_archive else ""))
+        st.rerun()   # Batch-Zahlen oben sofort auf den geleerten Ordner aktualisieren
+    if msg := st.session_state.pop("analysis_msg", None):
+        st.success(msg)
     last_dir = st.session_state.get("last_analysis_dir")
     if last_dir and Path(last_dir).is_dir():
         with st.expander(f"Grafiken des Laufs '{Path(last_dir).name}'",
