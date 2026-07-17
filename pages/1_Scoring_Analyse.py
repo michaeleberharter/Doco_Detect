@@ -14,6 +14,7 @@ Beantwortet für die Testphase:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import cv2
@@ -273,6 +274,41 @@ with tab_batch:
     folder = st.text_input("Report-Ordner",
                            value=str(resolve(cfg["paths"].get("captures_dir",
                                                               "data/captures"))))
+
+    # ---- Auswertungslauf erzeugen (PNG + CSV/JSON pro Testrunde) ----
+    st.markdown("**Testrunde abschließen:** Namen eingeben und Auswertung "
+                "erzeugen – alle Grafiken und Daten landen in einem Ordner "
+                "mit genau diesem Namen.")
+    c_name, c_btn = st.columns([2, 1])
+    run_name = c_name.text_input("Test-Name (= Ordnername des Laufs)",
+                                 key="analysis_run_name",
+                                 placeholder="z. B. woche1-besteck")
+    run_id = re.sub(r"[^A-Za-z0-9._-]+", "-", run_name.strip()).strip("-.")
+    out_base = resolve(cfg.get("analysis", {}).get("output_dir", "reports/analysis"))
+    name_taken = bool(run_id) and (out_base / run_id).exists()
+    if run_name and not run_id:
+        st.warning("Der Name enthält keine verwendbaren Zeichen (erlaubt: "
+                   "Buchstaben, Zahlen, . _ -).")
+    if name_taken:
+        st.warning(f"Lauf `{run_id}` existiert schon unter `{out_base}` – "
+                   "bitte anderen Namen wählen (Läufe werden nie überschrieben).")
+    if c_btn.button("Auswertung erstellen", type="primary",
+                    disabled=not run_id or name_taken):
+        from docodetect.analysis import run_analysis
+        with st.spinner("Rechne die sechs Auswertungen…"):
+            out_dir = run_analysis(cfg, folder, run_id=run_id)
+        st.session_state.last_analysis_dir = str(out_dir)
+        st.success(f"Fertig: {len(list(out_dir.iterdir()))} Artefakte unter "
+                   f"`{out_dir}` (report.md bindet alles ein).")
+    last_dir = st.session_state.get("last_analysis_dir")
+    if last_dir and Path(last_dir).is_dir():
+        with st.expander(f"Grafiken des Laufs '{Path(last_dir).name}'",
+                         expanded=True):
+            for png in sorted(Path(last_dir).glob("*.png")):
+                st.image(str(png), caption=png.name)
+            st.caption(f"Alle Dateien (CSV, metrics.json, report.md): `{last_dir}`")
+    st.divider()
+
     reports = [r for _, r in load_reports(folder)]
     if not reports:
         st.info("Keine Report-JSONs gefunden.")
