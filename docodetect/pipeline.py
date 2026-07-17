@@ -38,6 +38,17 @@ def _thin_contour(seg: SegmentationResult | None) -> list | None:
     return pts[::step].astype(int).tolist()
 
 
+def _centroid_px(seg: SegmentationResult | None) -> list | None:
+    """Objektschwerpunkt [x, y] in px – Grundlage der Positionsanalyse
+    (Messfehler über die Bildposition, z.B. Randverzerrung des Objektivs)."""
+    if seg is None or seg.contour is None:
+        return None
+    m = cv2.moments(seg.contour)
+    if m["m00"] == 0:
+        return None
+    return [round(m["m10"] / m["m00"], 1), round(m["m01"] / m["m00"], 1)]
+
+
 class Pipeline:
     def __init__(self, cfg: dict):
         self.cfg = cfg
@@ -70,12 +81,16 @@ class Pipeline:
                 contour=_thin_contour(seg_err),
                 touches_border=getattr(seg_err, "touches_border", None),
                 timestamp=datetime.now().isoformat(timespec="seconds"),
-                image_path=source_path, label=label)
+                image_path=source_path, label=label,
+                centroid_px=_centroid_px(seg_err),
+                image_size=[image.shape[1], image.shape[0]] if image is not None else None)
             self._save_capture_and_report(report, image)
             return IdentifyOutcome(None, seg_err, report)
         report = match(feats, self.db, self.cal, self.cfg,
                        image_path=source_path, label=label,
                        contour=_thin_contour(seg), touches_border=seg.touches_border)
+        report.centroid_px = _centroid_px(seg)
+        report.image_size = [image.shape[1], image.shape[0]]
         self._save_capture_and_report(report, image)
         return IdentifyOutcome(feats, seg, report)
 

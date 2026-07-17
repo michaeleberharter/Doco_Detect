@@ -83,6 +83,14 @@ matching:
   min_llr_margin: 2.0         # Log-Likelihood-Vorsprung Platz 1 vs. 2 (2.0 ≈ e² ≈ 7.4x)
   top_k: 3                    # Vorschläge bei AMBIGUOUS
 
+analysis:
+  # Auswertungs-Artefakte (CLI: python -m docodetect.cli analyze [ordner] [--run-id X]).
+  # Jede Auswertung erzeugt Grafik (PNG) + Daten (CSV/JSON) unter <output_dir>/<run_id>/.
+  output_dir: reports/analysis
+  # Near-Miss = Top-1 korrekt, aber LLR-Margin < min_llr_margin * Faktor
+  # (knappe Siege, die bei etwas Rauschen kippen koennten).
+  near_miss_factor: 1.5
+
 create:
   # Erstmaliges Anlegen neuer Artikel direkt per Kamera (ohne CSV).
   # Rund (>= beide Schwellen) -> diameter_mm wird gesetzt; sonst laenglich

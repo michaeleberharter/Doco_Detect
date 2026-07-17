@@ -5,6 +5,7 @@ calibration/*.json
 calibration/*.png
 data/captures/
 data/reference/
+reports/
 *.sqlite3
 .DS_Store
 

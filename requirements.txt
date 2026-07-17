@@ -3,3 +3,4 @@ numpy>=1.26
 PyYAML>=6.0
 
 scipy>=1.11        # maximum_flow fuer die Graph-Cut-Segmentierung
+matplotlib>=3.8     # Auswertungs-Grafiken (docodetect/analysis.py)

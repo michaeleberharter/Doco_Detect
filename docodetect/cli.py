@@ -202,6 +202,14 @@ def cmd_evaluate(args, cfg):
     pipe.close()
 
 
+def cmd_analyze(args, cfg):
+    """Sechs Auswertungen (PNG + CSV/JSON) über gespeicherte Report-JSONs."""
+    from .analysis import run_analysis
+    out = run_analysis(cfg, args.reports_dir, args.run_id)
+    print(f"[analyze] Artefakte unter {out}")
+    print(f"[analyze] Bericht: {out / 'report.md'}")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="docodetect")
     parser.add_argument("--config", default=None, help="path to config.yaml")
@@ -241,6 +249,13 @@ def main(argv=None):
     p = sub.add_parser("evaluate")
     p.add_argument("testset", help="folder: testset/<article_number>/*.jpg")
 
+    p = sub.add_parser("analyze", help="Auswertungs-Artefakte (Grafiken + "
+                       "CSV/JSON) aus gespeicherten Report-JSONs erzeugen")
+    p.add_argument("reports_dir", nargs="?", default=None,
+                   help="Ordner mit Report-JSONs (Default: paths.captures_dir)")
+    p.add_argument("--run-id", default=None,
+                   help="Name des Auswertungslaufs (Default: Timestamp)")
+
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
 
@@ -254,6 +269,7 @@ def main(argv=None):
         "enroll": cmd_enroll,
         "identify": cmd_identify,
         "evaluate": cmd_evaluate,
+        "analyze": cmd_analyze,
     }[args.cmd](args, cfg)
 
 

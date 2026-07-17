@@ -119,6 +119,8 @@ class MatchReport:
     label: str | None = None                            # Ground-Truth (evaluate/Batch)
     verdict: str | None = None                          # menschliches Feedback: "correct" | "wrong"
     report_path: str | None = None                      # Ablageort dieses JSONs (für Feedback-Updates)
+    centroid_px: list | None = None                     # Objektschwerpunkt [x, y] in px (Positionsanalyse)
+    image_size: list | None = None                      # [Breite, Höhe] des Frames in px
 
     def to_dict(self) -> dict:
         return asdict(self)
