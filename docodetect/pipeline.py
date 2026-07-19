@@ -105,6 +105,40 @@ def calibrate(image: np.ndarray, cfg: dict) -> Calibration:
     return run_calibration(image, cfg)
 
 
+def measure_shot(image: np.ndarray, cfg: dict) -> tuple[Features, SegmentationResult]:
+    """Einzel-Shot fürs Einlernen VERMESSEN, ohne etwas zu persistieren –
+    erste Hälfte des Zwei-Schritt-Ablaufs (analyze -> save_reference), damit
+    ein Einlern-Dialog einzelne Aufnahmen wiederholen kann, ohne verwaiste
+    Referenzen in der DB zu hinterlassen. Raises SegmentationError
+    (Randberührung) wie enroll."""
+    pipe = Pipeline(cfg)
+    try:
+        seg, feats = pipe.analyze(image)
+    finally:
+        pipe.close()
+    return feats, seg
+
+
+def save_enrollment(cfg: dict, article_number: str,
+                    shots: list) -> int:
+    """Zweite Hälfte des Einlern-Ablaufs: alle bestätigten Shots
+    [(image, Features), ...] auf einmal persistieren – Referenzfoto nach
+    paths.reference_dir/<artikel>/ (wie CLI und Streamlit) + Features in die
+    DB (Enrollment-Statistik wird dabei aktualisiert)."""
+    ref_dir = resolve(cfg["paths"]["reference_dir"]) / article_number
+    ref_dir.mkdir(parents=True, exist_ok=True)
+    pipe = Pipeline(cfg)
+    try:
+        ts = int(datetime.now().timestamp() * 1000)
+        for i, (img, feats) in enumerate(shots):
+            path = ref_dir / f"{ts}_{i}.jpg"
+            cv2.imwrite(str(path), img)
+            pipe.save_reference(article_number, feats, str(path))
+    finally:
+        pipe.close()
+    return len(shots)
+
+
 def confirm_result(report: MatchReport, article_number: str):
     """Manuelle Bestätigung einer AMBIGUOUS-Auswahl (Karten-Klick in der UI):
     Top-1 bestätigt = korrekt, anderer Kandidat = falsch mit wahrem Artikel.

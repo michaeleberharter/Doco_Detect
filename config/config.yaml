@@ -115,6 +115,7 @@ ui:
   confirm_sound: true        # Ton bei accept
   window_min_width: 1280
   window_min_height: 800
+  enroll_shots: 8            # Default-Aufnahmen im Einlern-Dialog (dort aenderbar)
 
 paths:
   db_file: doco_detect.sqlite3

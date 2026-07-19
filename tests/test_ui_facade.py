@@ -138,6 +138,7 @@ def _marker_cfg(tmp_path):
     cfg["calibration"].update(aruco_dict="DICT_4X4_50", marker_id=0,
                               marker_size_mm=136.0)
     cfg["geometry"] = {"camera_height_mm": 300.0}
+    cfg["paths"]["reference_dir"] = str(tmp_path / "reference")
     return cfg
 
 
@@ -209,6 +210,50 @@ def test_render_report_overlay_without_contour_is_noop(tmp_path):
     img = np.zeros((50, 50, 3), dtype=np.uint8)
     report = MatchReport(decision="reject", message="nichts", measured={})
     assert np.array_equal(render_report_overlay(img, report), img)
+
+
+# ---------- Einlernen: measure_shot + save_enrollment (Zwei-Schritt) ----------
+
+def test_measure_shot_and_save_enrollment_roundtrip(tmp_path):
+    """Der Einlern-Dialog misst erst (ohne DB-Schreiben – Wiederholen
+    möglich) und persistiert dann alle Shots auf einmal."""
+    from docodetect.pipeline import (get_status, list_articles, measure_shot,
+                                     save_enrollment)
+    from docodetect.ui_qt.demo_scenes import build_scene
+
+    cfg = _marker_cfg(tmp_path)
+    from docodetect.pipeline import calibrate, capture_background
+    capture_background(build_scene(cfg, "Hintergrund"), cfg)
+    calibrate(build_scene(cfg, "Marker"), cfg)
+    _seed_db(cfg, with_reference=False)
+
+    shots = []
+    for v in (1, 2):
+        img = build_scene(cfg, "Teller 18", v)
+        feats, seg = measure_shot(img, cfg)
+        assert feats.circle_diameter_mm == pytest.approx(186.2, abs=3.0)
+        assert seg.contour is not None
+        shots.append((img, feats))
+    assert get_status(cfg).articles_with_references == 0  # noch nichts gespeichert
+
+    n = save_enrollment(cfg, "T-270", shots)
+    assert n == 2
+    arts = {a.article_number: a for a in list_articles(cfg)}
+    assert arts["T-270"].n_references == 2
+    ref_dir = Path(cfg["paths"]["reference_dir"]) / "T-270"
+    assert len(list(ref_dir.glob("*.jpg"))) == 2  # Referenzfotos wie CLI/Streamlit
+
+
+def test_measure_shot_border_raises(tmp_path):
+    from docodetect.pipeline import calibrate, capture_background, measure_shot
+    from docodetect.segmentation import SegmentationError
+    from docodetect.ui_qt.demo_scenes import build_scene
+
+    cfg = _marker_cfg(tmp_path)
+    capture_background(build_scene(cfg, "Hintergrund"), cfg)
+    calibrate(build_scene(cfg, "Marker"), cfg)
+    with pytest.raises(SegmentationError):
+        measure_shot(build_scene(cfg, "Randbild"), cfg)
 
 
 # ---------- manuelle Bestätigung (AMBIGUOUS-Karten) ----------

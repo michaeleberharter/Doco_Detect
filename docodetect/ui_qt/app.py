@@ -18,6 +18,7 @@ _UI_DEFAULTS = {
     "confirm_sound": True,
     "window_min_width": 1280,
     "window_min_height": 800,
+    "enroll_shots": 8,
 }
 
 

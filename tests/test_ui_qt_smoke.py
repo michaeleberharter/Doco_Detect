@@ -292,6 +292,89 @@ def test_status_bar_warning_label(qapp):
     assert not bar.warn.isVisibleTo(bar)
 
 
+def test_enroll_dialog_demo_flow(qapp, tmp_path):
+    """Phase-5-Abnahme: Einlern-Durchlauf legt Referenzen an, die
+    anschließend beim Identifizieren wirken; einzelne Aufnahme wiederholbar;
+    Randberührung wird als handlungsleitender Fehler verworfen."""
+    from docodetect.config import load_config
+    from docodetect.pipeline import (Pipeline, calibrate, capture_background,
+                                     list_articles)
+    from docodetect.ui_qt.demo_scenes import DEMO_ARTICLES, build_scene
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+    from docodetect.ui_qt.widgets.enroll_dialog import EnrollDialog
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    capture_background(build_scene(cfg, "Hintergrund"), cfg)
+    calibrate(build_scene(cfg, "Marker"), cfg)
+    # Einen Artikel mit 1 Referenz anlegen -> kein Auto-Seed, schneller Test
+    art = DEMO_ARTICLES[0]
+    pipe = Pipeline(cfg)
+    pipe.db.init_schema()
+    pipe.create_article(build_scene(cfg, art.scene_name, 1), art.name,
+                        article_number=art.article_number,
+                        height_mm=art.height_mm, category=art.category)
+    pipe.close()
+
+    win = MainWindow(cfg, demo=True)
+    assert win.state is UiState.READY
+    win.demo_scene_box.setCurrentText("Teller 18")
+
+    dlg = EnrollDialog(cfg, win.ui, win.source, win)
+    assert dlg.article_box.currentData() == art.article_number
+    assert "1 Referenz" in dlg.ref_label.text()
+    dlg.shots_spin.setValue(2)
+    assert "Aufnahme 1 von 2" in dlg.progress_label.text()
+
+    dlg._capture()
+    assert _wait_until(qapp, lambda: len(dlg._shots) == 1
+                       and dlg._worker is None)
+    assert "Ø" in dlg.thumbs.item(0).text()
+    dlg._capture()
+    assert _wait_until(qapp, lambda: len(dlg._shots) == 2
+                       and dlg._worker is None)
+    assert "Speichern (2/2)" in dlg.save_button.text()
+
+    # Aufnahme 1 wiederholen: ersetzt, Anzahl bleibt 2
+    dlg._thumb_clicked(dlg.thumbs.item(0))
+    assert "wiederholen" in dlg.progress_label.text()
+    dlg._capture()
+    assert _wait_until(qapp, lambda: dlg._worker is None
+                       and dlg._retake_index is None)
+    assert len(dlg._shots) == 2
+
+    # Randbild -> Aufnahme verworfen mit Abhilfe-Text, Shots unverändert
+    win.demo_scene_box.setCurrentText("Randbild")
+    dlg.shots_spin.setValue(3)
+    dlg._capture()
+    assert _wait_until(qapp, lambda: dlg._worker is None
+                       and dlg.hint_label.text() != "")
+    assert "verworfen" in dlg.hint_label.text()
+    assert len(dlg._shots) == 2
+
+    # Speichern -> Referenzen in der DB (1 vorhandene + 2 neue)
+    win.demo_scene_box.setCurrentText("Teller 18")
+    dlg._save()
+    assert _wait_until(qapp, lambda: dlg.saved_count == 2)
+    arts = {a.article_number: a for a in list_articles(cfg)}
+    assert arts[art.article_number].n_references == 3
+
+    # ... und sie wirken beim Identifizieren (ACCEPT mit 3 Shots)
+    win.refresh_status()
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    assert win._last_report.decision == "accept"
+    best = win._last_report.candidates[0]
+    assert best.article_number == art.article_number
+    assert best.n_shots == 3
+    win.close()
+
+
 def test_fit_rect_letterbox_math():
     """Kein Verzerren: Seitenverhältnis bleibt, Rechteck zentriert."""
     from docodetect.ui_qt.widgets.preview import fit_rect

@@ -216,6 +216,7 @@ class MainWindow(QMainWindow):
             partial(self._start_capture_action, "background"))
         self.calibrate_button.clicked.connect(
             partial(self._start_capture_action, "calibrate"))
+        self.enroll_button.clicked.connect(self._open_enroll_dialog)
         # Leertaste = Identifizieren, egal wo der Fokus im Fenster liegt.
         space = QAction("Identifizieren", self)
         space.setShortcut(QKeySequence(Qt.Key_Space))
@@ -380,6 +381,22 @@ class MainWindow(QMainWindow):
             self.update_state()
             self.preview.set_busy(_BUSY_TEXTS["seed"])
             self._start_worker(partial(_job_seed_demo, self.cfg))
+
+    def _open_enroll_dialog(self) -> None:
+        """Einlern-Assistent (modal). Nutzt dieselbe Frame-Quelle; nach dem
+        Speichern wirken die neuen Referenzen sofort beim Identifizieren."""
+        if self.state is not UiState.READY:
+            return
+        from .widgets.enroll_dialog import EnrollDialog
+
+        dlg = EnrollDialog(self.cfg, self.ui, self.source, self)
+        dlg.exec()
+        if dlg.saved_count:
+            self.refresh_status()
+            self._set_headline(
+                f"{dlg.saved_count} Referenz(en) gespeichert.", "accept")
+            self.result_area.setText(
+                "Die neuen Referenzen wirken ab sofort beim Identifizieren.")
 
     # ---------- Job-Ergebnisse ----------
 

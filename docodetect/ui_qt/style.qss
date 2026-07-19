@@ -147,3 +147,26 @@ QToolTip {
 }
 
 QScrollArea { border: none; }
+
+/* ---------- Einlern-Dialog ---------- */
+
+QListWidget {
+    background: #141618;
+    border: 1px solid #3a3d40;
+    border-radius: 6px;
+    color: #969ba0;
+    font-size: 8.5pt;
+}
+QListWidget::item:selected {
+    background: #2e7ddc;
+    color: #ffffff;
+    border-radius: 4px;
+}
+
+QComboBox, QSpinBox {
+    background: #26282b;
+    border: 1px solid #3a3d40;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-height: 24px;
+}
