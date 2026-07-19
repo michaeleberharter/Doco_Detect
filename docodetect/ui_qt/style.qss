@@ -1,0 +1,172 @@
+/* ============================================================================
+   Doco Detect – Dark Theme (Fusion + QPalette in app.py, Feinschliff hier).
+
+   PALETTE (alle Farbwerte der App an EINER Stelle – Anpassung an DO&CO-CI
+   ist ein Fünf-Minuten-Job):
+     Fläche           #1e2022   (sehr dunkles Grau, kein reines Schwarz)
+     Fläche erhöht    #26282b   (Karten, Panels)
+     Linien/Rahmen    #3a3d40
+     Text             #e4e6e8
+     Text gedimmt     #969ba0
+     Akzent           #2e7ddc   (einzige Akzentfarbe: Primär-Button)
+     Akzent aktiv     #3d8ceb
+     Zustand Grün     #2e9e5b   (accept / erkannt)
+     Zustand Gelb     #d4a72c   (ambiguous / bitte bestätigen)
+     Zustand Rot      #cc4b4b   (reject / Rand-Warnung)
+
+   TYPOGRAFIE: Systemschrift (Segoe UI / SF Pro via Qt-Default).
+     Artikelname ~20pt, Messwerte ~14pt, Statusleiste klein.
+   ========================================================================== */
+
+QMainWindow, QDialog {
+    background: #1e2022;
+}
+
+/* ---------- rechtes Panel ---------- */
+
+#appTitle {
+    font-size: 18pt;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #e4e6e8;
+    padding: 4px 0 12px 0;
+}
+
+#sectionLabel {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #969ba0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding-top: 8px;
+}
+
+/* Primär-Button „Identifizieren“: groß, volle Panelbreite (min. 64 px hoch) */
+#primaryButton {
+    background: #2e7ddc;
+    color: #ffffff;
+    font-size: 15pt;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    min-height: 64px;
+}
+#primaryButton:hover { background: #3d8ceb; }
+#primaryButton:pressed { background: #2568b8; }
+#primaryButton:disabled { background: #33373b; color: #969ba0; }
+
+/* Sekundär-Aktionen (Hintergrund, Kalibrieren, Einlernen): ruhig, kleiner */
+#secondaryButton {
+    background: #26282b;
+    color: #e4e6e8;
+    font-size: 10.5pt;
+    border: 1px solid #3a3d40;
+    border-radius: 6px;
+    min-height: 34px;
+    padding: 2px 10px;
+    text-align: left;
+}
+#secondaryButton:hover { background: #2e3134; }
+#secondaryButton:pressed { background: #232527; }
+#secondaryButton:disabled { color: #6a6f74; border-color: #2e3134; }
+
+/* ---------- Vorschau-Platzhalter / Hinweise ---------- */
+
+#previewPlaceholder {
+    background: #141618;
+    color: #969ba0;
+    font-size: 13pt;
+    border-radius: 8px;
+}
+
+/* Hinweis-/Setup-Panel im Ergebnisbereich (NOT_READY-Führung) */
+#guideLabel {
+    color: #969ba0;
+    font-size: 11pt;
+    padding: 8px;
+}
+
+/* ---------- Ergebnis-Karten ---------- */
+
+#resultHeadline {
+    font-size: 12pt;
+    font-weight: 600;
+    color: #e4e6e8;
+    padding: 2px 0;
+}
+#resultHeadline[tone="accept"]  { color: #2e9e5b; }
+#resultHeadline[tone="confirm"] { color: #d4a72c; }
+#resultHeadline[tone="reject"]  { color: #cc4b4b; }
+
+#resultCard {
+    background: #26282b;
+    border: 1px solid #3a3d40;
+    border-radius: 8px;
+}
+#resultCard[tone="accept"]  { border: 2px solid #2e9e5b; }
+#resultCard[tone="confirm"] { border: 2px solid #d4a72c; }
+
+#cardName {
+    font-size: 14pt;
+    font-weight: 600;
+    color: #e4e6e8;
+}
+#cardDim { font-size: 9.5pt; color: #969ba0; }
+#cardMeasure { font-size: 11pt; color: #e4e6e8; }
+
+#resultCard QProgressBar {
+    background: #1e2022;
+    border: 1px solid #3a3d40;
+    border-radius: 4px;
+    color: #e4e6e8;
+    font-size: 8.5pt;
+    text-align: center;
+}
+#resultCard QProgressBar::chunk { background: #3a3d40; border-radius: 3px; }
+#resultCard[tone="accept"] QProgressBar::chunk  { background: #2e9e5b; }
+#resultCard[tone="confirm"] QProgressBar::chunk { background: #d4a72c; }
+
+/* ---------- Statusleiste ---------- */
+
+QStatusBar {
+    background: #191b1d;
+    color: #969ba0;
+    font-size: 9.5pt;
+    border-top: 1px solid #3a3d40;
+}
+QStatusBar QLabel { color: #969ba0; font-size: 9.5pt; }
+QStatusBar #statusWarn { color: #d4a72c; }
+
+/* ---------- allgemeine Kontrollen ---------- */
+
+QToolTip {
+    background: #26282b;
+    color: #e4e6e8;
+    border: 1px solid #3a3d40;
+    padding: 4px 6px;
+}
+
+QScrollArea { border: none; }
+
+/* ---------- Einlern-Dialog ---------- */
+
+QListWidget {
+    background: #141618;
+    border: 1px solid #3a3d40;
+    border-radius: 6px;
+    color: #969ba0;
+    font-size: 8.5pt;
+}
+QListWidget::item:selected {
+    background: #2e7ddc;
+    color: #ffffff;
+    border-radius: 4px;
+}
+
+QComboBox, QSpinBox {
+    background: #26282b;
+    border: 1px solid #3a3d40;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-height: 24px;
+}

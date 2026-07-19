@@ -186,6 +186,39 @@ def test_run_analysis_archive_moves_jsons_but_keeps_images(tmp_path, monkeypatch
     assert "archiviert" in (out / "report.md").read_text(encoding="utf-8")
 
 
+def test_publish_copies_artifacts_without_raw_jsons(tmp_path, monkeypatch):
+    """--publish: nur die aggregierten Artefakte (6x PNG+CSV, metrics,
+    report.md) wandern ins versionierte Archiv – die per --archive in den
+    Lauf-Ordner verschobenen rohen Report-JSONs bleiben draußen. Ein
+    vorhandener Archiv-Eintrag wird nie überschrieben."""
+    import docodetect.config as cfgmod
+    from docodetect.analysis import publish_run
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    reports_dir = tmp_path / "caps"
+    reports_dir.mkdir()
+    _write(reports_dir, "a1", _rep(label="A", verdict="correct",
+                                   cands=[_cand("A", -0.1)]))
+    cfg = {"matching": dict(MATCHING),
+           "analysis": {"output_dir": "r", "publish_dir": "archive"},
+           "geometry": {"camera_height_mm": 300.0},
+           "paths": {"db_file": str(tmp_path / "t.sqlite3")}}
+    out = run_analysis(cfg, reports_dir, run_id="pub", archive=True)
+    assert (out / "reports" / "a1.json").exists()      # roh archiviert im Lauf
+
+    dest = publish_run(cfg, out)
+    assert dest == tmp_path / "archive" / "pub"
+    # Kontrakt: ALLE Top-Level-Artefakte des Laufs, NICHTS aus Unterordnern
+    # (welche Plots entstehen, hängt vom Report-Material ab)
+    src_files = sorted(p.name for p in out.iterdir() if p.is_file())
+    copied = sorted(p.name for p in dest.iterdir())
+    assert copied == src_files
+    assert "report.md" in copied and "metrics.json" in copied
+    assert not (dest / "reports").exists()             # rohe JSONs NICHT kopiert
+    assert "a1.json" not in copied
+    with pytest.raises(FileExistsError):
+        publish_run(cfg, out)                          # nie überschreiben
+
+
 def test_run_analysis_survives_unlabeled_only(tmp_path, monkeypatch):
     """Nur unbewertete Reports: Auswertungen werden uebersprungen statt zu
     crashen, metrics.json + report.md entstehen trotzdem."""

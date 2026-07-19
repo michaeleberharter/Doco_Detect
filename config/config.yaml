@@ -3,8 +3,8 @@
 
 camera:
   index: 0                # OpenCV Device-Index
-  width: 1920
-  height: 1080
+  width: 3840
+  height: 2160
   fourcc: MJPG            # nötig für 4K über USB
   autofocus: false        # MUSS false sein für reproduzierbare Messungen
   focus_value: 30         # fester Fokuswert (0-255, beim Kalibrieren ermitteln)
@@ -87,6 +87,10 @@ analysis:
   # Auswertungs-Artefakte (CLI: python -m docodetect.cli analyze [ordner] [--run-id X]).
   # Jede Auswertung erzeugt Grafik (PNG) + Daten (CSV/JSON) unter <output_dir>/<run_id>/.
   output_dir: reports/analysis
+  # analyze --publish kopiert die aggregierten Artefakte (6x PNG+CSV,
+  # metrics.json, report.md - KEINE rohen Report-JSONs) zusaetzlich in
+  # dieses versionierte Archiv (relativ zum Projekt, .gitignore-Ausnahme).
+  publish_dir: reports/archive
   # Near-Miss = Top-1 korrekt, aber LLR-Margin < min_llr_margin * Faktor
   # (knappe Siege, die bei etwas Rauschen kippen koennten).
   near_miss_factor: 1.5
@@ -104,6 +108,18 @@ stage2:
   enabled: false              # DINOv2 + FAISS erst aktivieren, wenn Stufe 1
   model: dinov2_vits14        # nicht ausreicht (siehe README)
   index_file: calibration/faiss.index
+
+# Native Desktop-UI (python -m docodetect.ui_qt). Alle Werte haben
+# Code-Fallbacks (docodetect/ui_qt/app.py: ui_cfg) - fehlende Keys sind ok.
+# --demo ist bewusst NUR ein CLI-Flag (Entwicklungsmodus, kein Betriebsparameter).
+ui:
+  preview_max_width: 960     # px, Downscale fuer die Live-Vorschau
+  preview_fps: 15            # Ziel-FPS der Vorschau (4K-MJPG-Decode ist teuer)
+  result_overlay_secs: 4     # wie lange das annotierte Ergebnisbild steht
+  confirm_sound: true        # Ton bei accept
+  window_min_width: 1280
+  window_min_height: 800
+  enroll_shots: 8            # Default-Aufnahmen im Einlern-Dialog (dort aenderbar)
 
 paths:
   db_file: doco_detect.sqlite3
