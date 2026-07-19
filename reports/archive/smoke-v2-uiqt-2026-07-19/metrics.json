@@ -1,0 +1,88 @@
+{
+  "generated": "2026-07-19T23:36:17",
+  "n_judged": 14,
+  "n_reports": 14,
+  "per_article": {
+    "LOEFFEL": {
+      "k": 2,
+      "n": 2,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.3424
+    },
+    "SCHUESSEL-140": {
+      "k": 2,
+      "n": 2,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.3424
+    },
+    "TELLER-160": {
+      "k": 2,
+      "n": 2,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.3424
+    },
+    "TELLER-180": {
+      "k": 2,
+      "n": 2,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.3424
+    },
+    "TELLER-180-HOCH": {
+      "k": 0,
+      "n": 2,
+      "p": 0.0,
+      "wilson_hi": 0.6576,
+      "wilson_lo": 0.0
+    },
+    "TELLER-200": {
+      "k": 1,
+      "n": 2,
+      "p": 0.5,
+      "wilson_hi": 0.9055,
+      "wilson_lo": 0.0945
+    },
+    "TELLER-DEKOR-200": {
+      "k": 2,
+      "n": 2,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.3424
+    }
+  },
+  "quotas": {
+    "accuracy_top1": {
+      "k": 11,
+      "n": 14,
+      "p": 0.7857,
+      "wilson_hi": 0.9243,
+      "wilson_lo": 0.5241
+    },
+    "accuracy_top3": {
+      "k": 11,
+      "n": 14,
+      "p": 0.7857,
+      "wilson_hi": 0.9243,
+      "wilson_lo": 0.5241
+    },
+    "auto_accept_rate": {
+      "k": 13,
+      "n": 14,
+      "p": 0.9286,
+      "wilson_hi": 0.9873,
+      "wilson_lo": 0.6853
+    },
+    "false_accept_rate": {
+      "k": 2,
+      "n": 13,
+      "p": 0.1538,
+      "wilson_hi": 0.4224,
+      "wilson_lo": 0.0433
+    }
+  },
+  "run_id": "smoke-v2-uiqt-2026-07-19",
+  "source": "/Users/mikeeberharter/Documents/Doco_Detect/data/captures"
+}
