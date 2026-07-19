@@ -138,6 +138,8 @@ class MainWindow(QMainWindow):
         self._wire_actions()
         if demo:
             self._attach_demo_source()
+        else:
+            self._attach_camera_worker()
         self.refresh_status()
 
     # ---------- Aufbau ----------
@@ -230,10 +232,50 @@ class MainWindow(QMainWindow):
         self.demo_scene_box.addItems(SCENE_NAMES)
         self.demo_scene_box.currentTextChanged.connect(self.source.set_scene)
         self.demo_bar.setVisible(True)
+        self.status_content.set_camera_text("Kamera Demo")
         self.source.start()
 
+    def _attach_camera_worker(self) -> None:
+        """Echte Kamera: der CameraWorker ist der einzige Kamera-Besitzer
+        (PLAN §3); die UI reagiert nur auf seine Signale."""
+        from .camera_worker import CameraWorker
+
+        self.source = CameraWorker(self.cfg, self)
+        self._connect_source(self.source)
+        self.source.camera_connected.connect(self._on_camera_connected)
+        self.source.camera_error.connect(self._on_camera_error)
+        self.source.focus_warning.connect(self.status_content.set_warning)
+        self.source.fps_update.connect(self._on_fps_update)
+        self.status_content.set_camera_text("Kamera –")
+        self.source.start()
+
+    def _on_camera_connected(self) -> None:
+        self.status_content.set_camera_text("Kamera verbunden")
+        self.update_state()
+
+    def _on_camera_error(self, message: str) -> None:
+        """Verbindungsverlust: Zustand NO_CAMERA statt Crash; der Worker
+        versucht selbst leise den Reconnect (alle paar Sekunden)."""
+        self.status_content.set_camera_text("Kamera getrennt")
+        if self._pending is not None:
+            # Frame-Anforderung läuft ins Leere – Aktion sauber abbrechen,
+            # sonst bliebe die UI für immer BUSY.
+            self._pending = None
+            self._busy = False
+            self.preview.set_busy(None)
+            self._set_headline("Aktion abgebrochen – Kamera getrennt.",
+                               "reject")
+        self.update_state()
+        # Details nur ins Ergebnis-Panel, wenn keine Karte etwas Wichtigeres
+        # zeigt – die Vorschau zeigt bereits „Keine Kamera gefunden…“.
+        if self.state is UiState.NO_CAMERA and self._last_report is None:
+            self.result_area.setText(message)
+
+    def _on_fps_update(self, fps: float) -> None:
+        self.status_content.set_camera_text(f"Kamera {fps:.0f} fps")
+
     def _connect_source(self, source) -> None:
-        """Gemeinsame Verdrahtung für DemoSource und CameraWorker (Phase 4)."""
+        """Gemeinsame Verdrahtung für DemoSource und CameraWorker."""
         source.frame_ready.connect(self.preview.set_frame)
         source.full_frame_ready.connect(self._on_full_frame)
 
@@ -297,7 +339,7 @@ class MainWindow(QMainWindow):
 
     def _start_capture_action(self, action: str) -> None:
         """Frischen Voll-Frame anfordern; der Frame löst dann den Job aus."""
-        if self._busy or self.source is None:
+        if self._busy or self.source is None or not self.camera_ok:
             return
         self._pending = action
         self._busy = True

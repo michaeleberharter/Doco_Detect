@@ -233,6 +233,65 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     win.close()
 
 
+def test_camera_worker_without_camera_goes_no_camera(qapp, tmp_path):
+    """Ersatz-Abnahme Phase 4 (Kamera nicht angeschlossen): App startet ohne
+    Kamera sauber in NO_CAMERA („Keine Kamera gefunden…“), kein Crash, kein
+    Einfrieren; der Reconnect läuft leise im Hintergrund weiter (Thread
+    lebt); stop() beendet den Worker prompt (unterbricht das Reconnect-
+    Warten)."""
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+
+    cfg = make_cfg(tmp_path)
+    cfg["camera"].update(index=99, warmup_frames=0)  # Index existiert sicher nicht
+    win = MainWindow(cfg, demo=False)
+    errors = []
+    win.source.camera_error.connect(lambda m: errors.append(m))
+    try:
+        # Warten bis der ERSTE Öffnungsversuch gescheitert ist (Signal
+        # angekommen) – der Startzustand ist bereits NO_CAMERA.
+        assert _wait_until(
+            qapp, lambda: win.status_content.camera.text() == "Kamera getrennt",
+            timeout=15)
+        assert win.state is UiState.NO_CAMERA
+        assert not win.source.camera_ok
+        assert win.preview._message and "Keine Kamera" in win.preview._message
+        assert not win.identify_button.isEnabled()
+        # Reconnect läuft leise: Thread lebt, KEINE weitere Fehlermeldung folgt
+        assert win.source.isRunning()
+        time.sleep(0.5)
+        qapp.processEvents()
+        assert len(errors) == 1
+        # Identifizieren im NO_CAMERA-Zustand ist ein No-Op, kein Crash
+        win.identify_now()
+        assert not win._busy
+    finally:
+        t0 = time.time()
+        win.close()  # closeEvent -> source.stop() -> wait()
+        assert time.time() - t0 < 8.0
+        assert not win.source.isRunning()
+
+
+def test_camera_worker_focus_warning_signal(qapp, tmp_path):
+    """Auf macOS (kein DSHOW) muss die Fokus-Lock-Warnung als Signal kommen,
+    sobald eine Kamera verbindet – hier direkt der Warntext-Kontrakt."""
+    from docodetect.ui_qt.camera_worker import FOCUS_WARNING
+
+    assert "Windows" in FOCUS_WARNING
+    assert "Fokus-Lock" in FOCUS_WARNING
+
+
+def test_status_bar_warning_label(qapp):
+    from docodetect.ui_qt.widgets.status_bar import StatusBarContent
+
+    bar = StatusBarContent()
+    assert not bar.warn.isVisibleTo(bar)
+    bar.set_warning("Fokus-Lock nicht verfügbar")
+    assert bar.warn.isVisibleTo(bar)
+    bar.set_warning("")
+    assert not bar.warn.isVisibleTo(bar)
+
+
 def test_fit_rect_letterbox_math():
     """Kein Verzerren: Seitenverhältnis bleibt, Rechteck zentriert."""
     from docodetect.ui_qt.widgets.preview import fit_rect

@@ -155,6 +155,15 @@ class BoxCamera:
             self._cap.read()
             time.sleep(0.05)
 
+    @property
+    def capture_device(self) -> cv2.VideoCapture:
+        """Direkter Gerätezugriff für Dauer-Consumer (Grab-Schleife der UI):
+        dieselbe Initialisierung (4K/MJPG/Fokus-Lock) ohne Setup-Kopie.
+        Raises CameraError, wenn nicht geöffnet."""
+        if self._cap is None:
+            raise CameraError("Camera not opened – use 'with BoxCamera(cfg) as cam:'")
+        return self._cap
+
     def capture(self) -> np.ndarray:
         """Grab a single BGR frame."""
         if self._cap is None:
