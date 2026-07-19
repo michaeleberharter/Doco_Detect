@@ -202,15 +202,32 @@ def cmd_evaluate(args, cfg):
     pipe.close()
 
 
+def cmd_make_smoke_testset(args, cfg):
+    """Deterministisches Smoke-Testset materialisieren (Regressions-Baseline):
+    Testbilder + Kalibrierung + Hintergrund + frisch eingelernte Referenz-DB.
+    Bestehende Kalibrier-/DB-Dateien werden gesichert, nie überschrieben."""
+    from .smoke_testset import generate
+    s = generate(cfg, resolve(args.out))
+    for b in s["backups"]:
+        print(f"[smoke] Gesichert: {b}")
+    print(f"[smoke] {s['n_images']} Testbilder für {s['n_articles']} Artikel "
+          f"unter {s['testset_dir']}")
+    print(f"[smoke] Kalibrierung {s['mm_per_px']:.5f} mm/px; Hintergrund und "
+          "Referenz-DB (je 3 Shots) frisch erzeugt.")
+    print(f"[smoke] Weiter: python -m docodetect.cli evaluate {args.out}")
+
+
 def cmd_analyze(args, cfg):
     """Sechs Auswertungen (PNG + CSV/JSON) über gespeicherte Report-JSONs."""
-    from .analysis import run_analysis
+    from .analysis import publish_run, run_analysis
     out = run_analysis(cfg, args.reports_dir, args.run_id, archive=args.archive)
     print(f"[analyze] Artefakte unter {out}")
     print(f"[analyze] Bericht: {out / 'report.md'}")
     if args.archive:
         print("[analyze] Report-JSONs in den Lauf-Ordner verschoben – "
               "nächste Testrunde startet leer.")
+    if args.publish:
+        publish_run(cfg, out)
 
 
 def main(argv=None):
@@ -252,6 +269,12 @@ def main(argv=None):
     p = sub.add_parser("evaluate")
     p.add_argument("testset", help="folder: testset/<article_number>/*.jpg")
 
+    p = sub.add_parser("make-smoke-testset",
+                       help="deterministisches Smoke-Testset (Baseline) auf "
+                            "Platte erzeugen: Bilder + Kalibrierung + Referenz-DB")
+    p.add_argument("--out", default="data/testset-smoke",
+                   help="Zielordner (Default: data/testset-smoke)")
+
     p = sub.add_parser("analyze", help="Auswertungs-Artefakte (Grafiken + "
                        "CSV/JSON) aus gespeicherten Report-JSONs erzeugen")
     p.add_argument("reports_dir", nargs="?", default=None,
@@ -261,6 +284,10 @@ def main(argv=None):
     p.add_argument("--archive", action="store_true",
                    help="ausgewertete Report-JSONs in den Lauf-Ordner "
                         "verschieben (nächste Testrunde startet leer)")
+    p.add_argument("--publish", action="store_true",
+                   help="aggregierte Artefakte (ohne rohe Report-JSONs) "
+                        "zusätzlich ins versionierte Archiv kopieren "
+                        "(analysis.publish_dir, Default reports/archive)")
 
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
@@ -275,6 +302,7 @@ def main(argv=None):
         "enroll": cmd_enroll,
         "identify": cmd_identify,
         "evaluate": cmd_evaluate,
+        "make-smoke-testset": cmd_make_smoke_testset,
         "analyze": cmd_analyze,
     }[args.cmd](args, cfg)
 

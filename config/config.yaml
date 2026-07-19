@@ -3,8 +3,8 @@
 
 camera:
   index: 0                # OpenCV Device-Index
-  width: 1920
-  height: 1080
+  width: 3840
+  height: 2160
   fourcc: MJPG            # nötig für 4K über USB
   autofocus: false        # MUSS false sein für reproduzierbare Messungen
   focus_value: 30         # fester Fokuswert (0-255, beim Kalibrieren ermitteln)
@@ -87,6 +87,10 @@ analysis:
   # Auswertungs-Artefakte (CLI: python -m docodetect.cli analyze [ordner] [--run-id X]).
   # Jede Auswertung erzeugt Grafik (PNG) + Daten (CSV/JSON) unter <output_dir>/<run_id>/.
   output_dir: reports/analysis
+  # analyze --publish kopiert die aggregierten Artefakte (6x PNG+CSV,
+  # metrics.json, report.md - KEINE rohen Report-JSONs) zusaetzlich in
+  # dieses versionierte Archiv (relativ zum Projekt, .gitignore-Ausnahme).
+  publish_dir: reports/archive
   # Near-Miss = Top-1 korrekt, aber LLR-Margin < min_llr_margin * Faktor
   # (knappe Siege, die bei etwas Rauschen kippen koennten).
   near_miss_factor: 1.5

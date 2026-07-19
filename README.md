@@ -304,3 +304,10 @@ data/reference/    Eingelernte Referenzfotos pro Artikel
       korrekt vs. falsch prüfen, erst bei Überlappung Schwellen justieren
 - [ ] Stufe 2 aktivieren, falls Batch-Auswertung/Verwechslungsmatrix
       AMBIGUOUS-Häufungen zeigt (Hook: `TODO(stage-2)` in matcher.py)
+- [ ] Smoke-Testset gegen Produktions-Config immunisieren: der Generator
+      (`make-smoke-testset`, docodetect/smoke_testset.py) rendert aktuell in
+      `camera.width/height` und misst gegen `matching`-Schwellen der
+      geteilten config.yaml — eigene, gepinnte Auflösung/Schwellen für die
+      Baseline, damit Produktions-Änderungen (z. B. 1080p→4K) die
+      Regressionszahlen nicht verschieben (Baseline-Bilder auf Platte sind
+      davon unberührt, nur eine NEU-Generierung wiche ab)

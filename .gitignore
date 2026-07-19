@@ -6,7 +6,13 @@ calibration/*.png
 data/captures/
 data/reference/
 data/demo/
-reports/
+data/testset-smoke/
+# reports/ ist Arbeitsordner (ignoriert); reports/archive/ ist das
+# VERSIONIERTE Auswertungs-Archiv (analyze --publish). Die Muster-Kombination
+# ist Pflicht: Git steigt in komplett ignorierte Ordner nicht ab, erst
+# "reports/*" + Ausnahme macht das Archiv trackbar.
+reports/*
+!reports/archive/
 *.sqlite3
 .DS_Store
 

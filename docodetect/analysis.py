@@ -584,3 +584,31 @@ def run_analysis(cfg: dict, reports_dir: str | Path | None = None,
     (out / "report.md").write_text(
         "\n".join(head + [s.to_md() for s in sections]), encoding="utf-8")
     return out
+
+
+def publish_run(cfg: dict, run_dir: str | Path) -> Path:
+    """Lauf-Artefakte zusätzlich ins VERSIONIERTE Archiv kopieren
+    (analysis.publish_dir, Default reports/archive – .gitignore-Ausnahme).
+
+    Kopiert nur die aggregierten Artefakte (Top-Level-Dateien des Laufs:
+    sechs Auswertungen als PNG+CSV, metrics.png/json, report.md). Der
+    Unterordner reports/ mit den per --archive verschobenen rohen
+    Report-JSONs bleibt bewusst draußen – ins Git-Archiv gehören nur
+    Aggregate. Überschreibt nie einen vorhandenen Archiv-Eintrag."""
+    run_dir = Path(run_dir)
+    dest = resolve(cfg.get("analysis", {}).get(
+        "publish_dir", "reports/archive")) / run_dir.name
+    if dest.exists():
+        raise FileExistsError(
+            f"Archiv-Eintrag existiert bereits: {dest}. Anderen --run-id "
+            "wählen oder den Eintrag zuerst entfernen – publish "
+            "überschreibt nie.")
+    dest.mkdir(parents=True)
+    n = 0
+    for p in sorted(run_dir.iterdir()):
+        if p.is_file():
+            shutil.copy2(p, dest / p.name)
+            n += 1
+    print(f"[analyze] {n} Artefakte nach {dest} veröffentlicht "
+          "(ohne rohe Report-JSONs).")
+    return dest
