@@ -17,7 +17,13 @@ def main(argv: list | None = None) -> int:
     from docodetect.config import load_config
 
     from .app import run
-    return run(load_config(args.config), demo=args.demo)
+    cfg = load_config(args.config)
+    if args.demo:
+        # Demo darf die echte Einrichtung nie anfassen: alle Schreib-Pfade
+        # (DB, Kalibrierung, Hintergrund, Captures) nach data/demo/.
+        from .demo_source import apply_demo_paths
+        cfg = apply_demo_paths(cfg)
+    return run(cfg, demo=args.demo)
 
 
 if __name__ == "__main__":
