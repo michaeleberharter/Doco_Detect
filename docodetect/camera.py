@@ -17,9 +17,9 @@ Key points:
 
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
-import platform
 
 import cv2
 import numpy as np
@@ -27,6 +27,27 @@ import numpy as np
 
 class CameraError(RuntimeError):
     pass
+
+
+def capture_backend(camera_cfg: dict | None = None) -> int:
+    """Plattformrichtiges OpenCV-Capture-Backend (einzige plattformabhängige
+    Stelle neben dem Fokus-Lock): Windows braucht DSHOW für MJPG-4K + UVC-
+    Properties, macOS AVFoundation, Linux V4L2. Per camera.backend in der
+    Config überschreibbar (Name eines cv2.CAP_*-Attributs, z.B. "CAP_DSHOW")."""
+    if camera_cfg and camera_cfg.get("backend"):
+        return int(getattr(cv2, str(camera_cfg["backend"])))
+    if sys.platform == "win32":
+        return cv2.CAP_DSHOW
+    if sys.platform == "darwin":
+        return cv2.CAP_AVFOUNDATION
+    return cv2.CAP_V4L2
+
+
+def focus_lock_supported() -> bool:
+    """CAP_PROP_AUTOFOCUS/FOCUS greifen unter Windows (DSHOW) zuverlässig,
+    unter macOS/AVFoundation häufig nicht. Der Messbetrieb läuft am
+    Windows-PC; auf dem Mac zeigt die UI eine Warnung statt zu crashen."""
+    return sys.platform == "win32"
 
 
 class BoxCamera:
@@ -42,8 +63,7 @@ class BoxCamera:
         self.close()
 
     def open(self) -> None:
-        backend = cv2.CAP_DSHOW if platform.system() == "Windows" else cv2.CAP_ANY
-        cap = cv2.VideoCapture(self.cfg["index"], backend)
+        cap = cv2.VideoCapture(self.cfg["index"], capture_backend(self.cfg))
         if not cap.isOpened():
             raise CameraError(
                 f"Cannot open camera index {self.cfg['index']}. "
@@ -56,9 +76,9 @@ class BoxCamera:
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cfg["height"])
 
         # Lock focus. Some backends need AUTOFOCUS=0 before FOCUS is writable.
+        self.focus_locked = True
         if not self.cfg.get("autofocus", False):
-            cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-            cap.set(cv2.CAP_PROP_FOCUS, float(self.cfg.get("focus_value", 30)))
+            self.focus_locked = self._lock_focus(cap)
 
         self._lock_exposure_wb(cap)
 
@@ -71,6 +91,22 @@ class BoxCamera:
 
         self._cap = cap
         self._warmup()
+
+    def _lock_focus(self, cap: cv2.VideoCapture) -> bool:
+        """AUTOFOCUS=0 + fester FOCUS-Wert setzen und ZURÜCKLESEN. Liefert
+        False, wenn das Backend die Properties ignoriert (typisch macOS/
+        AVFoundation) – Aufrufer zeigen dann eine Warnung: Messbetrieb ist
+        nur mit Fokus-Lock verlässlich (Windows/DSHOW). Kein Crash."""
+        ok_af = cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+        focus = float(self.cfg.get("focus_value", 30))
+        ok_f = cap.set(cv2.CAP_PROP_FOCUS, focus)
+        af_read = cap.get(cv2.CAP_PROP_AUTOFOCUS)
+        locked = bool(ok_af and ok_f) and af_read == 0
+        if not locked:
+            print("[camera] WARNING: Fokus-Lock nicht verfügbar (Backend "
+                  "ignoriert AUTOFOCUS/FOCUS) – Messbetrieb nur unter "
+                  "Windows/DSHOW verlässlich.")
+        return locked
 
     def _lock_exposure_wb(self, cap: cv2.VideoCapture) -> None:
         """Optionally pin auto-exposure/gain and auto-white-balance so the

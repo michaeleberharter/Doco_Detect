@@ -1,0 +1,6 @@
+# Native Desktop-UI (PySide6). Optional – analog zu requirements-stage2.txt.
+# Installation in die bestehende venv:
+#   pip install -r requirements-ui-qt.txt
+# (Die Streamlit-Test-UI hat ihre eigenen Abhängigkeiten in requirements-ui.txt.)
+PySide6>=6.6
+qtawesome>=1.3

@@ -28,6 +28,87 @@ class IdentifyOutcome:
     report: MatchReport
 
 
+@dataclass
+class PipelineStatus:
+    """Einrichtungszustand für UIs (Statusleiste + NOT_READY-Führung).
+    Muss auch VOR jeder Einrichtung funktionieren – get_status() setzt
+    keine Kalibrierung voraus und legt keine Dateien an."""
+    calibrated: bool
+    mm_per_px: float | None
+    calibrated_unix: float | None
+    background_present: bool
+    article_count: int
+    articles_with_references: int
+    stage2_enabled: bool
+
+    @property
+    def ready(self) -> bool:
+        """Identifizieren möglich (Kalibrierung + Hintergrund vorhanden)."""
+        return self.calibrated and self.background_present
+
+
+@dataclass
+class ArticleInfo:
+    """Artikel-Zeile fürs UI (Einlern-Dropdown, Listen) – Stammdaten plus
+    Referenzanzahl, ohne dass die UI database.py anfassen muss."""
+    article_number: str
+    name: str
+    category: str | None
+    diameter_mm: float | None
+    height_mm: float | None
+    n_references: int
+
+
+def get_status(cfg: dict) -> PipelineStatus:
+    """Reine Status-Abfrage ohne Nebenwirkungen: fehlende/kaputte Dateien
+    bedeuten 'nicht eingerichtet', nie eine Exception. Insbesondere wird
+    KEINE leere SQLite-Datei angelegt (sqlite3.connect würde das tun)."""
+    mm_per_px = calibrated_unix = None
+    try:
+        cal = load_calibration(cfg)
+        mm_per_px, calibrated_unix = cal.mm_per_px, cal.created_unix
+    except Exception:
+        pass
+
+    background_present = resolve(cfg["calibration"]["background_file"]).exists()
+
+    article_count = with_refs = 0
+    if resolve(cfg["paths"]["db_file"]).exists():
+        db = Database(cfg)
+        try:
+            article_count = len(db.all_articles())
+            with_refs = len(db.articles_with_references())
+        except Exception:
+            pass  # DB ohne Schema o.ä. -> zählt als leer
+        finally:
+            db.close()
+
+    return PipelineStatus(
+        calibrated=mm_per_px is not None, mm_per_px=mm_per_px,
+        calibrated_unix=calibrated_unix, background_present=background_present,
+        article_count=article_count, articles_with_references=with_refs,
+        stage2_enabled=bool(cfg.get("stage2", {}).get("enabled", False)))
+
+
+def list_articles(cfg: dict) -> list[ArticleInfo]:
+    """Artikel + Referenzanzahl fürs UI. Leere Liste, solange keine DB
+    existiert (kein Anlegen als Nebenwirkung, wie get_status)."""
+    if not resolve(cfg["paths"]["db_file"]).exists():
+        return []
+    db = Database(cfg)
+    try:
+        counts = db.reference_counts()
+        return [ArticleInfo(
+            article_number=a.article_number, name=a.name, category=a.category,
+            diameter_mm=a.diameter_mm, height_mm=a.height_mm,
+            n_references=counts.get(a.article_number, 0))
+            for a in db.all_articles()]
+    except Exception:
+        return []
+    finally:
+        db.close()
+
+
 def _thin_contour(seg: SegmentationResult | None) -> list | None:
     """Konturpolygon fürs Report-Overlay – ausgedünnt, ein 4K-Teller braucht
     keine 10k Punkte im JSON."""

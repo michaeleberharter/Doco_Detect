@@ -105,6 +105,17 @@ stage2:
   model: dinov2_vits14        # nicht ausreicht (siehe README)
   index_file: calibration/faiss.index
 
+# Native Desktop-UI (python -m docodetect.ui_qt). Alle Werte haben
+# Code-Fallbacks (docodetect/ui_qt/app.py: ui_cfg) - fehlende Keys sind ok.
+# --demo ist bewusst NUR ein CLI-Flag (Entwicklungsmodus, kein Betriebsparameter).
+ui:
+  preview_max_width: 960     # px, Downscale fuer die Live-Vorschau
+  preview_fps: 15            # Ziel-FPS der Vorschau (4K-MJPG-Decode ist teuer)
+  result_overlay_secs: 4     # wie lange das annotierte Ergebnisbild steht
+  confirm_sound: true        # Ton bei accept
+  window_min_width: 1280
+  window_min_height: 800
+
 paths:
   db_file: doco_detect.sqlite3
   reference_dir: data/reference

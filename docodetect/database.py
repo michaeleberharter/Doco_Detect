@@ -211,6 +211,14 @@ class Database:
         ).fetchall()
         return [r["article_number"] for r in rows]
 
+    def reference_counts(self) -> dict:
+        """article_number -> Anzahl Referenzen (eine Abfrage, fürs UI-Listing)."""
+        rows = self.conn.execute(
+            "SELECT article_number, COUNT(*) AS n FROM reference_features "
+            "GROUP BY article_number"
+        ).fetchall()
+        return {r["article_number"]: r["n"] for r in rows}
+
     # ---------- enrollment statistics (cache over reference_features) ----------
 
     def _recompute_stats(self, article_number: str) -> None:
