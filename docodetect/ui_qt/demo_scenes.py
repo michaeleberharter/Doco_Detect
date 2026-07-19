@@ -68,14 +68,17 @@ def _apparent_px(art: DemoArticle) -> int:
     return int(round(apparent_mm / DEMO_MM_PER_PX))
 
 
-def _jitter(name: str, variant: int, max_px: int = 30) -> tuple:
+def _jitter(name: str, variant: int, max_x: int, max_y: int) -> tuple:
     """Deterministischer Positions-Jitter pro (Szene, Variante); Variante 0
-    liegt zentriert, damit die Vorschau ruhig aussieht."""
+    liegt zentriert, damit die Vorschau ruhig aussieht. Die Grenzen kommen
+    vom Aufrufer (objektgrößen-bewusst): ein Teller 20 hat bei 1080 px Höhe
+    nur ~23 px Luft – blinder ±30-px-Jitter würde ihn über den Rand schieben
+    und die Einlern-Shots als Randberührung scheitern lassen."""
     if variant == 0:
         return 0, 0
     rng = np.random.default_rng(abs(hash((name, variant))) % (2 ** 32))
-    return (int(rng.integers(-max_px, max_px + 1)),
-            int(rng.integers(-max_px, max_px + 1)))
+    return (int(rng.integers(-max_x, max_x + 1)) if max_x > 0 else 0,
+            int(rng.integers(-max_y, max_y + 1)) if max_y > 0 else 0)
 
 
 def _draw_dish(img: np.ndarray, art: DemoArticle, center: tuple) -> None:
@@ -114,8 +117,13 @@ def build_scene(cfg: dict, name: str, variant: int = 0) -> np.ndarray:
     elif name == "Marker":
         _draw_marker(img, cfg)
     elif name in by_scene:
-        jx, jy = _jitter(name, variant)
-        _draw_dish(img, by_scene[name], (cx + jx, cy + jy))
+        art = by_scene[name]
+        r = _apparent_px(art) // 2
+        margin = 12  # Mindestabstand zum Rand, sonst Randberührungs-Reject
+        max_x = max(0, min(30, w // 2 - r - margin))
+        max_y = max(0, min(30, h // 2 - r - margin))
+        jx, jy = _jitter(name, variant, max_x, max_y)
+        _draw_dish(img, art, (cx + jx, cy + jy))
     elif name == "Randbild":
         # Teller 20 weit links – Kontur schneidet den Bildrand
         _draw_dish(img, by_scene["Teller 20"], (300, cy))

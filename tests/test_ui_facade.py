@@ -128,3 +128,131 @@ def test_list_articles_with_reference_counts(tmp_path):
     assert a.name == "Teller flach 27"
     assert a.diameter_mm == 270.0
     assert a.n_references == 1
+
+
+# ---------- Einzelbild-Fassaden: capture_background / calibrate ----------
+
+def _marker_cfg(tmp_path):
+    cfg = make_cfg(tmp_path)
+    cfg["camera"] = {"width": 1920, "height": 1080}
+    cfg["calibration"].update(aruco_dict="DICT_4X4_50", marker_id=0,
+                              marker_size_mm=136.0)
+    cfg["geometry"] = {"camera_height_mm": 300.0}
+    return cfg
+
+
+def test_capture_background_then_status(tmp_path):
+    from docodetect.pipeline import capture_background
+
+    cfg = _marker_cfg(tmp_path)
+    img = np.full((1080, 1920, 3), 200, dtype=np.uint8)
+    capture_background(img, cfg)
+    assert get_status(cfg).background_present is True
+
+
+def test_calibrate_from_marker_scene(tmp_path):
+    from docodetect.pipeline import calibrate
+    from docodetect.ui_qt.demo_scenes import DEMO_MM_PER_PX, build_scene
+
+    cfg = _marker_cfg(tmp_path)
+    cal = calibrate(build_scene(cfg, "Marker"), cfg)
+    assert cal.mm_per_px == pytest.approx(DEMO_MM_PER_PX, rel=0.02)
+    st = get_status(cfg)
+    assert st.calibrated is True
+    assert st.mm_per_px == pytest.approx(DEMO_MM_PER_PX, rel=0.02)
+
+
+def test_calibrate_without_marker_raises_actionable_error(tmp_path):
+    from docodetect.pipeline import calibrate
+
+    cfg = _marker_cfg(tmp_path)
+    img = np.full((1080, 1920, 3), 200, dtype=np.uint8)
+    with pytest.raises(RuntimeError):
+        calibrate(img, cfg)
+    assert get_status(cfg).calibrated is False
+
+
+# ---------- annotiertes Ergebnisbild ----------
+
+def test_render_report_overlay_draws_contour_and_diameter(tmp_path):
+    from docodetect.matcher import MatchReport
+    from docodetect.pipeline import render_report_overlay
+
+    img = np.full((200, 300, 3), 50, dtype=np.uint8)
+    contour = [[100, 40], [200, 40], [200, 160], [100, 160]]
+    report = MatchReport(decision="accept", message="ok", contour=contour,
+                         touches_border=False,
+                         measured={"circle_diameter_mm": 186.3})
+    out = render_report_overlay(img, report)
+    assert out.shape == img.shape
+    assert not np.array_equal(out, img)      # es wurde gezeichnet
+    assert np.array_equal(img, np.full((200, 300, 3), 50, dtype=np.uint8))
+
+
+def test_render_report_overlay_border_case_red(tmp_path):
+    from docodetect.matcher import MatchReport
+    from docodetect.pipeline import render_report_overlay
+
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    report = MatchReport(decision="reject", message="Rand",
+                         contour=[[0, 10], [50, 10], [50, 90], [0, 90]],
+                         touches_border=True, measured={})
+    out = render_report_overlay(img, report)
+    # Rot (BGR: Kanal 2) dominiert auf der Kontur, kein Grün
+    assert out[10, 20, 2] > 150 and out[10, 20, 1] < 100
+
+
+def test_render_report_overlay_without_contour_is_noop(tmp_path):
+    from docodetect.matcher import MatchReport
+    from docodetect.pipeline import render_report_overlay
+
+    img = np.zeros((50, 50, 3), dtype=np.uint8)
+    report = MatchReport(decision="reject", message="nichts", measured={})
+    assert np.array_equal(render_report_overlay(img, report), img)
+
+
+# ---------- manuelle Bestätigung (AMBIGUOUS-Karten) ----------
+
+def _ambiguous_report(tmp_path):
+    from docodetect.matcher import CandidateReport, MatchReport
+
+    report = MatchReport(
+        decision="ambiguous", message="2 Kandidaten",
+        candidates=[
+            CandidateReport(article_number="A", name="Teller A",
+                            nominal_size_mm=180, height_mm=0,
+                            corrected_diameter_mm=180, geometry_error_mm=0,
+                            has_references=True, n_shots=5),
+            CandidateReport(article_number="B", name="Teller B",
+                            nominal_size_mm=182, height_mm=0,
+                            corrected_diameter_mm=180, geometry_error_mm=2,
+                            has_references=True, n_shots=5),
+        ])
+    p = tmp_path / "report.json"
+    p.write_text(report.to_json(), encoding="utf-8")
+    report.report_path = str(p)
+    return report, p
+
+
+def test_confirm_result_top1_marks_correct(tmp_path):
+    import json
+
+    from docodetect.pipeline import confirm_result
+
+    report, p = _ambiguous_report(tmp_path)
+    confirm_result(report, "A")
+    saved = json.loads(p.read_text(encoding="utf-8"))
+    assert saved["verdict"] == "correct"
+    assert saved["label"] == "A"
+
+
+def test_confirm_result_other_candidate_marks_wrong_with_truth(tmp_path):
+    import json
+
+    from docodetect.pipeline import confirm_result
+
+    report, p = _ambiguous_report(tmp_path)
+    confirm_result(report, "B")
+    saved = json.loads(p.read_text(encoding="utf-8"))
+    assert saved["verdict"] == "wrong"
+    assert saved["label"] == "B"

@@ -40,6 +40,7 @@ class PreviewWidget(QWidget):
         self._show_overlay = False
         self._message: str | None = None       # z.B. „Keine Kamera gefunden“
         self._warn_text: str | None = None     # Rand-Warnung (im Bild, kein Popup)
+        self._busy_text: str | None = None     # dezenter Busy-Indikator
         self._overlay_timer = QTimer(self)
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.timeout.connect(self._overlay_expired)
@@ -58,6 +59,11 @@ class PreviewWidget(QWidget):
     def set_warning(self, text: str | None) -> None:
         """Rand-Warnung: roter Rahmen + Meldung IM Bild. None = aus."""
         self._warn_text = text
+        self.update()
+
+    def set_busy(self, text: str | None) -> None:
+        """Dezenter Busy-Indikator über der Vorschau (None = aus)."""
+        self._busy_text = text
         self.update()
 
     def set_overlay(self, img: QImage, secs: float) -> None:
@@ -104,6 +110,8 @@ class PreviewWidget(QWidget):
                 self._draw_crosshair(p, target)
             if self._warn_text:
                 self._draw_warning(p, target)
+            if self._busy_text:
+                self._draw_busy(p, target)
         p.end()
 
     def _draw_crosshair(self, p: QPainter, r: QRect) -> None:
@@ -112,6 +120,18 @@ class PreviewWidget(QWidget):
         p.drawLine(r.left(), cy, r.right(), cy)
         p.drawLine(cx, r.top(), cx, r.bottom())
         p.drawEllipse(QRect(cx - 14, cy - 14, 28, 28))
+
+    def _draw_busy(self, p: QPainter, r: QRect) -> None:
+        f = p.font()
+        f.setPointSize(12)
+        p.setFont(f)
+        w = min(r.width() - 20, 320)
+        pill = QRect(r.center().x() - w // 2, r.top() + 12, w, 36)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(20, 22, 24, 200))
+        p.drawRoundedRect(pill, 18, 18)
+        p.setPen(QColor(228, 230, 232))
+        p.drawText(pill, Qt.AlignCenter, self._busy_text)
 
     def _draw_warning(self, p: QPainter, r: QRect) -> None:
         p.setPen(QPen(_WARN, 6))

@@ -12,7 +12,8 @@ from datetime import datetime
 import cv2
 import numpy as np
 
-from .calibration import Calibration, load_background, load_calibration
+from .calibration import (Calibration, load_background, load_calibration,
+                          run_calibration, save_background)
 from .config import resolve
 from .database import Article, Database
 from .features import (Features, describe_color_hsv, extract,
@@ -88,6 +89,69 @@ def get_status(cfg: dict) -> PipelineStatus:
         calibrated_unix=calibrated_unix, background_present=background_present,
         article_count=article_count, articles_with_references=with_refs,
         stage2_enabled=bool(cfg.get("stage2", {}).get("enabled", False)))
+
+
+def capture_background(image: np.ndarray, cfg: dict):
+    """Einzelbild-Fassade: Hintergrund-Referenz aus einem Frame speichern.
+    Dünne Weiterleitung an calibration.py, damit die UI-Regel hält (UIs
+    importieren nur pipeline)."""
+    return save_background(image, cfg)
+
+
+def calibrate(image: np.ndarray, cfg: dict) -> Calibration:
+    """Einzelbild-Fassade: ArUco-Kalibrierung aus einem Frame. Wirft
+    RuntimeError mit handlungsleitender Meldung, wenn kein Marker gefunden
+    wird (calibration.py)."""
+    return run_calibration(image, cfg)
+
+
+def confirm_result(report: MatchReport, article_number: str):
+    """Manuelle Bestätigung einer AMBIGUOUS-Auswahl (Karten-Klick in der UI):
+    Top-1 bestätigt = korrekt, anderer Kandidat = falsch mit wahrem Artikel.
+    Schreibt ins gespeicherte Report-JSON (Batch-Auswertung liest es)."""
+    from .reporting import predicted_article, save_verdict
+    return save_verdict(report, correct=(article_number == predicted_article(report)),
+                        true_article=article_number)
+
+
+def render_report_overlay(image: np.ndarray, report: MatchReport) -> np.ndarray:
+    """Annotiertes Ergebnisbild: Kontur (rot bei Randberührung, sonst grün)
+    plus Ø-Maßlinie mit mm-Beschriftung. Arbeitet nur mit dem MatchReport
+    (Kontur-Polygon + Messwerte) – funktioniert daher auch für aus JSON
+    geladene Reports. Das Eingangsbild bleibt unverändert (Kopie)."""
+    out = image.copy()
+    if not report.contour:
+        return out
+    pts = np.asarray(report.contour, dtype=np.int32).reshape(-1, 1, 2)
+    color = (0, 0, 255) if report.touches_border else (0, 255, 0)
+    thickness = max(2, image.shape[1] // 640)
+    cv2.polylines(out, [pts], isClosed=True, color=color, thickness=thickness)
+
+    # Beschriftung: der höhenkompensierte Ø des Top-Kandidaten (dieselbe
+    # Zahl wie auf der ResultCard – zwei verschiedene mm-Werte im selben
+    # Ergebnis würden nur verwirren); ohne Kandidaten der Boden-Ebenen-Wert.
+    d_mm = (report.measured or {}).get("circle_diameter_mm")
+    if report.candidates:
+        d_mm = report.candidates[0].corrected_diameter_mm
+    if d_mm and not report.touches_border:
+        # Maßlinie horizontal über die Konturbreite auf Schwerpunkthöhe
+        xy = pts.reshape(-1, 2)
+        cx, cy = report.centroid_px or xy.mean(axis=0)
+        x0, x1 = int(xy[:, 0].min()), int(xy[:, 0].max())
+        y = int(cy)
+        cv2.line(out, (x0, y), (x1, y), (255, 255, 255), thickness)
+        for x in (x0, x1):
+            cv2.line(out, (x, y - 6 * thickness), (x, y + 6 * thickness),
+                     (255, 255, 255), thickness)
+        label = f"Ø {d_mm:.1f} mm".replace(".", ",")
+        scale = image.shape[1] / 1500.0
+        cv2.putText(out, label, (int(cx) + 4 * thickness, y - 4 * thickness),
+                    cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0),
+                    thickness * 3, cv2.LINE_AA)
+        cv2.putText(out, label, (int(cx) + 4 * thickness, y - 4 * thickness),
+                    cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255),
+                    thickness, cv2.LINE_AA)
+    return out
 
 
 def list_articles(cfg: dict) -> list[ArticleInfo]:

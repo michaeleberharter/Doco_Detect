@@ -93,11 +93,14 @@ def test_main_window_demo_not_ready_shows_guide(qapp, tmp_path):
 
 
 def test_main_window_demo_ready(qapp, tmp_path):
-    """Kalibrierung + Hintergrund vorhanden -> READY, Identifizieren aktiv."""
+    """Kalibrierung + Hintergrund + eingelernter Artikel vorhanden -> READY,
+    Identifizieren aktiv (kein Auto-Seed, weil Referenzen existieren)."""
     import cv2
     import numpy as np
 
     from docodetect.calibration import Calibration
+    from docodetect.database import Article, Database
+    from docodetect.features import Features
     from docodetect.ui_qt.main_window import MainWindow
     from docodetect.ui_qt.state import UiState
 
@@ -107,6 +110,15 @@ def test_main_window_demo_ready(qapp, tmp_path):
                 created_unix=time.time()).save(cfg["calibration"]["file"])
     cv2.imwrite(cfg["calibration"]["background_file"],
                 np.full((10, 10, 3), 200, dtype=np.uint8))
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(article_number="X", name="X", category=None,
+                              diameter_mm=100.0, width_mm=None, depth_mm=None,
+                              height_mm=None, color_desc=None, notes=None))
+    db.add_reference("X", Features(
+        equiv_diameter_mm=100, circle_diameter_mm=100, area_mm2=7854,
+        perimeter_mm=314, circularity=0.95, aspect_ratio=1.0))
+    db.close()
     win = MainWindow(cfg, demo=True)
     assert win.state is UiState.READY
     assert win.identify_button.isEnabled()
@@ -144,6 +156,81 @@ def test_apply_demo_paths_redirects_everything(tmp_path):
         assert value.startswith("data/demo/")
     # Original unangetastet (deepcopy)
     assert cfg["paths"]["db_file"].endswith("db.sqlite3")
+
+
+def _wait_until(qapp, cond, timeout=90.0):
+    """Event-Schleife treiben, bis cond() wahr ist (Worker-Signale sind
+    QueuedConnections und brauchen processEvents)."""
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        qapp.processEvents()
+        if cond():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def test_demo_end_to_end_identify(qapp, tmp_path):
+    """Der Phase-3-Abnahmepfad als Test: Hintergrund aufnehmen ->
+    Kalibrieren -> (Auto-Seed) -> Teller 18 ACCEPT -> Teller 20 ACCEPT ->
+    Randbild rote Rand-Warnung. GUI-Thread bleibt frei (Worker-Threads)."""
+    from docodetect.config import load_config
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    win = MainWindow(cfg, demo=True)
+    assert win.state is UiState.NOT_READY
+
+    # Schritt 1: Hintergrund (Szene "Hintergrund" ist Default)
+    win.background_button.click()
+    assert _wait_until(qapp, lambda: not win._busy)
+    assert win.pipeline_status.background_present
+    assert "[erledigt]" in win.result_area.text()  # Checkliste rückt weiter
+
+    # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (3 Artikel)
+    win.demo_scene_box.setCurrentText("Marker")
+    win.calibrate_button.click()
+    assert _wait_until(
+        qapp, lambda: (not win._busy
+                       and win.pipeline_status.articles_with_references == 3))
+    assert win.state is UiState.READY
+    assert win.identify_button.isEnabled()
+
+    # Teller 18 -> ACCEPT, Karte grün, plausibler Ø (nominal 180 mm)
+    win.demo_scene_box.setCurrentText("Teller 18")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    assert win._last_report.decision == "accept"
+    assert win.result_headline.text() == "Erkannt: Teller flach 18"
+    best = win._last_report.candidates[0]
+    assert best.article_number == "DEMO-T18"
+    assert abs(best.corrected_diameter_mm - 180.0) < 4.0
+    assert win.cards_layout.count() >= 1
+    assert win.preview._overlay is not None      # annotiertes Ergebnisbild
+    assert win.preview._warn_text is None
+
+    # Teller 20 -> korrekter Artikel
+    win.demo_scene_box.setCurrentText("Teller 20")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    assert win._last_report.decision == "accept"
+    assert win._last_report.candidates[0].article_number == "DEMO-T20"
+
+    # Randbild -> rote Rand-Warnung statt Messwert
+    win.demo_scene_box.setCurrentText("Randbild")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    assert win._last_report.decision == "reject"
+    assert win._last_report.touches_border
+    assert win.preview._warn_text and "Bildrand" in win.preview._warn_text
+    assert "Bildrand" in win.result_headline.text()
+    win.close()
 
 
 def test_fit_rect_letterbox_math():

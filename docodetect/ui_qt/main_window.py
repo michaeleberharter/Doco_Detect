@@ -1,30 +1,38 @@
 """Hauptfenster: Vorschau links, Aktions-Panel rechts, Statusleiste unten.
 
-Zustandsmaschine (state.py): NO_CAMERA / NOT_READY / READY / BUSY – ein
-Enum, ein set_state(); der Empty State ist eine Handlungsanleitung
-(Einrichtungs-Checkliste), kein toter Bildschirm. Bildquelle ist entweder
-die DemoSource (--demo) oder der CameraWorker (Phase 4) – beide mit
-derselben Signal-Schnittstelle.
+Zustandsmaschine (state.py): NO_CAMERA / NOT_READY / READY / BUSY.
+Alle Pipeline-Aktionen laufen im PipelineWorker (nie im GUI-Thread) und
+erhalten das Bild als Argument vom jeweiligen Frame-Lieferanten (DemoSource
+bzw. CameraWorker) – die UI besitzt keine Kamera und rechnet nie selbst.
+
+Interface-Sprache: ein Begriff pro Aktion („Identifizieren“ → „Erkannt“),
+Fehlertexte nennen immer die Abhilfe.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QMainWindow,
-                               QPushButton, QVBoxLayout, QWidget)
+from functools import partial
 
-from docodetect.pipeline import get_status
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import (QApplication, QComboBox, QHBoxLayout, QLabel,
+                               QMainWindow, QPushButton, QVBoxLayout, QWidget)
+
+from docodetect.pipeline import confirm_result, get_status
 
 from .app import ui_cfg
+from .pipeline_worker import PipelineWorker
 from .state import UiState, compute_state
 from .widgets.preview import PreviewWidget
+from .widgets.result_card import ResultCard
 from .widgets.status_bar import StatusBarContent
 
 # Feste Breite des Aktions-Panels: die Vorschau soll den restlichen Platz
 # füllen; 360 px reichen für ResultCards mit Messwert-Zeile.
 _PANEL_WIDTH = 360
 
-_NO_CAMERA_TEXT = ("Keine Kamera gefunden –\nVerbindung wird gesucht…")
+_NO_CAMERA_TEXT = "Keine Kamera gefunden –\nVerbindung wird gesucht…"
+_BORDER_WARNING = "Objekt berührt den Bildrand – weiter zur Mitte legen."
 
 _IDENTIFY_TOOLTIPS = {
     UiState.NO_CAMERA: "Keine Kamera verbunden.",
@@ -32,6 +40,71 @@ _IDENTIFY_TOOLTIPS = {
     UiState.READY: "Objekt mittig auflegen und identifizieren (Leertaste).",
     UiState.BUSY: "Bitte warten – Auswertung läuft.",
 }
+
+_BUSY_TEXTS = {
+    "identify": "Auswertung läuft…",
+    "background": "Hintergrund wird gespeichert…",
+    "calibrate": "Kalibrierung läuft…",
+    "seed": "Demo-Artikel werden eingelernt…",
+}
+
+
+# ---------- Jobs: laufen KOMPLETT im Worker-Thread ----------
+# Die Pipeline wird IM Job konstruiert (SQLite-Thread-Affinität) und das
+# Ergebnis GUI-fertig aufbereitet (QImage-Konvertierung ist threadsicher).
+
+def _job_identify(frame, cfg: dict, preview_width: int) -> dict:
+    from docodetect.pipeline import Pipeline, render_report_overlay
+
+    from .qimage import bgr_to_qimage, downscale_width
+
+    pipe = Pipeline(cfg)
+    try:
+        outcome = pipe.identify(frame)
+    finally:
+        pipe.close()
+    annotated = render_report_overlay(frame, outcome.report)
+    qimg = bgr_to_qimage(downscale_width(annotated, preview_width))
+    return {"kind": "identify", "outcome": outcome, "annotated": qimg}
+
+
+def _job_background(frame, cfg: dict) -> dict:
+    from docodetect.pipeline import capture_background
+
+    capture_background(frame, cfg)
+    return {"kind": "background"}
+
+
+def _job_calibrate(frame, cfg: dict) -> dict:
+    from docodetect.pipeline import calibrate
+
+    cal = calibrate(frame, cfg)
+    return {"kind": "calibrate", "mm_per_px": cal.mm_per_px}
+
+
+def _job_seed_demo(cfg: dict) -> dict:
+    """Demo-Artikel einmalig anlegen + einlernen (5 Varianten pro Artikel),
+    damit „Identifizieren“ im Demo-Modus ACCEPT erreichen kann. Läuft über
+    dieselben Pipeline-Aufrufe wie echte Einrichtung."""
+    from docodetect.pipeline import Pipeline
+
+    from .demo_scenes import DEMO_ARTICLES, build_scene
+
+    pipe = Pipeline(cfg)
+    pipe.db.init_schema()
+    try:
+        for art in DEMO_ARTICLES:
+            for v in range(1, 6):
+                img = build_scene(cfg, art.scene_name, v)
+                if v == 1:
+                    pipe.create_article(
+                        img, art.name, article_number=art.article_number,
+                        height_mm=art.height_mm, category=art.category)
+                else:
+                    pipe.enroll(img, art.article_number)
+    finally:
+        pipe.close()
+    return {"kind": "seed", "n": len(DEMO_ARTICLES)}
 
 
 class MainWindow(QMainWindow):
@@ -42,6 +115,10 @@ class MainWindow(QMainWindow):
         self.ui = ui_cfg(cfg)
         self.source = None          # DemoSource | CameraWorker (Phase 4)
         self._busy = False
+        self._pending: str | None = None   # angeforderte Aktion für den Frame
+        self._worker: PipelineWorker | None = None
+        self._seed_attempted = False
+        self._last_report = None
         self.state: UiState | None = None
         self.setWindowTitle("Doco Detect" + (" – Demo" if demo else ""))
         self.setMinimumSize(self.ui["window_min_width"],
@@ -58,6 +135,7 @@ class MainWindow(QMainWindow):
         self.status_content = StatusBarContent()
         self.statusBar().addWidget(self.status_content, 1)
 
+        self._wire_actions()
         if demo:
             self._attach_demo_source()
         self.refresh_status()
@@ -103,11 +181,23 @@ class MainWindow(QMainWindow):
         result_header.setObjectName("sectionLabel")
         lay.addWidget(result_header)
 
+        self.result_headline = QLabel("")
+        self.result_headline.setObjectName("resultHeadline")
+        self.result_headline.setWordWrap(True)
+        lay.addWidget(self.result_headline)
+
         self.result_area = QLabel("Noch kein Ergebnis.")
         self.result_area.setObjectName("guideLabel")
         self.result_area.setWordWrap(True)
         self.result_area.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        lay.addWidget(self.result_area, stretch=1)
+        lay.addWidget(self.result_area)
+
+        self.cards_box = QWidget()
+        self.cards_layout = QVBoxLayout(self.cards_box)
+        self.cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.cards_layout.setSpacing(8)
+        lay.addWidget(self.cards_box)
+        lay.addStretch(1)
 
         self.background_button = QPushButton("Hintergrund aufnehmen")
         self.calibrate_button = QPushButton("Kalibrieren")
@@ -118,16 +208,34 @@ class MainWindow(QMainWindow):
             lay.addWidget(b)
         return panel
 
+    def _wire_actions(self) -> None:
+        self.identify_button.clicked.connect(self.identify_now)
+        self.background_button.clicked.connect(
+            partial(self._start_capture_action, "background"))
+        self.calibrate_button.clicked.connect(
+            partial(self._start_capture_action, "calibrate"))
+        # Leertaste = Identifizieren, egal wo der Fokus im Fenster liegt.
+        space = QAction("Identifizieren", self)
+        space.setShortcut(QKeySequence(Qt.Key_Space))
+        space.setShortcutContext(Qt.WindowShortcut)
+        space.triggered.connect(self.identify_now)
+        self.addAction(space)
+
     def _attach_demo_source(self) -> None:
         from .demo_scenes import SCENE_NAMES
         from .demo_source import DemoSource
 
         self.source = DemoSource(self.cfg, self)
-        self.source.frame_ready.connect(self.preview.set_frame)
+        self._connect_source(self.source)
         self.demo_scene_box.addItems(SCENE_NAMES)
         self.demo_scene_box.currentTextChanged.connect(self.source.set_scene)
         self.demo_bar.setVisible(True)
         self.source.start()
+
+    def _connect_source(self, source) -> None:
+        """Gemeinsame Verdrahtung für DemoSource und CameraWorker (Phase 4)."""
+        source.frame_ready.connect(self.preview.set_frame)
+        source.full_frame_ready.connect(self._on_full_frame)
 
     # ---------- Zustandsmaschine ----------
 
@@ -140,6 +248,7 @@ class MainWindow(QMainWindow):
         self.pipeline_status = get_status(self.cfg)
         self.status_content.update_status(self.pipeline_status)
         self.update_state()
+        self._maybe_seed_demo()
 
     def update_state(self) -> None:
         self.set_state(compute_state(self.camera_ok,
@@ -170,3 +279,186 @@ class MainWindow(QMainWindow):
                 f"1. Box leeren, dann „Hintergrund aufnehmen“.   [{bg}]\n\n"
                 f"2. Marker einlegen, dann „Kalibrieren“.   [{cal}]\n\n"
                 "Danach ist „Identifizieren“ aktiv.")
+
+    def closeEvent(self, event) -> None:  # noqa: N802 (Qt-API)
+        """Quelle stoppen und laufende Worker zu Ende laufen lassen – ein
+        QThread darf nicht zerstört werden, solange er läuft."""
+        if self.source is not None:
+            self.source.stop()
+        if self._worker is not None:
+            self._worker.wait(10000)
+        super().closeEvent(event)
+
+    # ---------- Aktionen ----------
+
+    def identify_now(self) -> None:
+        if self.state is UiState.READY:
+            self._start_capture_action("identify")
+
+    def _start_capture_action(self, action: str) -> None:
+        """Frischen Voll-Frame anfordern; der Frame löst dann den Job aus."""
+        if self._busy or self.source is None:
+            return
+        self._pending = action
+        self._busy = True
+        self.update_state()
+        self.preview.set_busy(_BUSY_TEXTS[action])
+        self.preview.set_warning(None)
+        self.source.request_full_frame()
+
+    def _on_full_frame(self, frame) -> None:
+        action, self._pending = self._pending, None
+        if action is None:
+            return  # Frame war für einen anderen Empfänger (z.B. Dialog)
+        jobs = {
+            "identify": partial(_job_identify, frame, self.cfg,
+                                self.ui["preview_max_width"]),
+            "background": partial(_job_background, frame, self.cfg),
+            "calibrate": partial(_job_calibrate, frame, self.cfg),
+        }
+        self._start_worker(jobs[action])
+
+    def _start_worker(self, job) -> None:
+        w = PipelineWorker(job, self)
+        w.finished_ok.connect(self._on_job_done)
+        w.failed.connect(self._on_job_failed)
+        w.finished.connect(w.deleteLater)
+        self._worker = w
+        w.start()
+
+    def _maybe_seed_demo(self) -> None:
+        """Demo einsatzbereit machen: sobald Kalibrierung + Hintergrund da
+        sind und die Demo-DB leer ist, Artikel automatisch einlernen (einmal
+        pro Programmlauf)."""
+        if (self.demo and not self._busy and not self._seed_attempted
+                and self.pipeline_status.ready
+                and self.pipeline_status.articles_with_references == 0):
+            self._seed_attempted = True
+            self._busy = True
+            self.update_state()
+            self.preview.set_busy(_BUSY_TEXTS["seed"])
+            self._start_worker(partial(_job_seed_demo, self.cfg))
+
+    # ---------- Job-Ergebnisse ----------
+
+    def _job_finished(self) -> None:
+        self._busy = False
+        self._worker = None
+        self.preview.set_busy(None)
+
+    def _on_job_done(self, result: dict) -> None:
+        self._job_finished()
+        kind = result["kind"]
+        if kind == "background":
+            self._set_headline("Hintergrund gespeichert.", "accept")
+            self.refresh_status()   # Checkliste rückt weiter / READY
+        elif kind == "calibrate":
+            mm = f"{result['mm_per_px']:.3f}".replace(".", ",")
+            self._set_headline(f"Kalibriert: {mm} mm/px.", "accept")
+            self.refresh_status()
+            if self.state is UiState.READY and not self.demo:
+                self.result_area.setText(
+                    "Bereit. Objekt mittig auflegen und „Identifizieren“ "
+                    "drücken (Leertaste).")
+        elif kind == "seed":
+            self.refresh_status()
+            self._set_headline("Demo-Artikel eingelernt.", "accept")
+            self.result_area.setText(
+                f"{result['n']} Demo-Artikel mit je 5 Referenzen angelegt. "
+                "Jetzt z.B. „Teller 18“ wählen und identifizieren "
+                "(Leertaste).")
+        elif kind == "identify":
+            self.update_state()
+            self._show_report(result)
+
+    def _on_job_failed(self, message: str) -> None:
+        self._job_finished()
+        self.refresh_status()
+        self._set_headline("Aktion fehlgeschlagen.", "reject")
+        # Pipeline-Fehlertexte nennen bereits die Abhilfe (z.B. „Marker
+        # prüfen“, „weiter zur Mitte legen“) – unverändert anzeigen.
+        self.result_area.setText(message)
+
+    # ---------- Ergebnis-Darstellung ----------
+
+    def _set_headline(self, text: str, tone: str = "neutral") -> None:
+        self.result_headline.setText(text)
+        self.result_headline.setProperty("tone", tone)
+        self.result_headline.style().unpolish(self.result_headline)
+        self.result_headline.style().polish(self.result_headline)
+
+    def _clear_cards(self) -> None:
+        while self.cards_layout.count():
+            item = self.cards_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _show_report(self, result: dict) -> None:
+        outcome = result["outcome"]
+        report = outcome.report
+        self._last_report = report
+        self._clear_cards()
+        self.preview.set_overlay(result["annotated"],
+                                 self.ui["result_overlay_secs"])
+        touches = bool(report.touches_border)
+        self.preview.set_warning(_BORDER_WARNING if touches else None)
+
+        tol = float(self.cfg["matching"]["diameter_tolerance_mm"])
+        top_k = int(self.cfg["matching"].get("top_k", 3))
+        cands = report.candidates[:top_k]
+
+        if report.decision == "accept":
+            best = cands[0]
+            self._set_headline(f"Erkannt: {best.name}", "accept")
+            self.result_area.setText("")
+            for i, c in enumerate(cands):
+                self.cards_layout.addWidget(
+                    ResultCard(c, tol, tone="accept" if i == 0 else "neutral"))
+            if self.ui["confirm_sound"]:
+                QApplication.beep()
+        elif report.decision == "ambiguous":
+            self._set_headline("Bitte bestätigen:", "confirm")
+            self.result_area.setText(
+                "Karte anklicken, um den richtigen Artikel zu bestätigen.")
+            for i, c in enumerate(cands):
+                card = ResultCard(c, tol,
+                                  tone="confirm" if i == 0 else "neutral",
+                                  clickable=True)
+                card.clicked.connect(self._confirm_candidate)
+                self.cards_layout.addWidget(card)
+        elif touches:
+            self._set_headline("Objekt berührt den Bildrand.", "reject")
+            self.result_area.setText(
+                "Weiter zur Mitte legen, dann erneut „Identifizieren“ "
+                "drücken. Passt das Objekt nicht vollständig ins Bild, kann "
+                "es nicht gemessen werden (siehe README, FOV).")
+        else:
+            self._set_headline("Kein Artikel passt.", "reject")
+            self.result_area.setText(
+                "Prüfen: Objekt richtig gelegt? Artikel eingelernt? "
+                "Mit „Artikel einlernen…“ unten lässt sich der Artikel "
+                "jetzt anlegen.\n\nDetails: " + report.message)
+
+    def _confirm_candidate(self, article_number: str) -> None:
+        """Karten-Klick bei AMBIGUOUS: visuell quittieren + im Report-JSON
+        vermerken (Buchungs-Anbindung ist bewusst nicht Teil der UI)."""
+        if self._last_report is None:
+            return
+        try:
+            confirm_result(self._last_report, article_number)
+        except ValueError as e:
+            self._set_headline("Bestätigung nicht gespeichert.", "reject")
+            self.result_area.setText(str(e))
+            return
+        name = article_number
+        for i in range(self.cards_layout.count()):
+            card = self.cards_layout.itemAt(i).widget()
+            if isinstance(card, ResultCard):
+                chosen = card.article_number == article_number
+                card.set_tone("accept" if chosen else "neutral")
+        for c in self._last_report.candidates:
+            if c.article_number == article_number:
+                name = c.name
+                break
+        self._set_headline(f"Bestätigt: {name}", "accept")
+        self.result_area.setText("Auswahl wurde im Protokoll vermerkt.")

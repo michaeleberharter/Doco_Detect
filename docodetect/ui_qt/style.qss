@@ -86,6 +86,46 @@ QMainWindow, QDialog {
     padding: 8px;
 }
 
+/* ---------- Ergebnis-Karten ---------- */
+
+#resultHeadline {
+    font-size: 12pt;
+    font-weight: 600;
+    color: #e4e6e8;
+    padding: 2px 0;
+}
+#resultHeadline[tone="accept"]  { color: #2e9e5b; }
+#resultHeadline[tone="confirm"] { color: #d4a72c; }
+#resultHeadline[tone="reject"]  { color: #cc4b4b; }
+
+#resultCard {
+    background: #26282b;
+    border: 1px solid #3a3d40;
+    border-radius: 8px;
+}
+#resultCard[tone="accept"]  { border: 2px solid #2e9e5b; }
+#resultCard[tone="confirm"] { border: 2px solid #d4a72c; }
+
+#cardName {
+    font-size: 14pt;
+    font-weight: 600;
+    color: #e4e6e8;
+}
+#cardDim { font-size: 9.5pt; color: #969ba0; }
+#cardMeasure { font-size: 11pt; color: #e4e6e8; }
+
+#resultCard QProgressBar {
+    background: #1e2022;
+    border: 1px solid #3a3d40;
+    border-radius: 4px;
+    color: #e4e6e8;
+    font-size: 8.5pt;
+    text-align: center;
+}
+#resultCard QProgressBar::chunk { background: #3a3d40; border-radius: 3px; }
+#resultCard[tone="accept"] QProgressBar::chunk  { background: #2e9e5b; }
+#resultCard[tone="confirm"] QProgressBar::chunk { background: #d4a72c; }
+
 /* ---------- Statusleiste ---------- */
 
 QStatusBar {
