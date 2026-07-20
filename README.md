@@ -149,6 +149,43 @@ Leitplanken beim Lesen der Ergebnisse:
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # Stufe 1
 pip install -r requirements-stage2.txt   # optional: Stufe 2 (torch, faiss)
+pip install -r requirements-ui.txt       # optional: Streamlit-Test-UI
+pip install -r requirements-ui-qt.txt    # optional: native Qt-Bedien-UI
+```
+
+### Rechnerlokale Einstellungen (`config/config.local.yaml`)
+
+Liegt neben `config/config.yaml` eine `config.local.yaml`, wird sie beim
+Laden per Deep-Merge darübergelegt — dort gesetzte Keys gewinnen, alles
+andere bleibt wie in der geteilten Config. Die Datei ist nicht versioniert
+(`.gitignore`) und dafür da, rechnerabhängige Werte aus der geteilten
+Config herauszuhalten. Typischer Fall ist der Kamera-Index: am Windows-PC
+an der Box ist die UGREEN Index 0, am Entwicklungs-Mac liegt dort die
+interne FaceTime-Kamera und die UGREEN meist auf 1.
+
+```yaml
+# config/config.local.yaml
+camera:
+  index: 1
+```
+
+Passenden Index ermitteln:
+
+```bash
+python -m docodetect.cli list-cameras     # probiert Index 0..3 durch
+```
+
+### Tests und Hardware
+
+`pytest tests/` läuft komplett ohne Kamera: `tests/conftest.py` sperrt jeden
+Zugriff auf echte Aufnahmegeräte (sonst öffnet der Testlauf unter macOS die
+FaceTime-Kamera und löst den Berechtigungsdialog aus). Tests, die zwingend
+eine angeschlossene Kamera brauchen, tragen den Marker `hardware` und werden
+standardmäßig übersprungen:
+
+```bash
+python -m pytest tests/ -v                              # ohne Hardware
+DOCODETECT_HW_TESTS=1 python -m pytest tests/ -v -m hardware -s   # mit Kamera
 ```
 
 ## Workflow

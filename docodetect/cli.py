@@ -57,48 +57,153 @@ def cmd_calibrate(args, cfg):
     run_calibration(img, cfg)
 
 
+def _create_one(pipe, cfg, img, name, *, article_number=None, height_mm=0.0,
+                category=None, store_photo=True):
+    """Kern von `create-article`: EINEN Artikel aus EINEM Bild anlegen und das
+    Foto (nur bei Live-Aufnahmen) als Referenz ablegen.
+
+    Wirft SegmentationError / KeyError weiter, statt das Programm zu beenden –
+    `create-article` bricht damit ab, `batch-create` bietet stattdessen an, die
+    Aufnahme zu wiederholen."""
+    import cv2
+
+    prefix = cfg.get("create", {}).get("article_number_prefix", "")
+    number = article_number or pipe.db.generate_article_number(name, prefix)
+    # Foto erst NACH dem Anlegen schreiben, damit ein Fehlschlag kein
+    # verwaistes jpg hinterlässt (womöglich im Ordner eines anderen Artikels).
+    img_path = None
+    if store_photo:
+        ref_dir = resolve(cfg["paths"]["reference_dir"]) / number
+        img_path = str(ref_dir / f"{int(time.time() * 1000)}.jpg")
+
+    article, feats, _ = pipe.create_article(
+        img, name, article_number=number, height_mm=height_mm,
+        category=category, image_path=img_path)
+
+    if img_path:
+        Path(img_path).parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(img_path, img)
+    return article, feats
+
+
+def _format_created(article) -> str:
+    geo = (f"Ø {article.diameter_mm:.1f} mm" if article.diameter_mm
+           else f"{article.width_mm:.1f} × {article.depth_mm:.1f} mm")
+    return (f"'{article.name}' angelegt als {article.article_number}  "
+            f"({geo}, Farbe: {article.color_desc})")
+
+
 def cmd_create_article(args, cfg):
     """Create a new article live: object under the camera, pass a name, done."""
-    db = Database(cfg)
-    db.init_schema()
-    prefix = cfg.get("create", {}).get("article_number_prefix", "")
-    number = args.article_number or db.generate_article_number(args.name, prefix)
-    db.close()
-
+    Database(cfg).init_schema()
     pipe = Pipeline(cfg)
     try:
         img = _get_image(args, cfg)
-        # Persist the shot as a reference image only for live captures – and
-        # only write it AFTER the article was created, so a failed create
-        # leaves no orphaned jpg (possibly in another article's folder).
-        img_path = None
-        if not getattr(args, "image", None):
-            ref_dir = resolve(cfg["paths"]["reference_dir"]) / number
-            img_path = str(ref_dir / f"{int(time.time() * 1000)}.jpg")
-
         try:
-            article, feats, _ = pipe.create_article(
-                img, args.name, article_number=number,
+            article, _ = _create_one(
+                pipe, cfg, img, args.name, article_number=args.article_number,
                 height_mm=args.height_mm, category=args.category,
-                image_path=img_path,
-            )
-        except SegmentationError as e:
+                store_photo=not getattr(args, "image", None))
+        except (SegmentationError, KeyError) as e:
             sys.exit(f"[create] {e}")
-        except KeyError as e:
-            sys.exit(f"[create] {e}")
-
-        if img_path:
-            import cv2
-            Path(img_path).parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(img_path, img)
-
-        geo = (f"Ø {article.diameter_mm:.1f} mm" if article.diameter_mm
-               else f"{article.width_mm:.1f} × {article.depth_mm:.1f} mm")
-        print(f"[create] '{article.name}' angelegt als {article.article_number}  "
-              f"({geo}, Farbe: {article.color_desc}).")
+        print(f"[create] {_format_created(article)}.")
         print("[create] 1 Referenzfoto gespeichert – Artikel ist sofort erkennbar.")
     finally:
         pipe.close()
+
+
+_BATCH_KEYS = "Enter = Aufnahme · r = letzte verwerfen und wiederholen · q = Abbruch"
+
+
+def cmd_batch_create(args, cfg):
+    """Messreihe anlegen: N gleichartige Artikel nacheinander, je 1 Shot.
+
+    Dünner Wrapper um dieselbe Logik wie `create-article` (_create_one) – nur
+    die Bedienung ist auf „viele Objekte am Stück“ ausgelegt: die Kamera
+    bleibt für den ganzen Durchlauf offen, und eine Fehlmessung kostet nur
+    diesen einen Artikel."""
+    Database(cfg).init_schema()
+    pipe = Pipeline(cfg)
+    created = []
+    try:
+        print(f"[batch-create] '{args.name_prefix} 1' … "
+              f"'{args.name_prefix} {args.count}' anlegen "
+              f"(Höhe {args.height_mm:g} mm, je 1 Aufnahme).")
+        print(f"[batch-create] {_BATCH_KEYS}")
+        with BoxCamera(cfg) as cam:
+            i = 1
+            while i <= args.count:
+                name = f"{args.name_prefix} {i}"
+                if input(f"\n  {name} einlegen > ").strip().lower() == "q":
+                    print("[batch-create] abgebrochen.")
+                    break
+                try:
+                    article, _ = _create_one(pipe, cfg, cam.capture(), name,
+                                             height_mm=args.height_mm,
+                                             category=args.category)
+                except (SegmentationError, KeyError) as e:
+                    print(f"    [Fehlmessung] {e}")
+                    if input("    r = wiederholen, Enter = überspringen > "
+                             ).strip().lower() == "r":
+                        continue
+                    i += 1
+                    continue
+                print(f"    {_format_created(article)}")
+                if input("    Enter = weiter, r = verwerfen und wiederholen > "
+                         ).strip().lower() == "r":
+                    pipe.db.delete_article(article.article_number)
+                    print(f"    {article.article_number} verworfen.")
+                    continue
+                created.append(article.article_number)
+                i += 1
+    finally:
+        pipe.close()
+    print(f"\n[batch-create] {len(created)} Artikel angelegt"
+          + (f": {', '.join(created)}" if created else "."))
+    if created:
+        print(f"[batch-create] Weiter: python -m docodetect.cli batch-enroll "
+              f"--prefix {created[0].rsplit('-', 1)[0]} --count {len(created)}")
+
+
+def cmd_batch_enroll(args, cfg):
+    """Messreihe einlernen: `enroll` für <prefix>-1 … <prefix>-N nacheinander.
+
+    Dünner Wrapper um dieselbe Shot-Schleife wie `enroll` (_enroll_shots);
+    die Kamera bleibt über alle Artikel offen."""
+    Database(cfg).init_schema()   # frische DB: klare Meldung statt SQLite-Fehler
+    pipe = Pipeline(cfg)
+    done = []
+    try:
+        print(f"[batch-enroll] {args.shots} Shots je Artikel für "
+              f"{args.prefix}-1 … {args.prefix}-{args.count}.")
+        print(f"[batch-enroll] {_BATCH_KEYS} (r = Artikel komplett neu einlernen)")
+        with BoxCamera(cfg) as cam:
+            i = 1
+            while i <= args.count:
+                number = f"{args.prefix}-{i}"
+                article = pipe.db.get_article(number)
+                if article is None:
+                    print(f"\n  [übersprungen] {number} existiert nicht "
+                          "(zuerst batch-create ausführen).")
+                    i += 1
+                    continue
+                if input(f"\n  {article.name} ({number}) einlegen > "
+                         ).strip().lower() == "q":
+                    print("[batch-enroll] abgebrochen.")
+                    break
+                n = _enroll_shots(pipe, cfg, cam, number, args.shots)
+                _print_enroll_stats(pipe, number)
+                if input("    Enter = weiter, r = Artikel neu einlernen > "
+                         ).strip().lower() == "r":
+                    removed = pipe.db.delete_references(number)
+                    print(f"    {removed} Referenzen von {number} verworfen.")
+                    continue
+                done.append((number, n))
+                i += 1
+    finally:
+        pipe.close()
+    print(f"\n[batch-enroll] {len(done)} Artikel eingelernt"
+          + (f" ({sum(n for _, n in done)} Shots gesamt)." if done else "."))
 
 
 def cmd_delete_article(args, cfg):
@@ -134,18 +239,39 @@ def cmd_enroll(args, cfg):
     print(f"[enroll] {args.shots} shots for {args.article_number}. "
           "Rotate/move the item between shots. ENTER = capture, q = abort.")
     with BoxCamera(cfg) as cam:
-        for i in range(args.shots):
-            if input(f"  shot {i + 1}/{args.shots} > ").strip().lower() == "q":
-                break
-            img = cam.capture()
-            img_path = ref_dir / f"{int(time.time() * 1000)}.jpg"
-            import cv2
-            cv2.imwrite(str(img_path), img)
-            feats, _ = pipe.enroll(img, args.article_number, str(img_path))
-            print(f"    Ø {feats.circle_diameter_mm:.1f} mm, "
-                  f"circularity {feats.circularity:.3f}")
+        _enroll_shots(pipe, cfg, cam, args.article_number, args.shots)
     _print_enroll_stats(pipe, args.article_number)
     pipe.close()
+
+
+def _enroll_shots(pipe, cfg, cam, article_number: str, shots: int) -> int:
+    """Kern von `enroll`: n Aufnahmen an einer bereits geöffneten Kamera.
+    Gibt die Zahl der gespeicherten Shots zurück; 'q' bricht ab. Eine
+    Fehlmessung (Randberührung) kostet nur diesen Shot, nicht den Durchlauf –
+    wichtig für batch-enroll, wo 15 Artikel am Stück laufen."""
+    import cv2
+
+    ref_dir = resolve(cfg["paths"]["reference_dir"]) / article_number
+    ref_dir.mkdir(parents=True, exist_ok=True)
+    stored = 0
+    i = 0
+    while i < shots:
+        if input(f"  shot {i + 1}/{shots} > ").strip().lower() == "q":
+            break
+        img = cam.capture()
+        img_path = ref_dir / f"{int(time.time() * 1000)}.jpg"
+        try:
+            feats, _ = pipe.enroll(img, article_number, str(img_path))
+        except SegmentationError as e:
+            print(f"    [Fehlmessung] {e}")
+            print("    -> nicht gespeichert, Shot wird wiederholt.")
+            continue
+        cv2.imwrite(str(img_path), img)
+        stored += 1
+        i += 1
+        print(f"    Ø {feats.circle_diameter_mm:.1f} mm, "
+              f"circularity {feats.circularity:.3f}")
+    return stored
 
 
 def _print_enroll_stats(pipe, article_number):
@@ -202,6 +328,25 @@ def cmd_evaluate(args, cfg):
     pipe.close()
 
 
+def cmd_list_cameras(args, cfg):
+    """Welcher Index ist die Box-Kamera? Probiert 0..--max-index durch."""
+    from .camera import capture_backend, probe_cameras
+    current = cfg["camera"].get("index")
+    print(f"[cameras] Backend {capture_backend(cfg['camera'])} auf {sys.platform}, "
+          f"aktuell konfiguriert: index {current}")
+    results = probe_cameras(cfg["camera"], args.max_index)
+    for index, ok, w, h in results:
+        mark = " <- aktuell konfiguriert" if index == current else ""
+        status = f"antwortet, {w}x{h}" if ok else "keine Kamera / belegt"
+        print(f"  index {index}: {status}{mark}")
+    if not any(ok for _, ok, _, _ in results):
+        print("[cameras] Keine Kamera gefunden – USB-Verbindung prüfen "
+              "(und ob ein anderes Programm die Kamera belegt).")
+        return
+    print("[cameras] Passenden Index dauerhaft setzen: camera.index in "
+          "config/config.local.yaml (rechnerlokal, siehe README).")
+
+
 def cmd_make_smoke_testset(args, cfg):
     """Deterministisches Smoke-Testset materialisieren (Regressions-Baseline):
     Testbilder + Kalibrierung + Hintergrund + frisch eingelernte Referenz-DB.
@@ -215,6 +360,18 @@ def cmd_make_smoke_testset(args, cfg):
     print(f"[smoke] Kalibrierung {s['mm_per_px']:.5f} mm/px; Hintergrund und "
           "Referenz-DB (je 3 Shots) frisch erzeugt.")
     print(f"[smoke] Weiter: python -m docodetect.cli evaluate {args.out}")
+
+
+def cmd_ab_report(args, cfg):
+    """Zwei Testrunden vergleichen (z.B. Phase A = 1 Shot, Phase B = 8 Shots)."""
+    from .reporting import compare_runs, load_reports
+    a = [r for _, r in load_reports(args.dir_a)]
+    b = [r for _, r in load_reports(args.dir_b)]
+    if not a or not b:
+        sys.exit(f"[ab-report] Keine Reports in "
+                 f"{args.dir_a if not a else args.dir_b} gefunden.")
+    print(compare_runs(a, b, k=int(cfg["matching"].get("top_k", 3)),
+                       label_a=args.label_a, label_b=args.label_b))
 
 
 def cmd_analyze(args, cfg):
@@ -255,6 +412,23 @@ def main(argv=None):
     p.add_argument("--category", default=None, help="e.g. Loeffel / Teller / Tasse")
     p.add_argument("--image", help="use an image file instead of the camera")
 
+    p = sub.add_parser("batch-create", help="Messreihe: N gleichartige Artikel "
+                       "nacheinander anlegen (je 1 Aufnahme)")
+    p.add_argument("--name-prefix", default="Löffel",
+                   help='Namensstamm, ergibt "<Prefix> 1".."<Prefix> N" (Default: Löffel)')
+    p.add_argument("--count", type=int, default=15, help="Anzahl (Default: 15)")
+    p.add_argument("--height-mm", type=float, default=0.0,
+                   help="Objekthöhe über dem Boden (Default: 0 = flach)")
+    p.add_argument("--category", default=None, help="z.B. Loeffel / Teller")
+
+    p = sub.add_parser("batch-enroll", help="Messreihe: <prefix>-1..N "
+                       "nacheinander einlernen")
+    p.add_argument("--prefix", default="LOEFFEL",
+                   help="Artikelnummern-Stamm (Default: LOEFFEL)")
+    p.add_argument("--count", type=int, default=15, help="Anzahl (Default: 15)")
+    p.add_argument("--shots", type=int, default=8,
+                   help="Aufnahmen je Artikel (Default: 8)")
+
     p = sub.add_parser("delete-article", help="remove an article incl. its references")
     p.add_argument("article_number")
 
@@ -269,11 +443,24 @@ def main(argv=None):
     p = sub.add_parser("evaluate")
     p.add_argument("testset", help="folder: testset/<article_number>/*.jpg")
 
+    p = sub.add_parser("list-cameras",
+                       help="verfügbare Kamera-Indizes durchprobieren "
+                            "(welcher Index ist die Box-Kamera?)")
+    p.add_argument("--max-index", type=int, default=3,
+                   help="höchster geprüfter Index (Default: 3)")
+
     p = sub.add_parser("make-smoke-testset",
                        help="deterministisches Smoke-Testset (Baseline) auf "
                             "Platte erzeugen: Bilder + Kalibrierung + Referenz-DB")
     p.add_argument("--out", default="data/testset-smoke",
                    help="Zielordner (Default: data/testset-smoke)")
+
+    p = sub.add_parser("ab-report", help="zwei Capture-Ordner vergleichen "
+                       "(Erfolgsrate, Entscheidungen, max|z|, Top-k)")
+    p.add_argument("dir_a", help="Ordner mit Report-JSONs der Phase A")
+    p.add_argument("dir_b", help="Ordner mit Report-JSONs der Phase B")
+    p.add_argument("--label-a", default="A (1 Shot)")
+    p.add_argument("--label-b", default="B (8 Shots)")
 
     p = sub.add_parser("analyze", help="Auswertungs-Artefakte (Grafiken + "
                        "CSV/JSON) aus gespeicherten Report-JSONs erzeugen")
@@ -298,10 +485,14 @@ def main(argv=None):
         "capture-background": cmd_capture_background,
         "calibrate": cmd_calibrate,
         "create-article": cmd_create_article,
+        "batch-create": cmd_batch_create,
+        "batch-enroll": cmd_batch_enroll,
         "delete-article": cmd_delete_article,
         "enroll": cmd_enroll,
         "identify": cmd_identify,
         "evaluate": cmd_evaluate,
+        "list-cameras": cmd_list_cameras,
+        "ab-report": cmd_ab_report,
         "make-smoke-testset": cmd_make_smoke_testset,
         "analyze": cmd_analyze,
     }[args.cmd](args, cfg)

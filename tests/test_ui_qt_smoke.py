@@ -332,14 +332,19 @@ def test_camera_worker_without_camera_goes_no_camera(qapp, tmp_path):
     from docodetect.ui_qt.main_window import MainWindow
     from docodetect.ui_qt.state import UiState
 
+    from docodetect.ui_qt.camera_worker import _RECONNECT_SECS
+
     cfg = make_cfg(tmp_path)
     cfg["camera"].update(index=99, warmup_frames=0)  # Index existiert sicher nicht
     win = MainWindow(cfg, demo=False)
-    errors = []
-    win.source.camera_error.connect(lambda m: errors.append(m))
+    # Der erste Fehler kann schon gefeuert haben, bevor wir hier verbinden
+    # (die Kamera-Sperre aus conftest.py schlägt sofort fehl, ein echtes
+    # Gerät braucht Millisekunden) – dass er ankam, zeigt die UI unten.
+    later_errors = []
+    win.source.camera_error.connect(lambda m: later_errors.append(m))
     try:
-        # Warten bis der ERSTE Öffnungsversuch gescheitert ist (Signal
-        # angekommen) – der Startzustand ist bereits NO_CAMERA.
+        # Warten bis der ERSTE Öffnungsversuch gescheitert ist (Meldung in
+        # der UI angekommen) – der Startzustand ist bereits NO_CAMERA.
         assert _wait_until(
             qapp, lambda: win.status_content.camera.text() == "Kamera getrennt",
             timeout=15)
@@ -347,11 +352,17 @@ def test_camera_worker_without_camera_goes_no_camera(qapp, tmp_path):
         assert not win.source.camera_ok
         assert win.preview._message and "Keine Kamera" in win.preview._message
         assert not win.identify_button.isEnabled()
-        # Reconnect läuft leise: Thread lebt, KEINE weitere Fehlermeldung folgt
+        # Reconnect läuft LEISE: Thread lebt weiter, aber über einen vollen
+        # Reconnect-Zyklus (also mind. einen weiteren Öffnungsversuch) darf
+        # KEINE zusätzliche Fehlermeldung mehr kommen.
         assert win.source.isRunning()
-        time.sleep(0.5)
-        qapp.processEvents()
-        assert len(errors) == 1
+        deadline = time.time() + _RECONNECT_SECS + 1.0
+        while time.time() < deadline:
+            qapp.processEvents()
+            time.sleep(0.05)
+        assert later_errors == [], (
+            f"Reconnect meldet wiederholt statt leise: {later_errors}")
+        assert win.source.isRunning()
         # Identifizieren im NO_CAMERA-Zustand ist ein No-Op, kein Crash
         win.identify_now()
         assert not win._busy

@@ -122,6 +122,82 @@ def load_reports(folder: str | Path,
     return out
 
 
+def top_k_accuracy(reports: list, k: int) -> tuple:
+    """(Treffer, gewertete) – wie oft liegt der wahre Artikel unter den ersten
+    k Kandidaten? Gewertet wird nur, was eine Wahrheit trägt (Label oder
+    menschliches Verdict mit wahrem Artikel)."""
+    hit = scored = 0
+    for r in reports:
+        truth = r.label
+        if not truth:
+            continue
+        scored += 1
+        if truth in [c.article_number for c in r.candidates[:k]]:
+            hit += 1
+    return hit, scored
+
+
+def max_z_distribution(reports: list) -> dict:
+    """Verteilung von max|z| des Siegers – die Größe, an der das Gate
+    entscheidet. Ohne numpy/scipy: Median und Quartile aus der Sortierung."""
+    values = sorted(r.max_z_winner for r in reports if r.max_z_winner is not None)
+    if not values:
+        return {}
+
+    def q(frac):
+        return values[min(len(values) - 1, int(frac * (len(values) - 1)))]
+
+    return {"n": len(values), "min": values[0], "p25": q(0.25),
+            "median": q(0.5), "p75": q(0.75), "max": values[-1]}
+
+
+def compare_runs(reports_a: list, reports_b: list, k: int = 3,
+                 label_a: str = "A", label_b: str = "B") -> str:
+    """A/B-Vergleich zweier Testrunden (z.B. 1 Shot vs. 8 Shots eingelernt).
+    Nutzt dieselbe Aggregation wie `evaluate`/das Dashboard (summarize), damit
+    die Zahlen zwischen den Werkzeugen identisch sind."""
+    sa, sb = summarize(reports_a), summarize(reports_b)
+    lines = [f"=== A/B-Vergleich: {label_a} vs. {label_b} ===", ""]
+
+    def row(name, a, b, fmt="{:.0f}"):
+        va, vb = fmt.format(a), fmt.format(b)
+        delta = ""
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            d = b - a
+            delta = f"  ({d:+.1f})" if abs(d) >= 0.05 else "  (=)"
+        lines.append(f"  {name:<26} {va:>10} {vb:>10}{delta}")
+
+    lines.append(f"  {'':<26} {label_a:>10} {label_b:>10}")
+    row("Reports gesamt", sa.total, sb.total)
+    row("davon bewertet", sa.labeled, sb.labeled)
+    row("Erfolgsrate %", sa.accuracy * 100, sb.accuracy * 100, "{:.1f}")
+
+    ha, na = top_k_accuracy(reports_a, k)
+    hb, nb = top_k_accuracy(reports_b, k)
+    row(f"korrekt in Top-{k} %",
+        100.0 * ha / na if na else 0.0, 100.0 * hb / nb if nb else 0.0, "{:.1f}")
+
+    for decision in ("accept", "ambiguous", "reject"):
+        pa = 100.0 * sa.decision_counts.get(decision, 0) / sa.total if sa.total else 0.0
+        pb = 100.0 * sb.decision_counts.get(decision, 0) / sb.total if sb.total else 0.0
+        row(f"{decision.upper()} %", pa, pb, "{:.1f}")
+
+    za, zb = max_z_distribution(reports_a), max_z_distribution(reports_b)
+    if za and zb:
+        lines.append("")
+        lines.append("  max|z| des Siegers (Gate-Größe):")
+        for key in ("min", "p25", "median", "p75", "max"):
+            row(f"  {key}", za[key], zb[key], "{:.2f}")
+
+    for label, s in ((label_a, sa), (label_b, sb)):
+        if s.confusion:
+            lines.append("")
+            lines.append(f"  Verwechslungen {label} (wahr -> erkannt):")
+            for truth, pred, n in s.confusion[:8]:
+                lines.append(f"    {truth} -> {pred}: {n}x")
+    return "\n".join(lines)
+
+
 def format_summary(s: BatchSummary) -> str:
     """CLI-Textblock für `evaluate` – gleiche Zahlen wie der Batch-Tab."""
     lines = [f"\n=== top-1 accuracy: {s.correct}/{s.labeled} "

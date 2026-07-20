@@ -43,6 +43,33 @@ def capture_backend(camera_cfg: dict | None = None) -> int:
     return cv2.CAP_V4L2
 
 
+def probe_cameras(camera_cfg: dict | None = None, max_index: int = 3) -> list:
+    """Indizes 0..max_index durchprobieren -> Liste (index, ok, width, height).
+
+    Für die Frage „welcher Index ist die Box-Kamera?“: am Mac hängt auf 0 die
+    interne FaceTime-Kamera, die UGREEN meist auf 1; am Windows-PC ist 0
+    richtig. ÖFFNET echte Geräte (macOS fragt ggf. nach Berechtigung) – daher
+    bewusst nur über den CLI-Befehl `list-cameras`, nie im Testlauf."""
+    backend = capture_backend(camera_cfg)
+    found = []
+    for index in range(max_index + 1):
+        cap = cv2.VideoCapture(index, backend)
+        try:
+            if not cap.isOpened():
+                found.append((index, False, 0, 0))
+                continue
+            ok, frame = cap.read()
+            if ok and frame is not None:
+                found.append((index, True, frame.shape[1], frame.shape[0]))
+            else:
+                # Gerät reagiert, liefert aber kein Bild (z.B. von einem
+                # anderen Programm belegt) – als "belegt" melden statt zu lügen.
+                found.append((index, False, 0, 0))
+        finally:
+            cap.release()
+    return found
+
+
 def focus_lock_supported() -> bool:
     """CAP_PROP_AUTOFOCUS/FOCUS greifen unter Windows (DSHOW) zuverlässig,
     unter macOS/AVFoundation häufig nicht. Der Messbetrieb läuft am

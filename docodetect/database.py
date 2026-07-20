@@ -211,6 +211,18 @@ class Database:
         ).fetchall()
         return [r["article_number"] for r in rows]
 
+    def delete_references(self, article_number: str) -> int:
+        """Alle Referenzen EINES Artikels verwerfen, den Artikel selbst
+        behalten – für „nochmal einlernen“ nach einer misslungenen Messreihe
+        (batch-enroll). Gibt die Zahl der entfernten Referenzen zurück;
+        Fotos unter data/reference/ bleiben liegen."""
+        cur = self.conn.execute(
+            "DELETE FROM reference_features WHERE article_number = ?",
+            (article_number,))
+        self._recompute_stats(article_number)   # leert reference_stats mit
+        self.conn.commit()
+        return cur.rowcount
+
     def reference_counts(self) -> dict:
         """article_number -> Anzahl Referenzen (eine Abfrage, fürs UI-Listing)."""
         rows = self.conn.execute(

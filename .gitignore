@@ -1,4 +1,6 @@
 .venv/
+# Rechnerabhängige Config-Überschreibungen (z.B. camera.index) – siehe README
+config/config.local.yaml
 __pycache__/
 *.pyc
 calibration/*.json
@@ -19,3 +21,6 @@ reports/*
 # KI-Segmentierung: Modell-Checkpoints und Download-Reste
 models/
 *.part
+
+# Sicherungen vor Umbauten (DB, Referenzfotos, Captures) – nie versionieren
+backups/
