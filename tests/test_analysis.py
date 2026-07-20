@@ -12,8 +12,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from docodetect.analysis import (channel_scores, rule_of_three,  # noqa: E402
-                                 run_analysis, wilson_interval)
+from docodetect.analysis import (attribution_case, channel_scores,  # noqa: E402
+                                 rule_of_three, run_analysis, wilson_interval)
 from docodetect.database import Article, Database  # noqa: E402
 from docodetect.matcher import (CandidateReport, FeatureScore,  # noqa: E402
                                 MatchReport)
@@ -67,6 +67,72 @@ def test_channel_scores_aggregates_weighted_contributions():
     assert ch["geometry"] == pytest.approx(-0.1)
     assert ch["color"] == pytest.approx(-0.5)
     assert ch["shape"] == pytest.approx(-0.06)
+
+
+def test_attribution_case_trennt_die_vier_nicht_attribuierbaren_faelle():
+    """Regression: frueher landeten 'Top-1 war korrekt', 'keine Kandidaten'
+    und der echte Vorfilter-Kill in EINEM Zaehler, der als Vorfilter-Kill
+    gemeldet wurde – daher die unmoegliche Kombination '13 Kills bei 59/60
+    Top-3' (Phase A, 1-Shot-Referenzen: sigma_enroll=0 sprengt das z-Gate,
+    der richtige Artikel gewinnt trotzdem)."""
+    feats = {"diameter_mm": -0.1}
+
+    # richtiger Artikel gewinnt, Entscheidung trotzdem reject -> KEIN Kill
+    top1_ok = _rep(decision="reject", label="A", verdict="wrong",
+                   cands=[_cand("A", -4.0, 1.0, feats)])
+    assert attribution_case(top1_ok)[0] == "top1_korrekt"
+
+    # wahrer Artikel gar nicht im Kandidatenset -> echter Vorfilter-Kill
+    kill = _rep(decision="ambiguous", label="A", verdict="wrong",
+                cands=[_cand("B", -0.5, 0.6, feats),
+                       _cand("C", -0.9, 0.4, feats)])
+    assert attribution_case(kill)[0] == "vorfilter_kill"
+
+    # gar kein Kandidat (Segmentierung abgelehnt) -> nicht berechenbar
+    leer = _rep(decision="reject", label="A", verdict="wrong", cands=[])
+    assert attribution_case(leer)[0] == "keine_kandidaten"
+
+    # Kandidaten ohne Merkmals-Scores (Alt-Report) -> nicht berechenbar
+    ohne = _rep(decision="ambiguous", label="A", verdict="wrong",
+                cands=[_cand("B", -0.5, 0.6), _cand("A", -0.9, 0.4)])
+    assert attribution_case(ohne)[0] == "keine_merkmalsscores"
+
+    # echte Fehlidentifikation -> attribuierbar
+    echt = _rep(decision="ambiguous", label="A", verdict="wrong",
+                cands=[_cand("B", -0.5, 0.6, feats), _cand("A", -0.9, 0.4, feats)])
+    case, wrong, right = attribution_case(echt)
+    assert case == "attribuierbar"
+    assert wrong.article_number == "B" and right.article_number == "A"
+
+
+def test_attribution_meldet_top1_korrekt_nicht_als_vorfilter_kill(tmp_path,
+                                                                  monkeypatch):
+    """Der Bug im Zusammenspiel: ein Lauf, in dem JEDER Fehler ein
+    'Top-1 war korrekt'-Fall ist, darf 0 Vorfilter-Kills melden."""
+    import docodetect.config as cfgmod
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    reports_dir = tmp_path / "caps"
+    reports_dir.mkdir()
+    feats = {"diameter_mm": -0.1}
+    for i in range(3):
+        _write(reports_dir, f"r{i}", _rep(
+            decision="reject", label="A", verdict="wrong",
+            cands=[_cand("A", -4.0, 1.0, feats)],
+            measured={"circle_diameter_mm": 200.0}))
+
+    cfg = {"matching": dict(MATCHING),
+           "analysis": {"output_dir": "reports/analysis", "near_miss_factor": 1.5},
+           "geometry": {"camera_height_mm": 300.0},
+           "paths": {"db_file": str(tmp_path / "t.sqlite3")}}
+    out = run_analysis(cfg, reports_dir, run_id="attrib")
+    md = (out / "report.md").read_text(encoding="utf-8")
+    assert "3× der richtige Artikel stand auf Platz 1" in md
+    assert "Geometrie-Vorfilter nicht überlebt" not in md
+
+    # die unattribuierten Faelle sind einzeln nachvollziehbar abgelegt
+    csv_lines = (out / "error_attribution_unattributed.csv").read_text(
+        encoding="utf-8").splitlines()
+    assert len(csv_lines) == 4 and all("top1_korrekt" in ln for ln in csv_lines[1:])
 
 
 def _write(reports_dir: Path, name: str, rep: MatchReport):

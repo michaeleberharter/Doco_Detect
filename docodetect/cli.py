@@ -9,6 +9,7 @@
     python -m docodetect.cli enroll ART-NR --shots 8 [--images dir/]
     python -m docodetect.cli identify [--image foto.jpg]
     python -m docodetect.cli evaluate data/testset/
+    python -m docodetect.cli sync-stammdaten [--apply]
 
 `evaluate` expects a folder layout of  testset/<article_number>/*.jpg
 and prints per-class accuracy + the confusion pairs (that output decides
@@ -374,6 +375,24 @@ def cmd_ab_report(args, cfg):
                        label_a=args.label_a, label_b=args.label_b))
 
 
+def cmd_sync_stammdaten(args, cfg):
+    """Geometrische Stammdaten auf die Enrollment-Mittelwerte ziehen.
+
+    Ohne --apply passiert NICHTS außer der Diff-Tabelle – der Default ist
+    bewusst die Vorschau, weil dieser Befehl die Vorfilter-Basis aller
+    betroffenen Artikel verschiebt."""
+    from .stammdaten import apply_sync, compute_sync, format_table
+    db = Database(cfg)
+    try:
+        rows, skipped = compute_sync(db, min_shots=args.min_shots)
+        if args.apply and rows:
+            apply_sync(db, rows)
+        print(format_table(rows, skipped, args.min_shots,
+                           applied=bool(args.apply and rows)))
+    finally:
+        db.close()
+
+
 def cmd_analyze(args, cfg):
     """Sechs Auswertungen (PNG + CSV/JSON) über gespeicherte Report-JSONs."""
     from .analysis import publish_run, run_analysis
@@ -462,6 +481,17 @@ def main(argv=None):
     p.add_argument("--label-a", default="A (1 Shot)")
     p.add_argument("--label-b", default="B (8 Shots)")
 
+    p = sub.add_parser("sync-stammdaten",
+                       help="geometrische Stammdaten der eingelernten Artikel "
+                            "auf die Enrollment-Mittelwerte ziehen "
+                            "(Default: nur Diff-Tabelle zeigen)")
+    p.add_argument("--apply", action="store_true",
+                   help="Änderungen wirklich in die DB schreiben "
+                        "(ohne diesen Schalter passiert nichts)")
+    p.add_argument("--min-shots", type=int, default=2,
+                   help="Mindestzahl Enrollment-Shots (Default: 2 – gegen "
+                        "einen einzelnen Shot zu synchronisieren bringt nichts)")
+
     p = sub.add_parser("analyze", help="Auswertungs-Artefakte (Grafiken + "
                        "CSV/JSON) aus gespeicherten Report-JSONs erzeugen")
     p.add_argument("reports_dir", nargs="?", default=None,
@@ -494,6 +524,7 @@ def main(argv=None):
         "list-cameras": cmd_list_cameras,
         "ab-report": cmd_ab_report,
         "make-smoke-testset": cmd_make_smoke_testset,
+        "sync-stammdaten": cmd_sync_stammdaten,
         "analyze": cmd_analyze,
     }[args.cmd](args, cfg)
 
