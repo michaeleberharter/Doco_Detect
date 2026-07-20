@@ -401,6 +401,53 @@ def test_status_bar_calibrated(qapp, tmp_path):
     assert "0,171 mm/px" in win.status_content.calibration.text()
 
 
+def test_correction_dialog_chosen_returns_article_number(qapp):
+    """Artikel-Radio (Default) + Combo-Auswahl -> chosen() liefert die
+    Artikelnummer des gewählten Eintrags."""
+    from docodetect.pipeline import ArticleInfo
+    from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+    articles = [
+        ArticleInfo(article_number="A-1", name="Teller A", category=None,
+                   diameter_mm=180.0, height_mm=20.0, n_references=3),
+        ArticleInfo(article_number="B-2", name="Teller B", category=None,
+                   diameter_mm=220.0, height_mm=25.0, n_references=1),
+    ]
+    dlg = CorrectionDialog(articles, None)
+    assert dlg._pick_known.isChecked()  # Default laut __init__
+    dlg._combo.setCurrentIndex(1)
+    assert dlg.chosen() == "B-2"
+
+
+def test_correction_dialog_chosen_returns_none_for_unknown(qapp):
+    """„Unbekannt"-Radio gewählt -> chosen() liefert None, unabhängig von
+    der (dann irrelevanten) Combo-Auswahl."""
+    from docodetect.pipeline import ArticleInfo
+    from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+    articles = [ArticleInfo(article_number="A-1", name="Teller A",
+                            category=None, diameter_mm=180.0, height_mm=20.0,
+                            n_references=3)]
+    dlg = CorrectionDialog(articles, None)
+    dlg._pick_unknown.setChecked(True)
+    assert not dlg._pick_known.isChecked()  # Auto-exklusive Radiogruppe
+    assert dlg.chosen() is None
+
+
+def test_correction_dialog_reject_sets_rejected_result_code(qapp):
+    """Abbruchpfad: reject() (Cancel-Button ruft dies auf) setzt den
+    Qt-Rückgabecode auf Rejected; MainWindow._manual_correction prüft
+    `dlg.exec() != QDialog.Accepted` und bricht dann früh ab, ohne
+    _save_verdict/reject_result aufzurufen (siehe main_window.py)."""
+    from PySide6.QtWidgets import QDialog
+
+    from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+    dlg = CorrectionDialog([], None)
+    dlg.reject()
+    assert dlg.result() == QDialog.Rejected
+
+
 def test_result_card_shows_helper_strings_and_channel_bars(qapp):
     """ResultCard zeigt Ø/Δ ausschließlich über die zentralen Helfer
     (pipeline.format_diameter/format_delta) und ein Teilscore-Balken je
