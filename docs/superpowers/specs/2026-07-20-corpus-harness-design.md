@@ -308,9 +308,74 @@ Der sechste unattribuierte Fall `1784562586318.png` ist **kein Kill**, sondern
 Die Triage trennt beide Anteile, ändert aber nichts — weder Schwellen noch
 Stammdaten.
 
+#### Diskriminator-Test
+
+Der ursprünglich vorgesehene Test — Einlern-Shots aus `data/reference/` durch
+die Tier-1-Messung ziehen und Schwerpunkt gegen Kill-Capture stellen — **ist
+nicht durchführbar**: alle 135 `reference_features`-Zeilen der
+LOEFFEL-Artikel haben `image_path = NULL`, die Einlern-Bilder wurden nie als
+Dateien abgelegt. `data/reference/` enthält nur `CD-REFERENZ`; die Backups
+decken LOEFFEL-1 (ein Shot) und LOEFFEL-14 ab, nicht L2/L3/L6. Die
+Schwerpunkt-Position der Einlern-Shots ist damit unwiederbringlich (auch
+`features_json` speichert keinen Schwerpunkt).
+
+Der **Grössen-Teil** ist aus den DB-Messwerten dagegen vollständig rechenbar
+und wurde bereits ausgeführt. Zerlegung des Gesamt-Deltas:
+
+| Artikel | Einlern-Ø (n=9) | Stammdaten | Versatz | Kill-Ø | Δ Kill − Einlern |
+|---|---|---|---|---|---|
+| LOEFFEL-1 | 194,43 ±1,90 | 197,47 | +3,04 | 190,50 | −3,93 |
+| LOEFFEL-1 | 194,43 ±1,90 | 197,47 | +3,04 | 191,45 | −2,98 |
+| LOEFFEL-2 | 193,53 ±1,22 | 195,03 | +1,50 | 187,66 | −5,87 |
+| LOEFFEL-3 | 196,55 ±1,87 | 197,24 | +0,69 | 188,83 | **−7,72** |
+| LOEFFEL-6 | 197,67 ±1,99 | 197,91 | +0,24 | 190,13 | **−7,54** |
+
+**Ergebnis:** Der Versatz-Anteil (Hypothese ii) trägt im Mittel nur
+**+1,70 mm** — weniger als die dokumentierten ~2,8 mm. Der dominante Term ist
+**−5,61 mm: die Kill-Captures messen kürzer als die Einlern-Shots desselben
+Artikels**, bei Einlern-Streuungen von ±1,2 … ±2,0 mm also rund 3σ.
+Hypothese (ii) erklärt damit etwa ein Viertel des Gesamt-Deltas von −7,31 mm.
+Besonders deutlich bei den beiden Härtefällen L3 und L6: sie haben den
+kleinsten Versatz (0,69 / 0,24), ihr Delta ist praktisch vollständig
+„misst kürzer als die eigenen Einlern-Shots".
+
+**Richtungs-Signal:** Über die fünf Kills korreliert der Abstand zur Bildmitte
+mit dem Messfehler, `Pearson r = +0,823` — je zentraler, desto kürzer. Genau
+die Richtung, die Hypothese (i) vorhersagt. Bei n = 5, davon zwei Punkte aus
+demselben Artikel, ist das **richtungsweisend, nicht beweisend**.
+
+**Ersatz für den entfallenen Positions-Teil (im Erstlauf auszuführen):**
+Dieselbe Korrelation über *alle* bewerteten Phase-A/B-Aufnahmen — je Capture
+`circle_diameter_mm` minus Einlern-Mittel des wahren Artikels, gegen den
+Schwerpunkt-Abstand zur Bildmitte. Das sind ~120 Punkte über mehrere Artikel
+und fällt als Nebenprodukt des Tier-1-Laufs an (`centroid_px` und `measured`
+liegen in jedem Report, die Einlern-Mittel im Bündel-DB-Snapshot).
+
+- **Ausgang A** — die Korrelation hält über den vollen Satz: Hypothese (i)
+  belegt, positionsabhängige Projektion blähte die Stammdaten auf; der
+  `sync-stammdaten`-Befund bekommt damit seine Ursache.
+- **Ausgang B** — die Korrelation verschwindet bei n = 120: (i) fällt, es
+  bleiben Versatz und/oder Segmentierung — dann entscheidet die PNG-Sichtung
+  der beiden Härtefälle.
+
 **PNG-Sichtung, verpflichtend im Erstlauf-Bericht** für `1784562435798.png`
 und `1784562504239.png`: Ist die Stielspitze vollständig segmentiert, oder
 frisst der Bildrand Kontur? Wie liegt der Löffel relativ zur Bildmitte?
+
+#### Kontextnotiz: wo die echten Randlagen geblieben sind
+
+Die zwei unbewerteten Phase-B-Reports sind Randberührungs-**Abbrüche**
+(`decision = reject`, `touches_border = true`, keine Kandidaten) und damit
+mutmasslich die tatsächlichen Randlagen der Runde. Zeitlich passt das: die
+fünf Kills liegen bei 17:31:42 und 17:46:34 … 17:48:29, die beiden Abbrüche
+bei 17:49:00 und 17:51:42 — also am Ende desselben Fensters. Wer Objekte
+schrittweise nach aussen schiebt, erzeugt erst zentrale Aufnahmen und zuletzt
+Randberührungen, die die Pipeline gar nicht erst vermisst.
+
+Das löst den scheinbaren Widerspruch auf: die Kills liegen **zeitlich** im
+Randlagen-Fenster, **räumlich** aber zentral, weil die echten Randlagen vor
+der Messung abgebrochen wurden und deshalb nie ein Urteil bekamen. Sie bleiben
+als Segmentierungs-Regressionsfälle in Tier 1 unter `images/_unbewertet/`.
 
 ---
 
