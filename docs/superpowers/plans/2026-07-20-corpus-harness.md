@@ -2156,22 +2156,28 @@ def cmd_corpus_run(args, cfg):
     from .corpus.manifest import corpus_root
     from .matcher import MatchReport
 
+    run_id = args.run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
     run = corpus_runner.run_corpus(
         cfg, sessions=args.session, articles=args.article, tier=args.tier,
-        subset=args.subset, workers=args.workers, changed_only=args.changed_only)
+        subset=args.subset, workers=args.workers,
+        changed_only=args.changed_only, run_id=run_id)
+    # run_corpus setzt den run_id, falls keiner uebergeben wurde
+    run_id = run["run_id"]
 
     quotas = {}
     if args.tier == 2:
         root = corpus_root(cfg)
         reports = []
         for r in run["results"]:
-            p = root / "runs" / "_replay" / f"{r['sha'][:8]}.json"
+            # Replay-Reports liegen lauf-scoped, NICHT in einem geteilten
+            # Ordner — sonst mischt ein gefilterter Lauf alte mit frischen
+            # Ergebnissen (Task-5-Review, Befund I5).
+            p = root / "runs" / run_id / "replay" / f"{r['sha'][:8]}.json"
             if p.exists():
                 reports.append(MatchReport.from_json(p.read_text(encoding="utf-8")))
         if reports:
             quotas = corpus_report.tier2_quotas(reports)
 
-    run_id = args.run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
     out = corpus_report.write_run(corpus_root(cfg), run_id, run, quotas)
     print(f"[corpus-run] {run['n']} Bilder, Tier {run['tier']}, "
           f"{run['dauer_s']} s"
