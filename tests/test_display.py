@@ -10,7 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from docodetect.matcher import CandidateReport, FeatureScore  # noqa: E402
 from docodetect.pipeline import (channel_percentages, format_delta,  # noqa: E402
-                                 format_diameter, format_rank_line, headline)
+                                 format_diameter, format_measured,
+                                 format_rank_line, headline)
 
 
 def cand(corrected=141.0, h=60.0, err=2.4, posterior=0.61, name="Teller 20",
@@ -62,6 +63,18 @@ def test_channel_percentages_perfect_match_is_one():
     assert pct["geometry"] == pytest.approx(1.0)
     assert pct["color"] == pytest.approx(1.0)
     assert pct["shape"] == pytest.approx(1.0)
+
+
+def test_format_measured():
+    measured = {"circle_diameter_mm": 123.4, "circularity": 0.91,
+                "area_mm2": 11958.0}
+    assert format_measured(measured) == (
+        "Gemessen: Ø 123,4 mm (Bodenebene) · Rundheit 0,91 · Fläche 120 cm²")
+
+
+def test_format_measured_missing_keys_defaults_to_zero():
+    assert format_measured({}) == (
+        "Gemessen: Ø 0,0 mm (Bodenebene) · Rundheit 0,00 · Fläche 0 cm²")
 
 
 def test_channel_percentages_geometry_only_has_none_channels():

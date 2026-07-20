@@ -19,8 +19,9 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QHBoxLayout,
                                QLabel, QMainWindow, QPushButton, QVBoxLayout,
                                QWidget)
 
-from docodetect.pipeline import (confirm_result, format_rank_line, get_status,
-                                 headline, list_articles, reject_result)
+from docodetect.pipeline import (confirm_result, format_measured,
+                                 format_rank_line, get_status, headline,
+                                 list_articles, reject_result)
 
 from .app import ui_cfg
 from .pipeline_worker import PipelineWorker
@@ -519,12 +520,7 @@ class MainWindow(QMainWindow):
             # aus format_diameter verfügbar).
             m = report.measured or {}
             if m:
-                diag = QLabel(
-                    "Gemessen: Ø {} mm (Bodenebene) · Rundheit {} · "
-                    "Fläche {} cm²".format(
-                        f"{m.get('circle_diameter_mm', 0):.1f}".replace(".", ","),
-                        f"{m.get('circularity', 0):.2f}".replace(".", ","),
-                        f"{m.get('area_mm2', 0) / 100:.0f}"))
+                diag = QLabel(format_measured(m))
                 diag.setObjectName("diagnoseLine")
                 diag.setWordWrap(True)
                 self.cards_layout.addWidget(diag)

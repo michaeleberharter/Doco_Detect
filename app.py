@@ -47,8 +47,8 @@ def _render_identify_result(res: dict, cfg: dict) -> None:
     nie direkt)."""
     from docodetect.pipeline import (channel_percentages, confirm_result,
                                      format_delta, format_diameter,
-                                     format_rank_line, headline,
-                                     list_articles, reject_result)
+                                     format_measured, format_rank_line,
+                                     headline, list_articles, reject_result)
 
     report = res["report"]                       # MatchReport
     best = report.candidates[0] if report.candidates else None
@@ -58,11 +58,7 @@ def _render_identify_result(res: dict, cfg: dict) -> None:
     if report.decision == "reject":
         m = report.measured or {}
         if m:
-            st.caption("Gemessen: Ø {:.1f} mm (Bodenebene) · Rundheit {:.2f} · "
-                       "Fläche {:.0f} cm²".format(
-                           m.get("circle_diameter_mm", 0),
-                           m.get("circularity", 0),
-                           m.get("area_mm2", 0) / 100).replace(".", ","))
+            st.caption(format_measured(m))
         st.caption(report.message)
         return
 

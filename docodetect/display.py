@@ -52,6 +52,17 @@ def channel_percentages(c: CandidateReport) -> dict:
     return out
 
 
+def format_measured(measured: dict) -> str:
+    """Rohmesswert-Diagnosezeile für NO_MATCH (kein Kandidat, also kein Ø
+    aus format_diameter verfügbar) — dieselbe Zeile in Qt und Streamlit.
+    Fehlende Keys werden wie bisher als 0 behandelt."""
+    diameter = _de(measured.get("circle_diameter_mm", 0))
+    circularity = _de(measured.get("circularity", 0), 2)
+    area = f"{measured.get('area_mm2', 0) / 100:.0f}"
+    return (f"Gemessen: Ø {diameter} mm (Bodenebene) · Rundheit {circularity} · "
+            f"Fläche {area} cm²")
+
+
 def headline(decision: str, best_name: str | None = None) -> tuple:
     """(Text, Statusklasse) für die Ergebnis-Überschrift beider UIs.
     Statusklasse: accept | confirm | reject (Farbsteuerung)."""
