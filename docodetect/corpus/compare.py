@@ -141,19 +141,22 @@ def compare_tier1(golden, measured, seg_area_px: float | None = None,
         d = _vector_diff(f, gm.get(f), getattr(measured, f, None))
         if d is not None:
             out.append(d)
-    if seg_area_px is not None and golden.contour:
+    golden_area_px = None
+    if golden.contour:
         import cv2
         import numpy as np
         pts = np.asarray(golden.contour, dtype=np.int32).reshape(-1, 1, 2)
-        d = _scalar_diff("seg_area_px", float(cv2.contourArea(pts)),
-                         float(seg_area_px))
+        golden_area_px = float(cv2.contourArea(pts))
+    actual_area_px = float(seg_area_px) if seg_area_px is not None else None
+    d = _scalar_diff("seg_area_px", golden_area_px, actual_area_px)
+    if d is not None:
+        out.append(d)
+    for name, i in (("centroid_x", 0), ("centroid_y", 1)):
+        g = golden.centroid_px[i] if golden.centroid_px else None
+        a = centroid[i] if centroid else None
+        d = _scalar_diff(name, g, a)
         if d is not None:
             out.append(d)
-    if centroid and golden.centroid_px:
-        for name, i in (("centroid_x", 0), ("centroid_y", 1)):
-            d = _scalar_diff(name, golden.centroid_px[i], centroid[i])
-            if d is not None:
-                out.append(d)
     return out
 
 
