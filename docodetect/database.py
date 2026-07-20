@@ -137,6 +137,25 @@ class Database:
         )
         self.conn.commit()
 
+    def update_geometry(self, article_number: str, **fields) -> bool:
+        """Geometrische Stammdaten eines Artikels überschreiben (nur
+        diameter_mm / width_mm / depth_mm / height_mm). Für den Abgleich mit
+        den Enrollment-Mittelwerten – siehe stammdaten.py. Gibt True zurück,
+        wenn der Artikel existierte."""
+        allowed = {"diameter_mm", "width_mm", "depth_mm", "height_mm"}
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"Nicht abgleichbare Spalten: {sorted(unknown)}. "
+                             f"Erlaubt: {sorted(allowed)}")
+        if not fields:
+            return False
+        cur = self.conn.execute(
+            f"UPDATE articles SET {','.join(f'{k}=:{k}' for k in fields)} "
+            "WHERE article_number = :nr",
+            {**fields, "nr": article_number})
+        self.conn.commit()
+        return cur.rowcount > 0
+
     def delete_article(self, article_number: str) -> bool:
         """Remove an article AND all its enrolled reference features – e.g. a
         live-created article whose measurement turned out wrong. Reference
