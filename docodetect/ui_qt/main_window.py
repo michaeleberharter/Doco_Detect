@@ -462,7 +462,6 @@ class MainWindow(QMainWindow):
         touches = bool(report.touches_border)
         self.preview.set_warning(_BORDER_WARNING if touches else None)
 
-        tol = float(self.cfg["matching"]["diameter_tolerance_mm"])
         top_k = int(self.cfg["matching"].get("top_k", 3))
         cands = report.candidates[:top_k]
 
@@ -470,19 +469,16 @@ class MainWindow(QMainWindow):
             best = cands[0]
             self._set_headline(f"Erkannt: {best.name}", "accept")
             self.result_area.setText("")
-            for i, c in enumerate(cands):
-                self.cards_layout.addWidget(
-                    ResultCard(c, tol, tone="accept" if i == 0 else "neutral"))
+            for c in cands:
+                self.cards_layout.addWidget(ResultCard(c, self.cfg))
             if self.ui["confirm_sound"]:
                 QApplication.beep()
         elif report.decision == "ambiguous":
             self._set_headline("Bitte bestätigen:", "confirm")
             self.result_area.setText(
                 "Karte anklicken, um den richtigen Artikel zu bestätigen.")
-            for i, c in enumerate(cands):
-                card = ResultCard(c, tol,
-                                  tone="confirm" if i == 0 else "neutral",
-                                  clickable=True)
+            for c in cands:
+                card = ResultCard(c, self.cfg, clickable=True)
                 card.clicked.connect(self._confirm_candidate)
                 self.cards_layout.addWidget(card)
         elif touches:
@@ -509,12 +505,10 @@ class MainWindow(QMainWindow):
             self._set_headline("Bestätigung nicht gespeichert.", "reject")
             self.result_area.setText(str(e))
             return
+        # Die Karten selbst bleiben neutral (kein zustandsabhängiger Rahmen
+        # mehr, Task 4) – die Bestätigung zeigt sich einzig über die
+        # Headline (Task 5 baut das weiter aus).
         name = article_number
-        for i in range(self.cards_layout.count()):
-            card = self.cards_layout.itemAt(i).widget()
-            if isinstance(card, ResultCard):
-                chosen = card.article_number == article_number
-                card.set_tone("accept" if chosen else "neutral")
         for c in self._last_report.candidates:
             if c.article_number == article_number:
                 name = c.name

@@ -399,3 +399,30 @@ def test_status_bar_calibrated(qapp, tmp_path):
     win = MainWindow(cfg)
     assert win.status_content.calibration.text().startswith("Kalibriert ")
     assert "0,171 mm/px" in win.status_content.calibration.text()
+
+
+def test_result_card_shows_helper_strings_and_channel_bars(qapp):
+    """ResultCard zeigt Ø/Δ ausschließlich über die zentralen Helfer
+    (pipeline.format_diameter/format_delta) und ein Teilscore-Balken je
+    Kanal; ein Kanal ohne Merkmale (hier: geometry-only) bleibt None statt
+    fälschlich 100 % anzuzeigen."""
+    from docodetect.matcher import CandidateReport, FeatureScore
+    from docodetect.ui_qt.widgets.result_card import ResultCard
+
+    cand = CandidateReport(
+        article_number="S-140", name="Schüssel 14", nominal_size_mm=140.0,
+        height_mm=60.0, corrected_diameter_mm=141.0, geometry_error_mm=2.4,
+        has_references=True, n_shots=3,
+        features=[FeatureScore(feature="diameter_mm", measured=141.0,
+                               reference=140.0, distance=1.0, sigma_enroll=0.0,
+                               sigma_eff=1.5, z=0.67, log_contrib=-0.22,
+                               w_eff=0.5, weighted=-0.11)],
+        log_score=-0.11, posterior=0.87, max_abs_z=0.67)
+    cfg = {"matching": {"diameter_tolerance_mm": 6.0}}
+    card = ResultCard(cand, cfg)
+    texts = card.all_text()   # neue Testhilfe fuer Offscreen-Tests
+    assert "Ø 141,0 mm (höhenkorrigiert, h = 60 mm)" in texts
+    assert "Δ 2,4 mm von ±6,0" in texts
+    bars = card.channel_bars()  # dict Kanal -> QProgressBar|None
+    assert bars["geometry"] is not None
+    assert bars["color"] is None and bars["shape"] is None
