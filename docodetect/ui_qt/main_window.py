@@ -86,28 +86,12 @@ def _job_calibrate(frame, cfg: dict) -> dict:
 
 
 def _job_seed_demo(cfg: dict) -> dict:
-    """Demo-Artikel einmalig anlegen + einlernen (5 Varianten pro Artikel),
-    damit „Identifizieren“ im Demo-Modus ACCEPT erreichen kann. Läuft über
-    dieselben Pipeline-Aufrufe wie echte Einrichtung."""
-    from docodetect.pipeline import Pipeline
+    """Demo-Artikel anlegen + einlernen (5 Varianten pro Artikel), damit
+    „Identifizieren“ im Demo-Modus ACCEPT/CONFIRM erreichen kann. Der Ablauf
+    liegt in demo_seed.py (Qt-frei und damit ohne Fenster testbar)."""
+    from .demo_seed import seed_demo
 
-    from .demo_scenes import DEMO_ARTICLES, build_scene
-
-    pipe = Pipeline(cfg)
-    pipe.db.init_schema()
-    try:
-        for art in DEMO_ARTICLES:
-            for v in range(1, 6):
-                img = build_scene(cfg, art.scene_name, v)
-                if v == 1:
-                    pipe.create_article(
-                        img, art.name, article_number=art.article_number,
-                        height_mm=art.height_mm, category=art.category)
-                else:
-                    pipe.enroll(img, art.article_number)
-    finally:
-        pipe.close()
-    return {"kind": "seed", "n": len(DEMO_ARTICLES)}
+    return seed_demo(cfg)
 
 
 class MainWindow(QMainWindow):
@@ -377,11 +361,20 @@ class MainWindow(QMainWindow):
 
     def _maybe_seed_demo(self) -> None:
         """Demo einsatzbereit machen: sobald Kalibrierung + Hintergrund da
-        sind und die Demo-DB leer ist, Artikel automatisch einlernen (einmal
-        pro Programmlauf)."""
-        if (self.demo and not self._busy and not self._seed_attempted
-                and self.pipeline_status.ready
-                and self.pipeline_status.articles_with_references == 0):
+        sind und der Demo-Stand fehlt ODER VERALTET ist, Artikel automatisch
+        (neu) einlernen – einmal pro Programmlauf.
+
+        „Veraltet" ist der entscheidende Teil (Regression 2026-07-20): die
+        frühere Bedingung „noch keine Referenzen" hielt einen mit älterem
+        Code geseedeten Stand für gültig, sodass die Demo still falsche
+        Entscheidungen zeigte. Details: demo_seed.seed_needed."""
+        if not (self.demo and not self._busy and not self._seed_attempted
+                and self.pipeline_status.ready):
+            return
+        from .demo_seed import seed_needed
+        needed, reason = seed_needed(self.cfg)
+        if needed:
+            print(f"[demo] Demo-Daten werden neu eingelernt: {reason}")
             self._seed_attempted = True
             self._busy = True
             self.update_state()

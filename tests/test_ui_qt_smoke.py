@@ -41,6 +41,35 @@ def make_cfg(tmp_path):
     }
 
 
+def mark_demo_seed_current(cfg):
+    """Demo-Stand als vollständig UND aktuell markieren, ohne die langsame
+    echte Einlern-Schleife – hält Tests schnell, die nur den READY-Zustand
+    brauchen.
+
+    Seit der Regression 2026-07-20 genügt dafür NICHT mehr „irgendein Artikel
+    mit Referenz": geprüft wird gezielt der Demo-Stand (alle DEMO_ARTICLES mit
+    Referenzen + Fingerabdruck der Definitionen), sonst bliebe ein mit älterem
+    Code geseedeter Stand unbemerkt liegen (siehe demo_seed.seed_needed)."""
+    from docodetect.database import Article, Database
+    from docodetect.features import Features
+    from docodetect.ui_qt.demo_scenes import DEMO_ARTICLES
+    from docodetect.ui_qt.demo_seed import _write_fingerprint
+
+    db = Database(cfg)
+    db.init_schema()
+    for a in DEMO_ARTICLES:
+        db.create_article(Article(
+            article_number=a.article_number, name=a.name, category=a.category,
+            diameter_mm=a.diameter_mm, width_mm=None, depth_mm=None,
+            height_mm=a.height_mm, color_desc=None, notes=None))
+        db.add_reference(a.article_number, Features(
+            equiv_diameter_mm=a.diameter_mm, circle_diameter_mm=a.diameter_mm,
+            area_mm2=1000.0, perimeter_mm=100.0, circularity=0.9,
+            aspect_ratio=1.0))
+    db.close()
+    _write_fingerprint(cfg)
+
+
 def test_ui_cfg_defaults_without_section():
     """Fehlende ui:-Sektion => Code-Fallbacks (Plan: Default im Code)."""
     ui = ui_cfg({})
@@ -93,14 +122,12 @@ def test_main_window_demo_not_ready_shows_guide(qapp, tmp_path):
 
 
 def test_main_window_demo_ready(qapp, tmp_path):
-    """Kalibrierung + Hintergrund + eingelernter Artikel vorhanden -> READY,
-    Identifizieren aktiv (kein Auto-Seed, weil Referenzen existieren)."""
+    """Kalibrierung + Hintergrund + aktueller Demo-Stand vorhanden -> READY,
+    Identifizieren aktiv (kein Auto-Seed, weil der Demo-Stand aktuell ist)."""
     import cv2
     import numpy as np
 
     from docodetect.calibration import Calibration
-    from docodetect.database import Article, Database
-    from docodetect.features import Features
     from docodetect.ui_qt.main_window import MainWindow
     from docodetect.ui_qt.state import UiState
 
@@ -110,15 +137,7 @@ def test_main_window_demo_ready(qapp, tmp_path):
                 created_unix=time.time()).save(cfg["calibration"]["file"])
     cv2.imwrite(cfg["calibration"]["background_file"],
                 np.full((10, 10, 3), 200, dtype=np.uint8))
-    db = Database(cfg)
-    db.init_schema()
-    db.create_article(Article(article_number="X", name="X", category=None,
-                              diameter_mm=100.0, width_mm=None, depth_mm=None,
-                              height_mm=None, color_desc=None, notes=None))
-    db.add_reference("X", Features(
-        equiv_diameter_mm=100, circle_diameter_mm=100, area_mm2=7854,
-        perimeter_mm=314, circularity=0.95, aspect_ratio=1.0))
-    db.close()
+    mark_demo_seed_current(cfg)
     win = MainWindow(cfg, demo=True)
     assert win.state is UiState.READY
     assert win.identify_button.isEnabled()
@@ -363,7 +382,7 @@ def test_status_bar_warning_label(qapp):
     assert not bar.warn.isVisibleTo(bar)
 
 
-def test_enroll_dialog_demo_flow(qapp, tmp_path):
+def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     """Phase-5-Abnahme: Einlern-Durchlauf legt Referenzen an, die
     anschließend beim Identifizieren wirken; einzelne Aufnahme wiederholbar;
     Randberührung wird als handlungsleitender Fehler verworfen."""
@@ -383,14 +402,19 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path):
                     "reference_dir": str(tmp_path / "reference")}
     capture_background(build_scene(cfg, "Hintergrund"), cfg)
     calibrate(build_scene(cfg, "Marker"), cfg)
-    # Einen Artikel mit 1 Referenz anlegen -> kein Auto-Seed, schneller Test
+    # Nur EINEN Demo-Artikel einlernen (schneller Test): dafür gilt für
+    # diesen Test genau dieser eine als vollständiger Demo-Bestand, sonst
+    # würde der Auto-Seed die restlichen nachziehen (demo_seed.seed_needed).
     art = DEMO_ARTICLES[0]
+    monkeypatch.setattr("docodetect.ui_qt.demo_seed.DEMO_ARTICLES", [art])
     pipe = Pipeline(cfg)
     pipe.db.init_schema()
     pipe.create_article(build_scene(cfg, art.scene_name, 1), art.name,
                         article_number=art.article_number,
                         height_mm=art.height_mm, category=art.category)
     pipe.close()
+    from docodetect.ui_qt.demo_seed import _write_fingerprint
+    _write_fingerprint(cfg)     # Stand als aktuell markieren -> kein Auto-Seed
 
     win = MainWindow(cfg, demo=True)
     assert win.state is UiState.READY
