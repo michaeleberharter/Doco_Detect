@@ -3090,6 +3090,71 @@ git commit -m "docs(corpus): Merge-Regel in CLAUDE.md, Aufbau und Sync im README
 
 ---
 
+### ZWISCHENSTOPP nach Task 11 — Pflicht
+
+**Task 12 darf NICHT beginnen, bevor der Erstlauf-Bericht vorgelegt und
+abgenommen ist.** Vorzulegen sind die vier Befunde aus Task 11:
+
+1. **Tier-2-Reproduktion** — reproduziert der Replay die damaligen
+   Entscheidungen? Laut Spec 1.3 ungeprüft. Gegenprobe: `accuracy_top1`
+   für `phase-b` gegen 46/60 = 0,7667 aus
+   `reports/analysis/phase-b-korrigiert/metrics.json`.
+2. **Diskriminator-Test** — `n` und `pearson_r` aus
+   `position_correlation.json`, plus Ausgang A oder B.
+3. **PNG-Sichtung** der zwei Härtefälle `1784562435798` und
+   `1784562504239`: Stielspitze vollständig segmentiert? Lage zur Bildmitte?
+4. **Laufzeitmessung** — gemessene Sekunden und Bilder/s, nicht die Zielzahl.
+
+Dazu die Korpus-Statistik (Bilder je Session und Artikel,
+Snapshot-Abdeckung) und die Baseline-Werte.
+
+---
+
+### Task 13: Übergabebericht
+
+**Files:**
+- Create: `docs/superpowers/reports/2026-07-20-corpus-harness-abschluss.md`
+
+**Adressat:** eine Claude-Sitzung **ohne jeden Vorkontext**. Keine Verweise
+auf „das Besprochene", alle Pfade ausgeschrieben, jeder Fachbegriff (Kill,
+Drei-Band, Bündel, Tier 1/2) in je einem Halbsatz definiert.
+
+- [ ] **Step 1: Bericht mit genau vier Abschnitten schreiben**
+
+**1. PLAN WAR** — Auftrag und die zwölf Tasks in wenigen Sätzen.
+
+**2. GEÄNDERT WURDE** — vollständig: neue und geänderte Dateien/Module, die
+vier CLI-Befehle mit je einem Erklärsatz, neue Config-Keys, Branch und
+Commits. Ausdrücklich auch, was **nicht** angefasst wurde: Messpfad
+(`pipeline.py`, `segmentation.py`, `features.py`, `matcher.py`), die echte
+`doco_detect.sqlite3`, Schwellen und Gewichte.
+
+**3. ABWEICHUNGEN VOM PLAN** — jede einzeln mit Begründung. Mindestens die
+drei bereits bekannten:
+- die vier `corpus-*`-Befehle hängen in `docodetect/cli.py` statt in einem
+  paket-eigenen CLI-Einstieg
+- `report.py` und `diff.py` kamen als Module dazu
+- `run_one` legt Replay-Reports unter `runs/_replay/` ab (in der
+  Plan-Selbstprüfung gefunden)
+
+Plus alles, was während der Umsetzung dazukam.
+
+**4. ZIEL ERREICHT?** — ehrliche Bewertung gegen Messbares: Testlauf-Zahlen,
+gemessene Laufzeit samt Hochrechnung auf 1000 Bilder, Baseline-Werte,
+Tier-2-Reproduktionsbefund, Triage-Ergebnis. Danach offene Punkte als Liste.
+
+Wo etwas nicht erreicht wurde, steht das als Nicht-Erreicht da — nicht als
+weichgespülter Teilerfolg.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add docs/superpowers/reports/
+git commit -m "docs(corpus): Uebergabebericht zum Regressions-Harness"
+```
+
+---
+
 ## Selbstprüfung des Plans
 
 **Spec-Abdeckung:**
