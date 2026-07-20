@@ -129,3 +129,8 @@ paths:
   captures_dir: data/captures
   save_captures: true         # jede UI-Aufnahme als Roh-PNG nach captures_dir
                               # speichern (fuer die Real-Bild-Regressionssuite)
+  # Korpus des Regressions-Harness (docodetect/corpus). Bewusst AUSSERHALB
+  # des Repos: der Korpus enthaelt hunderte 4K-PNGs. Versioniert wird nur
+  # corpus/manifest.json im Repo, dessen Pfade relativ zu diesem Verzeichnis
+  # sind. Auf dem Windows-Rechner per config.local.yaml umbiegen.
+  corpus_dir: ../Doco_Detect_corpus
