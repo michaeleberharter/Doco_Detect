@@ -213,15 +213,98 @@ QLabel { background: transparent; }
     border: 1px solid $line;
     border-radius: 11px;
 }
+/* Container-Widgets auf einer Karte duerfen keinen eigenen Grund malen:
+   die globale QWidget-Regel gaebe ihnen sonst $bg – als dunkler Kasten
+   mitten auf der farbigen Karte.
+   BEWUSST ueber Objektnamen statt `#resultCard QWidget`: jene Regel haette
+   hoehere Spezifitaet als `#primaryButton` (1 id + 1 Typ schlaegt 1 id) und
+   wuerde die Handlungstaste auf der Karte unsichtbar machen. */
+#cardBox, #verdictBar { background: transparent; }
+
 #resultCard[tone="accept"]    { border-color: $ok;   background: $okWeak; }
 #resultCard[tone="ambiguous"] { border-color: $warn; background: $warnWeak; }
 #resultCard[tone="border"]    { border-color: $warn; background: $warnWeak; }
 #resultCard[tone="reject"]    { border-color: $bad;  background: $badWeak; }
 
 #cardName    { font-size: 16px; font-weight: 700; color: $text; }
+#cardSku     { font-size: 11px; font-weight: 600; color: $dim;
+               font-family: "$fontMono"; }
 #cardDim     { font-size: 11px; font-weight: 600; color: $dim;
                font-family: "$fontMono"; }
-#cardMeasure { font-size: 13px; color: $text; font-family: "$fontMono"; }
+#cardHint    { font-size: 11.5px; color: $dim; }
+#cardMeasure { font-size: 12px; color: $dim; font-family: "$fontMono"; }
+
+/* Zahlenfeld „Gemessen 141 mm" auf der Ergebniskarte. */
+#statLabel { font-size: 9.5px; font-weight: 600; color: $faint; }
+#statValue { font-size: 16px; font-weight: 700; color: $text;
+             font-family: "$fontMono"; }
+/* Grosser Messwert im Nicht-gefunden-Zustand (Entwurf: 22px). */
+#bigValue  { font-size: 22px; font-weight: 700; color: $text;
+             font-family: "$fontMono"; }
+
+/* Kopfzeile der Ergebnisspalte: Badge + Text + Kennzahl. */
+#resultValue { font-size: 15px; font-weight: 700; color: $dim;
+               font-family: "$fontMono"; }
+#resultValue[tone="accept"]    { color: $ok; }
+#resultValue[tone="ambiguous"] { color: $warn; }
+#resultValue[tone="border"]    { color: $warn; }
+#resultValue[tone="reject"]    { color: $bad; }
+
+/* Kandidatenzeile (Entwurf: Zeile mit Balken und Prozent). */
+#candidateRow {
+    background: $panel2;
+    border: 1px solid $line;
+    border-radius: 9px;
+}
+#candidateRow:hover { border-color: $accent; }
+#rowName    { font-size: 12.5px; font-weight: 600; color: $text; }
+#rowMeta    { font-size: 10px; font-weight: 600; color: $dim;
+              font-family: "$fontMono"; }
+#rowPercent { font-size: 12px; font-weight: 700; font-family: "$fontMono";
+              color: $dim; }
+#rowPercent[tone="high"] { color: $ok; }
+#rowPercent[tone="mid"]  { color: $warn; }
+#rowPercent[tone="low"]  { color: $bad; }
+
+#candidateRow QProgressBar {
+    background: $line;
+    border: none;
+    border-radius: 3px;
+}
+#candidateRow QProgressBar::chunk { border-radius: 3px; background: $dim; }
+#candidateRow QProgressBar[tone="high"]::chunk { background: $ok; }
+#candidateRow QProgressBar[tone="mid"]::chunk  { background: $warn; }
+#candidateRow QProgressBar[tone="low"]::chunk  { background: $bad; }
+
+/* Richtig/Falsch-Bewertung: dezent, blockiert nichts – aber immer da.
+   Sie speist die Scoring-Analyse. */
+#verdictPrompt { font-size: 11px; color: $dim; }
+#verdictYes, #verdictNo {
+    background: transparent;
+    border: 1px solid $line;
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: $dim;
+    min-height: 0;
+}
+#verdictYes:hover { border-color: $ok;  color: $ok; }
+#verdictNo:hover  { border-color: $bad; color: $bad; }
+#verdictYes:disabled, #verdictNo:disabled { color: $faint; border-color: $line; }
+
+/* Einklappbarer Detailbereich der Ergebniskarte (Teilscores). */
+#detailsToggle {
+    background: transparent;
+    border: none;
+    color: $accent;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 0;
+    min-height: 0;
+    text-align: left;
+}
+#detailsToggle:hover { color: $accentH; }
 
 #resultCard QProgressBar {
     background: $track;

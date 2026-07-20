@@ -150,6 +150,14 @@ def confirm_result(report: MatchReport, article_number: str):
                         true_article=article_number)
 
 
+def confirm_no_match(report: MatchReport):
+    """Bestätigung „zu Recht abgelehnt" (Button bei REJECT): das Objekt ist
+    tatsächlich nicht in der Datenbank. Fassade wie confirm_result, damit UIs
+    reporting.py nie direkt importieren müssen."""
+    from .reporting import save_no_match_verdict
+    return save_no_match_verdict(report)
+
+
 def reject_result(report: MatchReport, true_article: str | None = None):
     """Manuelle Korrektur „Keiner davon" (Button bei AMBIGUOUS/REJECT):
     verdict=wrong, unabhängig von der Top-1-Vorhersage – der wahre Artikel

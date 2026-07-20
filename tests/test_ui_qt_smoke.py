@@ -226,7 +226,15 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     win.identify_now()
     assert _wait_until(qapp, lambda: not win._busy)
     assert win._last_report.decision == "accept"
-    assert win.result_headline.text() == "✓ Automatisch übernommen: Teller flach 18"
+    # Kopfzeile nennt den Zustand, die Karte den Artikel. Der Artikelname ist
+    # aus der Kopfzeile in die Karte gewandert (dort steht er gross), das ✓
+    # ersetzt das Badge links – geprüft wird beides weiterhin exakt.
+    from docodetect.ui_qt.widgets.result_card import ResultCard
+    assert win.result_headline.text() == "Automatisch übernommen"
+    cards = win.cards_box.findChildren(ResultCard)
+    assert len(cards) == 1
+    assert "Teller flach 18" in cards[0].all_text()
+    assert win.result_header.value.text().endswith("%")
     best = win._last_report.candidates[0]
     assert best.article_number == "DEMO-T18"
     assert abs(best.corrected_diameter_mm - 180.0) < 4.0
