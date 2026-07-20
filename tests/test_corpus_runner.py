@@ -394,6 +394,56 @@ def test_cache_datei_ist_striktes_json(tmp_path, monkeypatch):
         AssertionError(f"kein striktes JSON: {c}")))
 
 
+# --- Befund 2: Cache-Treffer muessen den Replay-Report mitbringen ----------
+
+def test_cache_treffer_materialisiert_replay_report(tmp_path, monkeypatch):
+    """Ein --changed-only-Lauf muss runs/<run_id>/replay/ vollstaendig
+    fuellen, sonst rechnet cmd_corpus_run die Tier-2-Quoten nur ueber die
+    frisch gerechnete Teilmenge."""
+    e = _e("c1" * 32, tier=2)
+
+    def stub(entry_dict, tier, run_id):
+        r = _stub_run_one(entry_dict, tier, run_id)
+        # run_one legt den Report ab UND reicht ihn im Ergebnis mit.
+        replay = runner._replay_dir(tmp_path, run_id)
+        replay.mkdir(parents=True, exist_ok=True)
+        text = MatchReport(decision="accept", message="", measured={}).to_json()
+        (replay / f"{entry_dict['sha'][:8]}.json").write_text(text,
+                                                              encoding="utf-8")
+        r["replay_json"] = text
+        return r
+
+    _prep(monkeypatch, tmp_path, [e], stub)
+    run_corpus({}, tier=2, workers=1, run_id="lauf-1")   # fuellt den Cache
+    assert (runner._replay_dir(tmp_path, "lauf-1") / f"{e.sha[:8]}.json").exists()
+
+    out = run_corpus({}, tier=2, workers=1, changed_only=True,
+                     run_id="lauf-2")
+    assert out["neu_gerechnet"] == 0, "Lauf 2 kam nicht aus dem Cache"
+    ziel = runner._replay_dir(tmp_path, "lauf-2") / f"{e.sha[:8]}.json"
+    assert ziel.exists(), "Cache-Treffer hat keinen Replay-Report im neuen Lauf"
+    assert MatchReport.from_json(ziel.read_text(encoding="utf-8")).decision \
+        == "accept"
+
+
+def test_tier1_ergebnis_traegt_keinen_replay_report(tmp_path, monkeypatch):
+    """Tier 1 kennt keine Entscheidung — replay_json bleibt None und es
+    entsteht kein Replay-Verzeichnis."""
+    _prep(monkeypatch, tmp_path, [_e("c2" * 32, tier=1)])
+    run_corpus({}, tier=1, workers=1, run_id="lauf-t1")
+    assert not runner._replay_dir(tmp_path, "lauf-t1").exists()
+
+
+def test_materialisiere_replay_ueberschreibt_frische_reports_nicht(tmp_path):
+    frisch = runner._replay_dir(tmp_path, "lauf-x")
+    frisch.mkdir(parents=True, exist_ok=True)
+    (frisch / "aaaaaaaa.json").write_text("frisch", encoding="utf-8")
+    runner._materialisiere_replay(
+        tmp_path, "lauf-x", [{"sha": "aaaaaaaa" + "0" * 56,
+                              "replay_json": "aus-cache"}])
+    assert (frisch / "aaaaaaaa.json").read_text(encoding="utf-8") == "frisch"
+
+
 # --- M6: leerer Korpus ist kein Erfolg ------------------------------------
 
 def test_leeres_manifest_wirft(tmp_path, monkeypatch):

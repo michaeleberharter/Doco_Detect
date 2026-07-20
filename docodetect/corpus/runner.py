@@ -113,6 +113,11 @@ class RunResult:
     tier_capability: int = 0   # hoechste Stufe, die dieses Bild fahren KANN
     diffs: list = field(default_factory=list)
     error: str | None = None
+    # Tier-2-Replay-Report als JSON-Text. Wandert mit in den Cache, damit ein
+    # Cache-Treffer den Report im neuen Lauf-Ordner materialisieren kann —
+    # sonst waeren die Tier-2-Quoten unter --changed-only unvollstaendig.
+    # Tier 1 laesst das Feld None.
+    replay_json: str | None = None
 
 
 def _json_safe(obj):
@@ -225,8 +230,13 @@ def run_one(entry_dict: dict, tier: int, run_id: str) -> dict:
             replay.mkdir(parents=True, exist_ok=True)
             rep = outcome.report
             rep.label, rep.verdict = e.label, e.verdict
-            (replay / f"{e.sha[:8]}.json").write_text(rep.to_json(),
+            replay_json = rep.to_json()
+            (replay / f"{e.sha[:8]}.json").write_text(replay_json,
                                                       encoding="utf-8")
+            # Zusaetzlich im Ergebnis mitfuehren: nur so ueberlebt der Report
+            # den Cache und steht einem spaeteren --changed-only-Lauf zur
+            # Verfuegung.
+            res.replay_json = replay_json
             diffs = compare_tier2(golden, rep)
         else:
             try:
@@ -258,6 +268,21 @@ def run_one(entry_dict: dict, tier: int, run_id: str) -> dict:
 
 def _cache_path(root: Path) -> Path:
     return Path(root) / ".cache" / "results.json"
+
+
+def _materialisiere_replay(root: Path, run_id: str, ergebnisse: list) -> int:
+    """Mitgefuehrte Replay-Reports in das Replay-Verzeichnis des aktuellen
+    Laufs schreiben. Gibt die Zahl der geschriebenen Reports zurueck."""
+    mit_report = [r for r in ergebnisse if r.get("replay_json")]
+    if not mit_report:
+        return 0
+    replay = _replay_dir(root, run_id)
+    replay.mkdir(parents=True, exist_ok=True)
+    for r in mit_report:
+        ziel = replay / f"{str(r.get('sha', '?'))[:8]}.json"
+        if not ziel.exists():
+            ziel.write_text(r["replay_json"], encoding="utf-8")
+    return len(mit_report)
 
 
 def _cache_key(sha: str, tier: int, code_fp: str, cfg_fp: str,
@@ -312,13 +337,21 @@ def run_corpus(cfg: dict, *, sessions=None, articles=None, tier: int = 1,
         except (ValueError, OSError):
             cache = {}
 
-    offen, ergebnisse = [], []
+    offen, ergebnisse, aus_cache = [], [], []
     for e in aufgaben:
         k = key(e)
         if changed_only and k in cache:
-            ergebnisse.append(cache[k])
+            treffer = cache[k]
+            ergebnisse.append(treffer)
+            aus_cache.append(treffer)
         else:
             offen.append(e)
+
+    # Cache-Treffer tragen ihren Tier-2-Replay-Report mit sich. Er muss im
+    # Verzeichnis des AKTUELLEN Laufs landen, sonst rechnet cmd_corpus_run die
+    # Quoten nur ueber die frisch gerechnete Teilmenge — im Extremfall ueber
+    # gar nichts, und das Merge-Gate schwiege stillschweigend.
+    _materialisiere_replay(root, run_id, aus_cache)
 
     t0 = time.time()
     if offen:

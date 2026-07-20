@@ -439,6 +439,7 @@ def cmd_corpus_run(args, cfg):
     run_id = run.get("run_id", run_id)
 
     quotas = {}
+    quoten_unvollstaendig = False
     if args.tier == 2:
         root = corpus_root(cfg)
         reports = []
@@ -451,6 +452,14 @@ def cmd_corpus_run(args, cfg):
                 reports.append(MatchReport.from_json(p.read_text(encoding="utf-8")))
         if reports:
             quotas = corpus_report.tier2_quotas(reports)
+        # Sicherheitsnetz: fehlen Replay-Reports, decken die Quoten nur eine
+        # Teilmenge ab. Ein stillschweigend uebersprungener Quoten-Vergleich
+        # waere im Merge-Gate schlimmer als gar keiner.
+        if len(reports) < len(run["results"]):
+            quoten_unvollstaendig = True
+            print(f"[corpus-run] WARNUNG: nur {len(reports)} von "
+                  f"{len(run['results'])} Replay-Reports vorhanden — die "
+                  f"Tier-2-Quoten decken nicht den ganzen Lauf ab.")
 
     out = corpus_report.write_run(corpus_root(cfg), run_id, run, quotas)
     print(f"[corpus-run] {run['n']} Bilder, Tier {run['tier']}, "
@@ -471,6 +480,14 @@ def cmd_corpus_run(args, cfg):
         code, meldungen = corpus_report.check_against_baseline(
             run, quotas, corpus_report.load_baseline(),
             accept_drift=args.accept_drift)
+        if quoten_unvollstaendig:
+            # Nicht auf 0 enden duerfen: ein Gate, das wegen fehlender Daten
+            # schweigt, meldet Sicherheit, die es nicht geprueft hat.
+            code = 1
+            meldungen.append(
+                "Tier-2-Quoten unvollstaendig — die Regressionspruefung "
+                "deckt nicht alle Bilder ab. Lauf ohne --changed-only "
+                "wiederholen.")
         for m in meldungen:
             print(f"[corpus-run] {m}")
         print("[corpus-run] " + ("OK" if code == 0 else "REGRESSION"))
