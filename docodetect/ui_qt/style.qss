@@ -1,179 +1,211 @@
 /* ============================================================================
-   Doco Detect – Dark Theme (Fusion + QPalette in app.py, Feinschliff hier).
+   Doco Detect – Stylesheet-TEMPLATE des UI-Redesigns.
 
-   PALETTE (alle Farbwerte der App an EINER Stelle – Anpassung an DO&CO-CI
-   ist ein Fünf-Minuten-Job):
-     Fläche           #1e2022   (sehr dunkles Grau, kein reines Schwarz)
-     Fläche erhöht    #26282b   (Karten, Panels)
-     Linien/Rahmen    #3a3d40
-     Text             #e4e6e8
-     Text gedimmt     #969ba0
-     Akzent           #2e7ddc   (einzige Akzentfarbe: Primär-Button)
-     Akzent aktiv     #3d8ceb
-     Zustand Grün     #2e9e5b   (accept / erkannt)
-     Zustand Gelb     #d4a72c   (ambiguous / bitte bestätigen)
-     Zustand Rot      #cc4b4b   (reject / Rand-Warnung)
+   Diese Datei ist KEIN fertiges QSS: Dollar-Platzhalter werden beim Laden
+   aus theme.py befuellt (string.Template, siehe app.py::stylesheet). Qt-QSS
+   kennt keine Variablen – so bekommen wir sie trotzdem, und das helle Theme
+   ist derselbe Text mit einem anderen Token-Satz.
 
-   TYPOGRAFIE: Systemschrift (Segoe UI / SF Pro via Qt-Default).
-     Artikelname ~20pt, Messwerte ~14pt, Statusleiste klein.
+   Farbtokens: bg stage panel panel2 line text dim faint accent accentH
+               accentWeak ok okWeak warn warnWeak bad badWeak track plate
+   Schrift:    fontUi fontMono
+
+   GROESSEN IN px (nicht pt) – der Entwurf ist px-basiert und Qt skaliert px
+   ueber den devicePixelRatio korrekt mit.
+
+   Zwei Dinge aus dem Entwurf kann QSS NICHT und sie werden im Code gesetzt:
+     - letter-spacing (Abschnittslabels)   -> QFont.setLetterSpacing
+     - text-transform: uppercase           -> Text bereits gross schreiben
+   (Die frueher hier stehende text-transform-Regel war wirkungslos.)
    ========================================================================== */
 
-QMainWindow, QDialog {
-    background: #1e2022;
+QMainWindow, QDialog, QWidget {
+    background: $bg;
+    color: $text;
+    font-family: "$fontUi";
+    font-size: 12px;
 }
 
 /* ---------- rechtes Panel ---------- */
 
 #appTitle {
-    font-size: 18pt;
-    font-weight: 600;
-    letter-spacing: 2px;
-    color: #e4e6e8;
+    font-size: 16px;
+    font-weight: 700;
+    color: $text;
     padding: 4px 0 12px 0;
 }
 
+/* Abschnittslabel ("ERGEBNIS", "WEITERE KANDIDATEN", "VERLAUF"):
+   klein, ruhig, gross geschrieben – die Sperrung setzt der Code. */
 #sectionLabel {
-    font-size: 10pt;
-    font-weight: 600;
-    color: #969ba0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: 10px;
+    font-weight: 700;
+    color: $faint;
     padding-top: 8px;
 }
 
-/* Primär-Button „Identifizieren“: groß, volle Panelbreite (min. 64 px hoch) */
+/* Primaeraktion „Identifizieren": grosse Flaeche, Touch-tauglich. */
 #primaryButton {
-    background: #2e7ddc;
+    background: $accent;
     color: #ffffff;
-    font-size: 15pt;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
     border: none;
-    border-radius: 8px;
-    min-height: 64px;
+    border-radius: 15px;
+    min-height: 72px;
 }
-#primaryButton:hover { background: #3d8ceb; }
-#primaryButton:pressed { background: #2568b8; }
-#primaryButton:disabled { background: #33373b; color: #969ba0; }
+#primaryButton:hover   { background: $accentH; }
+#primaryButton:pressed { background: $accentH; }
+#primaryButton:disabled { background: $panel2; color: $faint; }
 
-/* Sekundär-Aktionen (Hintergrund, Kalibrieren, Einlernen): ruhig, kleiner */
+/* Sekundaeraktionen (Hintergrund, Kalibrieren, Einlernen). */
 #secondaryButton {
-    background: #26282b;
-    color: #e4e6e8;
-    font-size: 10.5pt;
-    border: 1px solid #3a3d40;
-    border-radius: 6px;
-    min-height: 34px;
-    padding: 2px 10px;
-    text-align: left;
+    background: $panel2;
+    color: $text;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid $line;
+    border-radius: 14px;
+    min-height: 44px;
+    padding: 6px 12px;
 }
-#secondaryButton:hover { background: #2e3134; }
-#secondaryButton:pressed { background: #232527; }
-#secondaryButton:disabled { color: #6a6f74; border-color: #2e3134; }
+#secondaryButton:hover   { background: $panel; border-color: $accent; }
+#secondaryButton:pressed { background: $track; }
+#secondaryButton:disabled { color: $faint; border-color: $line; background: $bg; }
 
-/* ---------- Vorschau-Platzhalter / Hinweise ---------- */
+/* ---------- Vorschau ---------- */
 
 #previewPlaceholder {
-    background: #141618;
-    color: #969ba0;
-    font-size: 13pt;
-    border-radius: 8px;
+    background: $stage;
+    color: $dim;
+    font-size: 13px;
+    border-radius: 12px;
 }
 
-/* Hinweis-/Setup-Panel im Ergebnisbereich (NOT_READY-Führung) */
 #guideLabel {
-    color: #969ba0;
-    font-size: 11pt;
+    color: $dim;
+    font-size: 12px;
     padding: 8px;
 }
 
-/* ---------- Ergebnis-Karten ---------- */
+/* ---------- Ergebnis ---------- */
 
+/* VIER Anzeigezustaende: accept (gruen), ambiguous (amber), border (amber –
+   Objekt beruehrt den Bildrand, eigener Zustand, KEIN Reject-Look),
+   reject (rot). Zuordnung zentral in theme.py::tone_color. */
 #resultHeadline {
-    font-size: 12pt;
-    font-weight: 600;
-    color: #e4e6e8;
+    font-size: 12px;
+    font-weight: 700;
+    color: $text;
     padding: 2px 0;
 }
-#resultHeadline[tone="accept"]  { color: #2e9e5b; }
-#resultHeadline[tone="confirm"] { color: #d4a72c; }
-#resultHeadline[tone="reject"]  { color: #cc4b4b; }
+#resultHeadline[tone="accept"]    { color: $ok; }
+#resultHeadline[tone="ambiguous"] { color: $warn; }
+#resultHeadline[tone="border"]    { color: $warn; }
+#resultHeadline[tone="confirm"]   { color: $warn; }
+#resultHeadline[tone="reject"]    { color: $bad; }
 
-/* Karte ist bewusst neutral: kein zustandsabhängiger Rahmen mehr – der
-   Status wird ausschließlich über #resultHeadline oben signalisiert. */
 #resultCard {
-    background: #26282b;
-    border: 1px solid #3a3d40;
-    border-radius: 8px;
+    background: $panel2;
+    border: 1px solid $line;
+    border-radius: 11px;
 }
+#resultCard[tone="accept"]    { border-color: $ok;   background: $okWeak; }
+#resultCard[tone="ambiguous"] { border-color: $warn; background: $warnWeak; }
+#resultCard[tone="border"]    { border-color: $warn; background: $warnWeak; }
+#resultCard[tone="reject"]    { border-color: $bad;  background: $badWeak; }
 
-#cardName {
-    font-size: 14pt;
-    font-weight: 600;
-    color: #e4e6e8;
-}
-#cardDim { font-size: 9.5pt; color: #969ba0; }
-#cardMeasure { font-size: 11pt; color: #e4e6e8; }
+#cardName    { font-size: 16px; font-weight: 700; color: $text; }
+#cardDim     { font-size: 11px; font-weight: 600; color: $dim;
+               font-family: "$fontMono"; }
+#cardMeasure { font-size: 13px; color: $text; font-family: "$fontMono"; }
 
 #resultCard QProgressBar {
-    background: #1e2022;
-    border: 1px solid #3a3d40;
-    border-radius: 4px;
-    color: #e4e6e8;
-    font-size: 8.5pt;
+    background: $track;
+    border: 1px solid $line;
+    border-radius: 6px;
+    color: $text;
+    font-size: 10px;
+    font-family: "$fontMono";
     text-align: center;
 }
-#resultCard QProgressBar::chunk { background: #3a3d40; border-radius: 3px; }
+#resultCard QProgressBar::chunk { background: $accent; border-radius: 5px; }
 
-/* Teilscore-Balken (Geometrie/Farbe/Form): kompakt, ohne eigenen Rahmen. */
-#channelTitle { font-size: 8pt; color: #969ba0; }
-#channelNoData { font-size: 8pt; color: #6a6f74; font-style: italic; }
+/* Teilscore-Balken (Geometrie/Farbe/Form) – ab Phase 3 im einklappbaren
+   Detailbereich unter der Ergebniskarte. */
+#channelTitle  { font-size: 9px; color: $faint; }
+#channelNoData { font-size: 9px; color: $faint; font-style: italic; }
 
-/* Kompakte Plätze 2-3 (accept) und Rohmesswert-Diagnose (reject): dezent,
-   kleine Schrift, gedämpfte Farbe – lenken nicht von der Headline/Karte ab. */
-#rankLine { font-size: 10pt; color: #969ba0; padding: 2px 0; }
-#diagnoseLine { font-size: 9.5pt; color: #969ba0; padding-top: 6px; }
+#rankLine     { font-size: 12px; color: $dim; padding: 2px 0; }
+#diagnoseLine { font-size: 11px; color: $dim; font-family: "$fontMono";
+                padding-top: 6px; }
 
 /* ---------- Statusleiste ---------- */
 
 QStatusBar {
-    background: #191b1d;
-    color: #969ba0;
-    font-size: 9.5pt;
-    border-top: 1px solid #3a3d40;
+    background: $bg;
+    color: $dim;
+    font-size: 11px;
+    border-top: 1px solid $line;
 }
-QStatusBar QLabel { color: #969ba0; font-size: 9.5pt; }
-QStatusBar #statusWarn { color: #d4a72c; }
+QStatusBar::item { border: none; }
+QStatusBar QLabel { color: $dim; font-size: 11px; }
+QStatusBar #statusWarn { color: $warn; }
 
 /* ---------- allgemeine Kontrollen ---------- */
 
 QToolTip {
-    background: #26282b;
-    color: #e4e6e8;
-    border: 1px solid #3a3d40;
-    padding: 4px 6px;
+    background: $panel;
+    color: $text;
+    border: 1px solid $line;
+    border-radius: 6px;
+    padding: 5px 7px;
 }
 
 QScrollArea { border: none; }
 
-/* ---------- Einlern-Dialog ---------- */
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: $line;
+    border-radius: 5px;
+    min-height: 28px;
+}
+QScrollBar::handle:vertical:hover { background: $faint; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
 
 QListWidget {
-    background: #141618;
-    border: 1px solid #3a3d40;
-    border-radius: 6px;
-    color: #969ba0;
-    font-size: 8.5pt;
+    background: $track;
+    border: 1px solid $line;
+    border-radius: 9px;
+    color: $dim;
+    font-size: 11px;
 }
 QListWidget::item:selected {
-    background: #2e7ddc;
+    background: $accent;
     color: #ffffff;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 
-QComboBox, QSpinBox {
-    background: #26282b;
-    border: 1px solid #3a3d40;
-    border-radius: 6px;
-    padding: 4px 8px;
-    min-height: 24px;
+QComboBox, QSpinBox, QLineEdit {
+    background: $panel2;
+    color: $text;
+    border: 1px solid $line;
+    border-radius: 9px;
+    padding: 6px 10px;
+    min-height: 26px;
+    font-size: 13px;
+    font-weight: 600;
+}
+QComboBox:focus, QSpinBox:focus, QLineEdit:focus { border-color: $accent; }
+QComboBox QAbstractItemView {
+    background: $panel;
+    color: $text;
+    border: 1px solid $line;
+    selection-background-color: $accent;
+    selection-color: #ffffff;
 }

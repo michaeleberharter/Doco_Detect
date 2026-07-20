@@ -13,10 +13,28 @@ from PySide6.QtCore import QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QImage, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-_BG = QColor(20, 22, 24)
-_CROSS = QColor(255, 255, 255, 40)     # dezentes Fadenkreuz
-_WARN = QColor(204, 75, 75)            # Zustands-Rot (style.qss-Palette)
-_MSG = QColor(150, 155, 160)
+from ..app import current_theme
+
+# Deckkraft des Fadenkreuzes über dem Live-Bild – der Farbton kommt aus dem
+# Theme, nur die Transparenz ist eine Zeichenentscheidung.
+_CROSS_ALPHA = 40
+
+
+def _colors():
+    """Zeichenfarben aus dem aktiven Theme. Die Auflösung ist in theme.py
+    gecacht, der Aufruf pro Frame kostet daher nur ein Dict-Kopieren."""
+    t = current_theme()
+    cross = QColor(t["text"])
+    cross.setAlpha(_CROSS_ALPHA)
+    return {
+        "bg": QColor(t["stage"]),        # Letterbox-Balken neben dem Bild
+        "cross": cross,
+        "warn": QColor(t["warn"]),       # Randberührung: eigener Zustand,
+                                         # amber statt Reject-Rot
+        "msg": QColor(t["dim"]),
+        "busy_bg": QColor(t["panel"]),
+        "busy_text": QColor(t["text"]),
+    }
 
 
 def fit_rect(cw: int, ch: int, iw: int, ih: int) -> QRect:
@@ -89,11 +107,12 @@ class PreviewWidget(QWidget):
 
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt-API)
         p = QPainter(self)
-        p.fillRect(self.rect(), _BG)
+        c = _colors()
+        p.fillRect(self.rect(), c["bg"])
         img = self._overlay if (self._show_overlay and self._overlay) else self._frame
 
         if self._message:
-            p.setPen(_MSG)
+            p.setPen(c["msg"])
             f = p.font()
             f.setPointSize(14)
             p.setFont(f)
@@ -107,40 +126,47 @@ class PreviewWidget(QWidget):
             p.setRenderHint(QPainter.SmoothPixmapTransform)
             p.drawImage(target, img)
             if not self._show_overlay:
-                self._draw_crosshair(p, target)
+                self._draw_crosshair(p, target, c)
             if self._warn_text:
-                self._draw_warning(p, target)
+                self._draw_warning(p, target, c)
             if self._busy_text:
-                self._draw_busy(p, target)
+                self._draw_busy(p, target, c)
         p.end()
 
-    def _draw_crosshair(self, p: QPainter, r: QRect) -> None:
-        p.setPen(QPen(_CROSS, 1))
+    def _draw_crosshair(self, p: QPainter, r: QRect, c: dict) -> None:
+        p.setPen(QPen(c["cross"], 1))
         cx, cy = r.center().x(), r.center().y()
         p.drawLine(r.left(), cy, r.right(), cy)
         p.drawLine(cx, r.top(), cx, r.bottom())
         p.drawEllipse(QRect(cx - 14, cy - 14, 28, 28))
 
-    def _draw_busy(self, p: QPainter, r: QRect) -> None:
+    def _draw_busy(self, p: QPainter, r: QRect, c: dict) -> None:
         f = p.font()
         f.setPointSize(12)
         p.setFont(f)
         w = min(r.width() - 20, 320)
         pill = QRect(r.center().x() - w // 2, r.top() + 12, w, 36)
+        pill_bg = QColor(c["busy_bg"])
+        pill_bg.setAlpha(220)
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor(20, 22, 24, 200))
+        p.setBrush(pill_bg)
         p.drawRoundedRect(pill, 18, 18)
-        p.setPen(QColor(228, 230, 232))
+        p.setPen(c["busy_text"])
         p.drawText(pill, Qt.AlignCenter, self._busy_text)
 
-    def _draw_warning(self, p: QPainter, r: QRect) -> None:
-        p.setPen(QPen(_WARN, 6))
+    def _draw_warning(self, p: QPainter, r: QRect, c: dict) -> None:
+        """Objekt berührt den Bildrand: amber Rahmen + Banner. Bewusst NICHT
+        das Reject-Rot – die Messung ist nicht falsch, sie ist nur nicht
+        durchführbar (eigener vierter Anzeigezustand)."""
+        p.setPen(QPen(c["warn"], 6))
         p.drawRect(r.adjusted(3, 3, -3, -3))
         f = p.font()
         f.setPointSize(13)
         f.setBold(True)
         p.setFont(f)
         banner = QRect(r.left(), r.top(), r.width(), 44)
-        p.fillRect(banner, QColor(204, 75, 75, 210))
-        p.setPen(QColor(255, 255, 255))
+        banner_bg = QColor(c["warn"])
+        banner_bg.setAlpha(215)
+        p.fillRect(banner, banner_bg)
+        p.setPen(QColor("#ffffff"))
         p.drawText(banner, Qt.AlignCenter, self._warn_text)

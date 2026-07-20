@@ -1,15 +1,22 @@
-"""QApplication-Setup: Fusion-Style, dunkle Palette, QSS, High-DPI.
+"""QApplication-Setup: Fusion-Style, Theme (dunkel/hell), Schrift, QSS.
 
 Fusion sieht auf Windows und macOS gleich aus – gewollt: die App soll auf
 beiden Systemen identisch bedienbar sein. Qt 6 skaliert High-DPI automatisch.
+
+Die Farbwelt kommt aus theme.py, die Schrift aus fonts.py; `style.qss` ist
+ein Template mit `$token`-Platzhaltern (Qt-QSS kennt keine Variablen). Ein
+Theme-Wechsel ist deshalb ein erneutes `apply_theme()` – ohne Neustart.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from string import Template
 
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import QApplication
+
+from . import fonts, theme as theme_mod
 
 _UI_DEFAULTS = {
     "preview_max_width": 960,
@@ -19,6 +26,7 @@ _UI_DEFAULTS = {
     "window_min_width": 1280,
     "window_min_height": 800,
     "enroll_shots": 8,
+    "theme": theme_mod.DEFAULT_THEME,     # "dark" | "light"
 }
 
 
@@ -30,48 +38,84 @@ def ui_cfg(cfg: dict) -> dict:
     return out
 
 
-def _dark_palette() -> QPalette:
-    """Dunkle Fusion-Palette – Feinschliff (Buttons, Karten) macht style.qss.
-    Sehr dunkles Grau statt reinem Schwarz; die Vorschau ist der Star."""
+def palette_for(t: theme_mod.Theme) -> QPalette:
+    """QPalette aus denselben Tokens wie die QSS.
+
+    Nötig, weil Fusion viele Details (Fokusrahmen, Auswahl, deaktivierte
+    Texte, native Dialoge) aus der Palette zieht und nicht aus dem
+    Stylesheet – ohne das bliebe die App im alten Grau."""
+    c = QColor
     p = QPalette()
-    bg = QColor(30, 32, 34)        # Fensterfläche
-    base = QColor(22, 24, 26)      # Eingabe-/Listenflächen
-    text = QColor(228, 230, 232)
-    dim = QColor(150, 155, 160)
-    accent = QColor(46, 125, 220)  # einzige Akzentfarbe (Primär-Button)
-    p.setColor(QPalette.Window, bg)
-    p.setColor(QPalette.WindowText, text)
-    p.setColor(QPalette.Base, base)
-    p.setColor(QPalette.AlternateBase, bg)
-    p.setColor(QPalette.Text, text)
-    p.setColor(QPalette.PlaceholderText, dim)
-    p.setColor(QPalette.Button, bg)
-    p.setColor(QPalette.ButtonText, text)
-    p.setColor(QPalette.ToolTipBase, base)
-    p.setColor(QPalette.ToolTipText, text)
-    p.setColor(QPalette.Highlight, accent)
-    p.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
-    p.setColor(QPalette.Disabled, QPalette.ButtonText, dim)
-    p.setColor(QPalette.Disabled, QPalette.Text, dim)
-    p.setColor(QPalette.Disabled, QPalette.WindowText, dim)
+    p.setColor(QPalette.Window, c(t["bg"]))
+    p.setColor(QPalette.WindowText, c(t["text"]))
+    p.setColor(QPalette.Base, c(t["panel2"]))
+    p.setColor(QPalette.AlternateBase, c(t["panel"]))
+    p.setColor(QPalette.Text, c(t["text"]))
+    p.setColor(QPalette.PlaceholderText, c(t["faint"]))
+    p.setColor(QPalette.Button, c(t["panel2"]))
+    p.setColor(QPalette.ButtonText, c(t["text"]))
+    p.setColor(QPalette.ToolTipBase, c(t["panel"]))
+    p.setColor(QPalette.ToolTipText, c(t["text"]))
+    p.setColor(QPalette.Highlight, c(t["accent"]))
+    p.setColor(QPalette.HighlightedText, c("#ffffff"))
+    p.setColor(QPalette.Link, c(t["accent"]))
+    for role in (QPalette.ButtonText, QPalette.Text, QPalette.WindowText):
+        p.setColor(QPalette.Disabled, role, c(t["faint"]))
     return p
 
 
-def make_app(argv: list | None = None) -> QApplication:
-    """QApplication mit Fusion + dunkler Palette + QSS. Wiederverwendet eine
-    bestehende Instanz (Tests/offscreen), setzt aber Style/QSS immer."""
+def stylesheet(t: theme_mod.Theme) -> str:
+    """style.qss mit den Tokens des Themes befüllen.
+
+    `safe_substitute` statt `substitute`: ein vergessener Platzhalter soll
+    die App nicht am Start hindern, sondern sichtbar im Stylesheet stehen
+    bleiben (und im Test auffallen)."""
+    qss = Path(__file__).with_name("style.qss")
+    if not qss.exists():
+        return ""
+    values = dict(t.tokens)
+    families = fonts.families()
+    values["fontUi"] = families["ui"]
+    values["fontMono"] = families["mono"]
+    return Template(qss.read_text(encoding="utf-8")).safe_substitute(values)
+
+
+def apply_theme(app: QApplication, name: str) -> theme_mod.Theme:
+    """Theme setzen (Palette + Stylesheet) und zurückgeben. Läuft auch zur
+    Laufzeit – der Umschalter in der Icon-Schiene ruft genau das."""
+    t = theme_mod.load(name)
+    app.setPalette(palette_for(t))
+    app.setStyleSheet(stylesheet(t))
+    app.setProperty("docoTheme", t.name)
+    return t
+
+
+def current_theme(app: QApplication | None = None) -> theme_mod.Theme:
+    """Aktuell gesetztes Theme – Widgets fragen hier nach Farben für ihre
+    selbst gezeichneten Flächen (Vorschau, Icons, Balken)."""
+    app = app or QApplication.instance()
+    name = app.property("docoTheme") if app is not None else None
+    return theme_mod.load(name or theme_mod.DEFAULT_THEME)
+
+
+def make_app(argv: list | None = None, theme: str | None = None) -> QApplication:
+    """QApplication mit Fusion + Theme + Schrift. Wiederverwendet eine
+    bestehende Instanz (Tests/offscreen), setzt aber Style/Theme immer."""
     app = QApplication.instance() or QApplication(argv or [])
     app.setApplicationName("Doco Detect")
     app.setStyle("Fusion")
-    app.setPalette(_dark_palette())
-    qss = Path(__file__).with_name("style.qss")
-    if qss.exists():
-        app.setStyleSheet(qss.read_text(encoding="utf-8"))
+    # Basisschrift auch als QFont setzen, nicht nur per QSS: native Dialoge
+    # (Datei-/Meldungsdialoge) lesen die Anwendungsschrift, kein Stylesheet.
+    loaded = fonts.load_fonts()
+    if loaded["loaded"]:
+        app.setFont(QFont(loaded["ui"], 12))
+    apply_theme(app, theme or theme_mod.DEFAULT_THEME)
     return app
 
 
 def run(cfg: dict, demo: bool = False) -> int:
-    app = make_app()
+    ui = ui_cfg(cfg)
+    app = make_app(theme=ui["theme"])
     from .main_window import MainWindow
     win = MainWindow(cfg, demo=demo)
     win.show()
