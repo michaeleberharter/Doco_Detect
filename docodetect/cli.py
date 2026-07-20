@@ -420,6 +420,78 @@ def cmd_corpus_build(args, cfg):
         print("[corpus-build] dry-run – nichts geschrieben.")
 
 
+def cmd_corpus_run(args, cfg):
+    """Korpus-Replay: Tier 1 (Messung) bzw. Tier 2 (Entscheidung)."""
+    import sys
+    from datetime import datetime
+
+    from .corpus import report as corpus_report
+    from .corpus import runner as corpus_runner
+    from .corpus.manifest import corpus_root
+    from .matcher import MatchReport
+
+    run_id = args.run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
+    run = corpus_runner.run_corpus(
+        cfg, sessions=args.session, articles=args.article, tier=args.tier,
+        subset=args.subset, workers=args.workers,
+        changed_only=args.changed_only, run_id=run_id)
+    # run_corpus setzt den run_id, falls keiner uebergeben wurde
+    run_id = run.get("run_id", run_id)
+
+    quotas = {}
+    if args.tier == 2:
+        root = corpus_root(cfg)
+        reports = []
+        for r in run["results"]:
+            # Replay-Reports liegen lauf-scoped, NICHT in einem geteilten
+            # Ordner — sonst mischt ein gefilterter Lauf alte mit frischen
+            # Ergebnissen (Task-5-Review, Befund I5).
+            p = root / "runs" / run_id / "replay" / f"{r['sha'][:8]}.json"
+            if p.exists():
+                reports.append(MatchReport.from_json(p.read_text(encoding="utf-8")))
+        if reports:
+            quotas = corpus_report.tier2_quotas(reports)
+
+    out = corpus_report.write_run(corpus_root(cfg), run_id, run, quotas)
+    print(f"[corpus-run] {run['n']} Bilder, Tier {run['tier']}, "
+          f"{run['dauer_s']} s"
+          + (f" ({run['bilder_pro_s']} Bilder/s)" if run["bilder_pro_s"] else ""))
+    print(f"[corpus-run] Bericht: {out / 'summary.md'}")
+
+    if args.update_baseline:
+        corpus_report.save_baseline({
+            "generated": datetime.now().isoformat(timespec="seconds"),
+            "run_id": run_id, "tier": run["tier"], "n": run["n"],
+            "quotas": quotas, "code_fingerprint": run["code_fingerprint"],
+            "config_fingerprint": run["config_fingerprint"]})
+        print(f"[corpus-run] Baseline aktualisiert: {corpus_report.BASELINE_PATH}")
+        print("[corpus-run] ACHTUNG: Begruendung im Commit ist Pflicht.")
+
+    if args.check:
+        code, meldungen = corpus_report.check_against_baseline(
+            run, quotas, corpus_report.load_baseline(),
+            accept_drift=args.accept_drift)
+        for m in meldungen:
+            print(f"[corpus-run] {m}")
+        print("[corpus-run] " + ("OK" if code == 0 else "REGRESSION"))
+        sys.exit(code)
+
+
+def cmd_corpus_diff(args, cfg):
+    """Zwei Korpus-Laeufe gegeneinander stellen."""
+    from .corpus.diff import diff_runs, format_diff
+    from .corpus.manifest import corpus_root
+    print(format_diff(diff_runs(corpus_root(cfg), args.run_a, args.run_b)))
+
+
+def cmd_corpus_triage(args, cfg):
+    """Failures clustern und findings.md schreiben. Nur Befunde."""
+    from .corpus.manifest import corpus_root
+    from .corpus.triage import triage_run
+    out = triage_run(cfg, corpus_root(cfg), args.run_id)
+    print(f"[corpus-triage] Befunde: {out}")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="docodetect")
     parser.add_argument("--config", default=None, help="path to config.yaml")
@@ -526,6 +598,37 @@ def main(argv=None):
     p.add_argument("--dry-run", action="store_true",
                    help="nur zaehlen, nichts schreiben")
 
+    p = sub.add_parser("corpus-run", help="Korpus-Replay gegen die Goldens")
+    p.add_argument("--tier", type=int, choices=(1, 2), default=1)
+    p.add_argument("--session", action="append",
+                   help="nur diese Session (mehrfach angebbar)")
+    p.add_argument("--article", action="append",
+                   help="nur diesen Artikel (mehrfach angebbar)")
+    p.add_argument("--subset", type=int, default=None,
+                   help="nur die ersten N Bilder (deterministisch)")
+    p.add_argument("--workers", type=int, default=8,
+                   help="Prozesse (Default 8 – gemessenes Optimum)")
+    p.add_argument("--changed-only", action="store_true",
+                   help="Ergebnis-Cache nutzen; invalidiert bei Code- oder "
+                        "Schwellenaenderung automatisch")
+    p.add_argument("--run-id", default=None)
+    p.add_argument("--check", action="store_true",
+                   help="gegen baseline.json pruefen, Exit 1 bei Regression")
+    p.add_argument("--accept-drift", action="store_true",
+                   help="DRIFT tolerieren (nur bei bewusstem Bibliotheks-"
+                        "Update oder Plattformwechsel; Re-Baselining faellig)")
+    p.add_argument("--update-baseline", action="store_true",
+                   help="Baseline aus diesem Lauf neu schreiben "
+                        "(Begruendung im Commit ist Pflicht)")
+
+    p = sub.add_parser("corpus-diff", help="zwei Korpus-Laeufe vergleichen")
+    p.add_argument("run_a")
+    p.add_argument("run_b")
+
+    p = sub.add_parser("corpus-triage",
+                       help="Failures eines Laufs clustern (nur Befunde)")
+    p.add_argument("run_id")
+
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
 
@@ -547,6 +650,9 @@ def main(argv=None):
         "sync-stammdaten": cmd_sync_stammdaten,
         "analyze": cmd_analyze,
         "corpus-build": cmd_corpus_build,
+        "corpus-run": cmd_corpus_run,
+        "corpus-diff": cmd_corpus_diff,
+        "corpus-triage": cmd_corpus_triage,
     }[args.cmd](args, cfg)
 
 

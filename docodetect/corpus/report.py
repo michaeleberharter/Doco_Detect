@@ -79,7 +79,8 @@ def classify_drift(results: list) -> dict:
     """
     betroffen = [r for r in results if r["band"] == DRIFT]
     if not betroffen:
-        return {"muster": "keine", "betroffen": 0, "anteil": 0.0}
+        return {"muster": "keine", "betroffen": 0, "anteil": 0.0,
+                "delta_median": 0.0, "streuung": 0.0}
     deltas = []
     for r in betroffen:
         werte = [abs(d["delta"]) for d in r["diffs"]
