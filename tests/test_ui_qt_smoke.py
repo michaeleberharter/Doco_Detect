@@ -189,6 +189,24 @@ def _wait_until(qapp, cond, timeout=90.0):
     return False
 
 
+def _calibrate_via_dialog(qapp, win):
+    """Kalibrieren laeuft seit dem UI-Redesign ueber einen Dialog: oeffnen,
+    Hauptaktion druecken, schliessen. Fachlich derselbe Ablauf wie vorher der
+    direkte Buttonklick – nur mit Anleitung und Maszstab-Anzeige davor.
+
+    Der Dialog ist bewusst nicht-blockierend (open() statt exec()), sonst
+    liefe die Kamera-Signalkette des Hauptfensters in einer verschachtelten
+    Ereignisschleife auf."""
+    win.calibrate_button.click()
+    dlg = win._calibrate_dialog
+    assert dlg is not None, "Kalibrier-Dialog wurde nicht geoeffnet"
+    dlg.primary_button.click()
+    assert _wait_until(qapp, lambda: dlg.calibrated), "Kalibrierung lief nicht"
+    assert "mm/px" in dlg.scale_value.text()
+    dlg.accept()
+    return dlg
+
+
 def test_demo_end_to_end_identify(qapp, tmp_path):
     """Der Phase-3-Abnahmepfad als Test: Hintergrund aufnehmen ->
     Kalibrieren -> (Auto-Seed) -> Teller 18 ACCEPT -> Teller 20 ACCEPT ->
@@ -214,7 +232,7 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
 
     # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (4 Artikel)
     win.demo_scene_box.setCurrentText("Marker")
-    win.calibrate_button.click()
+    _calibrate_via_dialog(qapp, win)
     assert _wait_until(
         qapp, lambda: (not win._busy
                        and win.pipeline_status.articles_with_references == 4))
@@ -226,7 +244,15 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     win.identify_now()
     assert _wait_until(qapp, lambda: not win._busy)
     assert win._last_report.decision == "accept"
-    assert win.result_headline.text() == "✓ Automatisch übernommen: Teller flach 18"
+    # Kopfzeile nennt den Zustand, die Karte den Artikel. Der Artikelname ist
+    # aus der Kopfzeile in die Karte gewandert (dort steht er gross), das ✓
+    # ersetzt das Badge links – geprüft wird beides weiterhin exakt.
+    from docodetect.ui_qt.widgets.result_card import ResultCard
+    assert win.result_headline.text() == "Automatisch übernommen"
+    cards = win.cards_box.findChildren(ResultCard)
+    assert len(cards) == 1
+    assert "Teller flach 18" in cards[0].all_text()
+    assert win.result_header.value.text().endswith("%")
     best = win._last_report.candidates[0]
     assert best.article_number == "DEMO-T18"
     assert abs(best.corrected_diameter_mm - 180.0) < 4.0
@@ -272,7 +298,7 @@ def test_demo_confirm_scene_is_ambiguous(qapp, tmp_path):
     assert _wait_until(qapp, lambda: not win._busy)
 
     win.demo_scene_box.setCurrentText("Marker")
-    win.calibrate_button.click()
+    _calibrate_via_dialog(qapp, win)
     assert _wait_until(
         qapp, lambda: (not win._busy
                        and win.pipeline_status.articles_with_references == 4))
@@ -308,7 +334,7 @@ def test_demo_no_match_scene_is_reject(qapp, tmp_path):
     assert _wait_until(qapp, lambda: not win._busy)
 
     win.demo_scene_box.setCurrentText("Marker")
-    win.calibrate_button.click()
+    _calibrate_via_dialog(qapp, win)
     assert _wait_until(
         qapp, lambda: (not win._busy
                        and win.pipeline_status.articles_with_references == 4))

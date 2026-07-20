@@ -57,6 +57,25 @@ def save_verdict(report: MatchReport, correct: bool,
     return p
 
 
+def save_no_match_verdict(report: MatchReport) -> Path:
+    """„Zu Recht abgelehnt": das Objekt ist wirklich nicht in der Datenbank.
+
+    Eigene Funktion statt `save_verdict(correct=True)`, weil jenes das Label
+    auf die Top-1-Vorhersage setzt. Bei einem REJECT MIT Kandidaten (der
+    Vorfilter lieferte welche, das z-Gate kippte) hiesse das: „Artikel X war
+    richtig" – die glatte Umkehrung des Gemeinten. Genau solche verdrehten
+    Urteile haben am 2026-07-20 die Fehlerattribution der Auswertung
+    verfälscht, deshalb ist der Fall hier explizit."""
+    if not report.report_path:
+        raise ValueError("Report wurde nie gespeichert (paths.captures_dir "
+                         "fehlte) – Bewertung kann nicht abgelegt werden.")
+    report.verdict = "correct"
+    report.label = NO_MATCH
+    p = Path(report.report_path)
+    p.write_text(report.to_json(), encoding="utf-8")
+    return p
+
+
 @dataclass
 class BatchSummary:
     total: int = 0

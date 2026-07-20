@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Barlow:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.35}}</style>
+</helmet>
+<div style="{{ shell }}">
+  <div style="height:40px;display:flex;align-items:center;position:relative;background:var(--bg);border-bottom:1px solid var(--line);flex:none">
+    <div style="position:absolute;left:15px;display:flex;gap:8px"><span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span><span style="width:12px;height:12px;border-radius:50%;background:#febc2e"></span><span style="width:12px;height:12px;border-radius:50%;background:#28c840"></span></div>
+    <span style="margin:0 auto;font:600 12.5px var(--ui);color:var(--dim)">{{ L.winTitle }}</span>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="width:78px;flex:none;border-right:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:8px">
+      <div style="{{ railActive }}">{{ iconScan }}<span style="font:600 8.5px var(--ui)">{{ L.railScan }}</span></div>
+      <div style="{{ railItem }}">{{ iconCam }}<span style="font:600 8.5px var(--ui)">{{ L.railBg }}</span></div>
+      <div style="{{ railItem }}" onClick="{{ openCal }}">{{ iconTarget }}<span style="font:600 8.5px var(--ui)">{{ L.railCal }}</span></div>
+      <div style="{{ railItem }}" onClick="{{ openTeach }}">{{ iconPlus }}<span style="font:600 8.5px var(--ui)">{{ L.railTeach }}</span></div>
+      <div style="flex:1"></div>
+      <div style="{{ railItem }}">{{ iconGear }}</div>
+    </div>
+    <div style="flex:1;position:relative;background:var(--stage);min-width:0;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line);flex:none">
+        <span style="font:600 11.5px var(--ui);color:var(--dim)">{{ L.demo }}</span>
+        <div style="display:flex;align-items:center;gap:10px;min-width:190px;padding:6px 11px;background:var(--panel2);border:1px solid var(--line);border-radius:8px"><span style="font:600 12px var(--ui);color:var(--text)">Schüssel</span><div style="flex:1"></div><span style="width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--faint)"></span></div>
+        <div style="flex:1"></div>
+        <span style="display:flex;align-items:center;gap:7px;font:600 11px var(--ui);color:var(--ok)"><span style="width:7px;height:7px;border-radius:50%;background:var(--ok);animation:livepulse 1.8s infinite"></span>{{ L.live }}</span>
+      </div>
+      <div style="flex:1;position:relative;min-height:0">{{ stage }}</div>
+    </div>
+    <div style="width:372px;flex:none;border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;min-height:0">
+      <div style="padding:16px;border-bottom:1px solid var(--line)">
+        <sc-if value="{{ matched }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+            <span style="display:flex;align-items:center;gap:8px;font:700 12px var(--ui);color:var(--ok)"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--ok)"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{{ L.detected }}</span>
+            <span style="font:800 15px ui-monospace,Menlo,monospace;color:var(--ok)">100%</span>
+          </div>
+          <div style="border:1px solid var(--ok);background:var(--okWeak);border-radius:11px;padding:13px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:700 16px var(--ui);color:var(--text)">Schüssel 14</span><span style="font:600 11px ui-monospace,Menlo,monospace;color:var(--dim)">DEMO-SCH14</span></div>
+            <div style="display:flex;gap:18px;margin:11px 0 12px"><div><span style="font:600 9.5px var(--ui);letter-spacing:.06em;color:var(--faint)">{{ L.measured }}</span><div style="font:700 16px ui-monospace,Menlo,monospace;color:var(--text)">141 mm</div></div><div><span style="font:600 9.5px var(--ui);letter-spacing:.06em;color:var(--faint)">{{ L.nominal }}</span><div style="font:700 16px ui-monospace,Menlo,monospace;color:var(--text)">141 ±6 mm</div></div></div>
+            {{ gauge }}
+          </div>
+        </sc-if>
+        <sc-if value="{{ noMatch }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+            <span style="display:flex;align-items:center;gap:8px;font:700 12px var(--ui);color:var(--warn)"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--warn);color:#fff;font:800 12px var(--ui)">!</span>{{ L.notFound }}</span>
+            <span style="font:800 15px ui-monospace,Menlo,monospace;color:var(--warn)">?</span>
+          </div>
+          <div style="border:1px solid var(--warn);background:var(--warnWeak);border-radius:11px;padding:13px 14px">
+            <div style="font:400 12px/1.4 var(--ui);color:var(--dim);margin-bottom:11px">{{ L.noMatchHint }}</div>
+            <div style="margin-bottom:12px"><span style="font:600 9.5px var(--ui);letter-spacing:.06em;color:var(--faint)">{{ L.measured }}</span><div style="font:800 22px ui-monospace,Menlo,monospace;color:var(--text)">141 mm</div></div>
+            <button style="width:100%;height:40px;border:none;border-radius:9px;background:var(--accent);color:#fff;font:700 13px var(--ui);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" style-hover="width:100%;height:40px;border:none;border-radius:9px;background:var(--accentH);color:#fff;font:700 13px var(--ui);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" onClick="{{ openTeach }}">{{ iconPlus }}{{ L.teachThis }}</button>
+          </div>
+        </sc-if>
+      </div>
+      <div style="padding:14px 16px 6px"><span style="font:700 10px var(--ui);letter-spacing:.12em;color:var(--faint)">{{ candLabel }}</span></div>
+      <div style="padding:0 16px;display:flex;flex-direction:column;gap:7px">
+        <sc-for list="{{ runners }}" as="c" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 11px;background:var(--panel2);border:1px solid var(--line);border-radius:9px">
+            <div style="flex:1;min-width:0"><div style="font:600 12.5px var(--ui);color:var(--text)">{{ c.name }}</div><div style="font:600 10px ui-monospace,Menlo,monospace;color:var(--dim);margin-top:1px">{{ c.dbStr }}</div></div>
+            <div style="width:74px"><div style="height:6px;border-radius:4px;background:var(--line);overflow:hidden"><div style="height:100%;width:{{ c.confPct }};background:{{ c.color }};border-radius:4px"></div></div></div>
+            <span style="font:700 12px ui-monospace,Menlo,monospace;color:{{ c.color }};width:38px;text-align:right">{{ c.confPct }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between"><span style="font:700 10px var(--ui);letter-spacing:.12em;color:var(--faint)">{{ L.history }}</span><span style="font:600 10.5px var(--ui);color:var(--accent);cursor:pointer">{{ L.clearHist }}</span></div>
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:0 16px 14px;display:flex;flex-direction:column;gap:2px">
+        <sc-for list="{{ history }}" as="h" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:11px;padding:8px 4px;border-bottom:1px solid var(--line)"><span style="width:8px;height:8px;border-radius:50%;background:{{ h.dotColor }};flex:none"></span><span style="font:600 11px ui-monospace,Menlo,monospace;color:var(--faint);flex:none">{{ h.time }}</span><span style="flex:1;font:600 12px var(--ui);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ h.name }}</span><span style="font:700 11px ui-monospace,Menlo,monospace;color:{{ h.color }}">{{ h.confStr }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <div style="flex:none;display:flex;align-items:stretch;gap:12px;padding:14px 18px;background:var(--bg);border-top:1px solid var(--line)">
+    <button style="flex:1;height:72px;border:none;border-radius:15px;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:13px;box-shadow:0 10px 24px -8px var(--accent)" style-hover="flex:1;height:72px;border:none;border-radius:15px;background:var(--accentH);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:13px;box-shadow:0 12px 30px -8px var(--accent)">
+      <span style="display:flex">{{ iconScanLg }}</span>
+      <span style="text-align:left"><span style="display:block;font:800 20px var(--ui);line-height:1.05">{{ L.identify }}</span><span style="display:block;font:600 11px var(--ui);opacity:.85;margin-top:3px">{{ L.tapToScan }}</span></span>
+      <span style="margin-left:6px;font:700 11px ui-monospace,Menlo,monospace;background:rgba(255,255,255,.22);color:#fff;padding:5px 9px;border-radius:7px">↵ {{ L.idHint }}</span>
+    </button>
+    <button style="{{ barBtn }}">{{ iconCam }}<span>{{ L.captureBg }}</span></button>
+    <button style="{{ barBtn }}" onClick="{{ openCal }}">{{ iconTarget }}<span>{{ L.calibrate }}</span></button>
+    <button style="{{ barBtn }}" onClick="{{ openTeach }}">{{ iconPlus }}<span>{{ L.teach }}</span></button>
+  </div>
+  <div style="{{ statusBar }}"><span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:var(--ok)"></span>{{ L.statCam }}</span><span style="color:var(--faint)">·</span><span>{{ L.statCal }}</span><span style="color:var(--faint)">·</span><span>{{ L.statArt }}</span><span style="color:var(--faint)">·</span><span>{{ L.statSensor }}</span></div>
+
+  <!-- ===== KALIBRIEREN DIALOG ===== -->
+  <sc-if value="{{ showCal }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(4,7,12,.55);backdrop-filter:blur(3px)">
+      <div style="width:480px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 70px -20px rgba(0,0,0,.6);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--line)">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:var(--accentWeak);color:var(--accent)">{{ iconTarget }}</span>
+          <span style="flex:1;font:700 16px var(--ui);color:var(--text)">{{ L.calTitle }}</span>
+          <button style="{{ closeBtn }}" onClick="{{ closeDlg }}">×</button>
+        </div>
+        <div style="padding:18px">
+          <p style="margin:0 0 16px;font:400 12.5px/1.5 var(--ui);color:var(--dim)">{{ L.calIntro }}</p>
+          <div style="height:130px;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:16px;position:relative">
+            {{ calMini }}
+            <span style="position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font:700 11px ui-monospace,Menlo,monospace;color:#fff;background:rgba(4,7,12,.6);padding:3px 9px;border-radius:6px">{{ L.calStep }}</span>
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:14px">
+            <div style="{{ fieldWrap }};flex:1"><span style="{{ fieldLbl }}">{{ L.calRef }}</span><div style="{{ fieldRead }};font-family:var(--ui);color:var(--text)">{{ L.calRefVal }} · Ø 100 mm</div></div>
+            <div style="{{ fieldWrap }};width:130px"><span style="{{ fieldLbl }}">{{ L.calKnown }}</span><input style="{{ fieldInput }}" value="100 mm"/></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:20px">
+            <div style="{{ fieldWrap }};flex:1"><span style="{{ fieldLbl }}">{{ L.calMeasured }}</span><div style="{{ fieldRead }}">500 px</div></div>
+            <div style="{{ fieldWrap }};flex:1"><span style="{{ fieldLbl }}">{{ L.calScale }}</span><div style="{{ fieldRead }};color:var(--accent)">0,200 mm/px</div></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="{{ ghostBtn }}" onClick="{{ closeDlg }}">{{ L.cancel }}</button>
+            <button style="{{ primBtn }}" onClick="{{ closeDlg }}">{{ iconTarget }}{{ L.apply }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== ARTIKEL EINLERNEN DIALOG ===== -->
+  <sc-if value="{{ showTeach }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(4,7,12,.55);backdrop-filter:blur(3px)">
+      <div style="width:480px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 70px -20px rgba(0,0,0,.6);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--line)">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:var(--accentWeak);color:var(--accent)">{{ iconPlus }}</span>
+          <span style="flex:1;font:700 16px var(--ui);color:var(--text)">{{ L.teachTitle }}</span>
+          <button style="{{ closeBtn }}" onClick="{{ closeDlg }}">×</button>
+        </div>
+        <div style="padding:18px">
+          <p style="margin:0 0 16px;font:400 12.5px/1.5 var(--ui);color:var(--dim)">{{ L.teachIntro }}</p>
+          <div style="display:flex;gap:12px;margin-bottom:14px">
+            <div style="{{ fieldWrap }};flex:1"><span style="{{ fieldLbl }}">{{ L.fName }}</span><input style="{{ fieldInput }}" value="Schüssel 14"/></div>
+            <div style="{{ fieldWrap }};width:150px"><span style="{{ fieldLbl }}">{{ L.fSku }}</span><input style="{{ fieldInput }};font-family:ui-monospace,Menlo,monospace" value="DEMO-SCH14"/></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:14px">
+            <div style="{{ fieldWrap }};flex:1"><span style="{{ fieldLbl }}">{{ L.fDia }}</span><div style="{{ fieldRead }};color:var(--text)">141 mm</div></div>
+            <div style="{{ fieldWrap }};width:110px"><span style="{{ fieldLbl }}">{{ L.fTol }}</span><input style="{{ fieldInput }}" value="6 mm"/></div>
+          </div>
+          <div style="{{ fieldWrap }};margin-bottom:20px">
+            <span style="{{ fieldLbl }}">{{ L.fSamples }}</span>
+            <div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:var(--track);border:1px solid var(--line);border-radius:9px">
+              <span style="display:flex;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--ok)"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--ok)"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--ok)"></span></span>
+              <span style="font:600 13px var(--ui);color:var(--ok)">{{ L.samplesVal }}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="{{ ghostBtn }}" onClick="{{ closeDlg }}">{{ L.cancel }}</button>
+            <button style="{{ primBtn }}" onClick="{{ closeDlg }}">{{ iconPlus }}{{ L.teachBtn }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:724},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;},&quot;lang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;de&quot;,&quot;en&quot;],&quot;default&quot;:&quot;de&quot;,&quot;tsType&quot;:&quot;'de'|'en'&quot;},&quot;font&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;IBM Plex Sans&quot;,&quot;Barlow&quot;,&quot;Public Sans&quot;],&quot;default&quot;:&quot;IBM Plex Sans&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;result&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;match&quot;,&quot;nomatch&quot;],&quot;default&quot;:&quot;match&quot;,&quot;tsType&quot;:&quot;'match'|'nomatch'&quot;},&quot;openDialog&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;calibrate&quot;,&quot;teach&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;'none'|'calibrate'|'teach'&quot;}}">
+class Component extends DCLogic {
+  state = { dialog: undefined };
+  effDialog(){ return this.state.dialog === undefined ? (this.props.openDialog || 'none') : this.state.dialog; }
+  dict() {
+    const de = {
+      winTitle:'Doco Detect — Demo', demo:'Demo-Bild', identify:'Identifizieren',
+      detected:'Erkannt', measured:'Gemessen', nominal:'Datenbank', within:'im Toleranzbereich',
+      captureBg:'Hintergrund aufnehmen', calibrate:'Kalibrieren', teach:'Artikel einlernen…',
+      candidates:'Weitere Kandidaten', history:'Verlauf', clearHist:'Leeren', live:'Live',
+      railScan:'Scan', railBg:'Hint.', railCal:'Kalib.', railTeach:'Lernen',
+      idHint:'Leertaste', tapToScan:'Objekt platzieren – dann identifizieren',
+      statCam:'Kamera Demo', statCal:'Kalibriert 20.07. · 0,200 mm/px', statArt:'3 Artikel · 3 eingelernt', statSensor:'S2 aus',
+      noMatch:'Kein Treffer',
+      cancel:'Abbrechen', apply:'Übernehmen',
+      calTitle:'Kalibrieren', calIntro:'Referenzobjekt mit bekanntem Durchmesser auflegen, Maß eingeben und übernehmen.',
+      calRef:'Referenzobjekt', calRefVal:'Kalibrierplatte', calKnown:'Bekannter Durchmesser', calMeasured:'Gemessen (Pixel)', calScale:'Neuer Maßstab', calStep:'Objekt mittig auf dem Kreuz platzieren.',
+      teachTitle:'Artikel einlernen', teachIntro:'Objekt platzieren – Maße werden aus dem Live-Bild übernommen.',
+      fName:'Bezeichnung', fSku:'Artikelnummer', fDia:'Gemessener Durchmesser', fTol:'Toleranz ±', fSamples:'Proben', teachBtn:'Einlernen', samplesVal:'3 / 3 erfasst',
+      noMatchHint:'Kein Artikel im Toleranzbereich', nearest:'Am nächsten liegende Kandidaten', teachThis:'Als neuen Artikel einlernen', notFound:'Nicht gefunden'
+    };
+    const en = {
+      winTitle:'Doco Detect — Demo', demo:'Demo image', identify:'Identify',
+      detected:'Detected', measured:'Measured', nominal:'Database', within:'within tolerance',
+      captureBg:'Capture background', calibrate:'Calibrate', teach:'Teach article…',
+      candidates:'Other candidates', history:'History', clearHist:'Clear', live:'Live',
+      railScan:'Scan', railBg:'Bg', railCal:'Calib.', railTeach:'Teach',
+      idHint:'Space', tapToScan:'Place object – then identify',
+      statCam:'Camera Demo', statCal:'Calibrated 07/20 · 0.200 mm/px', statArt:'3 articles · 3 taught', statSensor:'S2 off',
+      noMatch:'No match',
+      cancel:'Cancel', apply:'Apply',
+      calTitle:'Calibrate', calIntro:'Place a reference object with a known diameter, enter its size and apply.',
+      calRef:'Reference object', calRefVal:'Calibration plate', calKnown:'Known diameter', calMeasured:'Measured (pixels)', calScale:'New scale', calStep:'Center the object on the crosshair.',
+      teachTitle:'Teach article', teachIntro:'Place the object – measurements are taken from the live image.',
+      fName:'Name', fSku:'Article number', fDia:'Measured diameter', fTol:'Tolerance ±', fSamples:'Samples', teachBtn:'Teach', samplesVal:'3 / 3 captured',
+      noMatchHint:'No article within tolerance', nearest:'Closest candidates', teachThis:'Teach as new article', notFound:'Not found'
+    };
+    return (this.props.lang || 'de') === 'de' ? de : en;
+  }
+  palette() {
+    if ((this.props.theme || 'dark') === 'dark') return {
+      bg:'#0f141b', stage:'#05070b', panel:'#161c25', panel2:'#1b2431',
+      line:'#28303d', text:'#e8edf3', dim:'#8b97a8', faint:'#5c6675',
+      accent:'#3d7dfb', accentH:'#5b93ff', accentWeak:'rgba(61,125,251,.16)',
+      ok:'#31b46f', okWeak:'rgba(49,180,111,.15)', warn:'#e0a63a', warnWeak:'rgba(224,166,58,.15)', bad:'#e2604a',
+      plate:'#c9ced6', crosshair:'rgba(0,0,0,.28)', track:'#0e141c'
+    };
+    return {
+      bg:'#eef1f5', stage:'#dfe4ea', panel:'#ffffff', panel2:'#f4f7fa',
+      line:'#e2e7ee', text:'#141a22', dim:'#5b6675', faint:'#98a2b0',
+      accent:'#2f6fe0', accentH:'#1f5fd0', accentWeak:'rgba(47,111,224,.12)',
+      ok:'#178a52', okWeak:'rgba(23,138,82,.11)', warn:'#b9781f', warnWeak:'rgba(185,120,31,.12)', bad:'#c8472f',
+      plate:'#cbd1d9', crosshair:'rgba(0,0,0,.22)', track:'#eef1f5'
+    };
+  }
+  fontStack() {
+    const f = this.props.font || 'IBM Plex Sans';
+    return `'${f}',system-ui,-apple-system,sans-serif`;
+  }
+  stage() {
+    const p = this.palette();
+    const matched = (this.props.result || 'match') !== 'nomatch';
+    const col = matched ? p.ok : p.warn;
+    return React.createElement('div',{style:{position:'absolute',inset:0}},
+      React.createElement('svg',{viewBox:'0 0 480 340',preserveAspectRatio:'xMidYMid meet',style:{position:'absolute',inset:0,width:'100%',height:'100%'}},
+        React.createElement('rect',{x:24,y:20,width:432,height:300,rx:5,fill:p.plate}),
+        React.createElement('line',{x1:240,y1:20,x2:240,y2:320,stroke:p.crosshair,strokeWidth:1}),
+        React.createElement('line',{x1:24,y1:170,x2:456,y2:170,stroke:p.crosshair,strokeWidth:1}),
+        React.createElement('circle',{cx:240,cy:170,r:92,fill:'#6fa8ef',fillOpacity:.55,stroke:'#3f7fd6',strokeWidth:1.5}),
+        React.createElement('circle',{cx:240,cy:170,r:50,fill:'none',stroke:'#3f7fd6',strokeWidth:1.2,strokeOpacity:.7}),
+        React.createElement('circle',{cx:240,cy:170,r:16,fill:'none',stroke:'#3f7fd6',strokeWidth:1.2,strokeOpacity:.7}),
+        React.createElement('rect',{x:140,y:70,width:200,height:200,rx:8,fill:'none',stroke:col,strokeWidth:2,strokeDasharray:'3 5'})
+      ),
+      React.createElement('div',{style:{position:'absolute',left:'30.5%',top:'15%',transform:'translateY(-100%)',display:'flex',gap:'6px'}},
+        React.createElement('span',{style:{background:col,color:'#fff',font:'700 12px ui-monospace,Menlo,monospace',padding:'4px 9px',borderRadius:'7px',whiteSpace:'nowrap'}},'\u00D8 141 mm'),
+        React.createElement('span',{style:{background:col,color:'#fff',font:'700 12px ui-monospace,Menlo,monospace',padding:'4px 9px',borderRadius:'7px'}}, matched ? '100%' : '?')
+      )
+    );
+  }
+  gauge() {
+    const p = this.palette();
+    const L = this.dict();
+    return React.createElement('div',null,
+      React.createElement('div',{style:{position:'relative',height:10,borderRadius:6,background:p.track,border:`1px solid ${p.line}`,overflow:'hidden'}},
+        React.createElement('div',{style:{position:'absolute',left:'27%',width:'46%',top:0,bottom:0,background:p.okWeak,borderLeft:`1px dashed ${p.ok}`,borderRight:`1px dashed ${p.ok}`}}),
+        React.createElement('div',{style:{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',width:14,height:14,borderRadius:'50%',background:p.ok,boxShadow:`0 0 0 3px ${p.okWeak}`}})
+      ),
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginTop:6,font:'600 9.5px ui-monospace,Menlo,monospace',color:p.faint}},
+        React.createElement('span',null,'135'),
+        React.createElement('span',{style:{color:p.ok,fontWeight:700}},'\u2713 '+L.within),
+        React.createElement('span',null,'147')
+      )
+    );
+  }
+  calMini(){
+    const p=this.palette();
+    return React.createElement('svg',{viewBox:'0 0 220 120',preserveAspectRatio:'xMidYMid meet',style:{width:'100%',height:'100%',display:'block'}},
+      React.createElement('rect',{x:0,y:0,width:220,height:120,fill:p.stage}),
+      React.createElement('line',{x1:110,y1:0,x2:110,y2:120,stroke:p.crosshair,strokeWidth:1}),
+      React.createElement('line',{x1:0,y1:60,x2:220,y2:60,stroke:p.crosshair,strokeWidth:1}),
+      React.createElement('circle',{cx:110,cy:60,r:40,fill:'none',stroke:p.accent,strokeWidth:2,strokeDasharray:'4 4'}),
+      React.createElement('line',{x1:70,y1:60,x2:150,y2:60,stroke:p.accent,strokeWidth:1.4}),
+      React.createElement('circle',{cx:70,cy:60,r:2.5,fill:p.accent}),React.createElement('circle',{cx:150,cy:60,r:2.5,fill:p.accent})
+    );
+  }
+  icon(kind,size){
+    const s=size||16,sw=1.7,col='currentColor';
+    const common={width:s,height:s,viewBox:'0 0 20 20',fill:'none',stroke:col,strokeWidth:sw,strokeLinecap:'round',strokeLinejoin:'round'};
+    if(kind==='scan')return React.createElement('svg',common,React.createElement('circle',{cx:9,cy:9,r:5}),React.createElement('line',{x1:12.8,y1:12.8,x2:16.5,y2:16.5}));
+    if(kind==='cam')return React.createElement('svg',common,React.createElement('rect',{x:2.5,y:5.5,width:15,height:10,rx:2}),React.createElement('circle',{cx:10,cy:10.5,r:2.6}),React.createElement('line',{x1:6,y1:5.5,x2:7.2,y2:3.8}));
+    if(kind==='target')return React.createElement('svg',common,React.createElement('circle',{cx:10,cy:10,r:6.5}),React.createElement('circle',{cx:10,cy:10,r:1.4,fill:col}),React.createElement('line',{x1:10,y1:1.5,x2:10,y2:4}),React.createElement('line',{x1:10,y1:16,x2:10,y2:18.5}),React.createElement('line',{x1:1.5,y1:10,x2:4,y2:10}),React.createElement('line',{x1:16,y1:10,x2:18.5,y2:10}));
+    if(kind==='plus')return React.createElement('svg',common,React.createElement('line',{x1:10,y1:4,x2:10,y2:16}),React.createElement('line',{x1:4,y1:10,x2:16,y2:10}));
+    if(kind==='gear')return React.createElement('svg',common,React.createElement('circle',{cx:10,cy:10,r:3}),React.createElement('circle',{cx:10,cy:10,r:6.5,strokeDasharray:'2 2.4'}));
+    return null;
+  }
+  renderVals(){
+    const p=this.palette();
+    const L=this.dict();
+    const ui=this.fontStack();
+    const shell=`--bg:${p.bg};--stage:${p.stage};--panel:${p.panel};--panel2:${p.panel2};--line:${p.line};`
+      +`--text:${p.text};--dim:${p.dim};--faint:${p.faint};--accent:${p.accent};--accentH:${p.accentH};`
+      +`--accentWeak:${p.accentWeak};--ok:${p.ok};--okWeak:${p.okWeak};--warn:${p.warn};--warnWeak:${p.warnWeak};--ui:${ui};`
+      +`width:1180px;height:724px;background:${p.bg};border:1px solid ${p.line};border-radius:14px;overflow:hidden;`
+      +`box-shadow:0 24px 60px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;color:${p.text};font-family:${ui};position:relative`;
+    const dlg=this.effDialog();
+    const fieldWrap=`display:flex;flex-direction:column;gap:5px`;
+    const fieldLbl=`font:600 10px ${ui};letter-spacing:.06em;color:${p.faint};text-transform:uppercase`;
+    const fieldInput=`height:40px;padding:0 12px;background:${p.panel2};border:1px solid ${p.line};border-radius:9px;color:${p.text};font:600 14px ${ui};outline:none`;
+    const fieldRead=`height:40px;display:flex;align-items:center;padding:0 12px;background:${p.track};border:1px solid ${p.line};border-radius:9px;color:${p.dim};font:600 14px ui-monospace,Menlo,monospace`;
+    const ghostBtn=`flex:1;height:46px;border:1px solid ${p.line};background:transparent;color:${p.text};font:600 14px ${ui};border-radius:11px;cursor:pointer`;
+    const primBtn=`flex:1.4;height:46px;border:none;background:${p.accent};color:#fff;font:700 14px ${ui};border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px`;
+    const closeBtn=`width:30px;height:30px;border-radius:8px;border:1px solid ${p.line};background:${p.panel2};color:${p.dim};font:600 16px ${ui};cursor:pointer;display:flex;align-items:center;justify-content:center`;
+    const runners=[
+      {name:'Schüssel 12',dbStr:'DB 128 · Δ 13 mm',confPct:'42%',color:p.warn},
+      {name:'Teller 20',dbStr:'DB 198 · Δ 57 mm',confPct:'11%',color:p.bad}
+    ];
+    const history=[
+      {time:'14:32',name:'Schüssel 14',confStr:'100%',color:p.ok,dotColor:p.ok},
+      {time:'14:31',name:'Schüssel 14',confStr:'98%',color:p.ok,dotColor:p.ok},
+      {time:'14:30',name:'Teller 20',confStr:'71%',color:p.warn,dotColor:p.warn},
+      {time:'14:29',name:L.noMatch,confStr:'—',color:p.faint,dotColor:p.bad},
+      {time:'14:28',name:'Schüssel 12',confStr:'94%',color:p.ok,dotColor:p.ok}
+    ];
+    const railItem=`width:58px;height:58px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:${p.dim};cursor:pointer;border:1px solid transparent`;
+    const railActive=`width:58px;height:58px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:${p.accent};background:${p.accentWeak};border:1px solid ${p.accent};cursor:pointer`;
+    const barBtn=`flex:none;width:120px;border:1px solid ${p.line};border-radius:15px;background:${p.panel2};color:${p.text};font:600 12px ${ui};cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px`;
+    const statusBar=`flex:none;display:flex;align-items:center;gap:9px;padding:8px 18px;background:${p.bg};border-top:1px solid ${p.line};font:500 11.5px ${ui};color:${p.dim}`;
+    return {
+      L, shell, runners, history, railItem, railActive, barBtn, statusBar,
+      stage:this.stage(), gauge:this.gauge(),
+      iconScan:this.icon('scan',18), iconScanLg:this.icon('scan',24), iconCam:this.icon('cam',17),
+      iconTarget:this.icon('target',17), iconPlus:this.icon('plus',17), iconGear:this.icon('gear',18),
+      matched: (this.props.result||'match')!=='nomatch',
+      noMatch: (this.props.result||'match')==='nomatch',
+      candLabel: (this.props.result||'match')==='nomatch' ? L.nearest : L.candidates,
+      showCal: dlg==='calibrate', showTeach: dlg==='teach',
+      openCal:()=>this.setState({dialog:'calibrate'}), openTeach:()=>this.setState({dialog:'teach'}), closeDlg:()=>this.setState({dialog:'none'}),
+      fieldWrap, fieldLbl, fieldInput, fieldRead, ghostBtn, primBtn, closeBtn,
+      calMini:this.calMini()
+    };
+  }
+}
+</script>
+</body>
+</html>

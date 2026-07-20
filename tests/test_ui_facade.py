@@ -279,6 +279,36 @@ def _ambiguous_report(tmp_path):
     return report, p
 
 
+def test_confirm_no_match_setzt_label_auf_no_match(tmp_path):
+    """„Zu Recht abgelehnt" darf NIE als „Artikel X war richtig" im Report
+    landen. Der Report hier hat Kandidaten (Vorfilter lieferte welche, das
+    z-Gate kippte) – genau der Fall, in dem save_verdict(correct=True) das
+    Label auf die Top-1-Vorhersage setzen und das Urteil verdrehen würde.
+    Solche verdrehten Urteile haben am 2026-07-20 die Fehlerattribution der
+    Auswertung verfälscht."""
+    import json
+
+    from docodetect.pipeline import confirm_no_match
+    from docodetect.reporting import NO_MATCH
+
+    report, p = _ambiguous_report(tmp_path)
+    report.decision = "reject"
+    confirm_no_match(report)
+    saved = json.loads(p.read_text(encoding="utf-8"))
+    assert saved["verdict"] == "correct"
+    assert saved["label"] == NO_MATCH
+    assert saved["label"] != "A", "Top-1 faelschlich als Wahrheit vermerkt"
+
+
+def test_confirm_no_match_ohne_gespeicherten_report_meldet_sich(tmp_path):
+    from docodetect.pipeline import confirm_no_match
+
+    report, _ = _ambiguous_report(tmp_path)
+    report.report_path = None
+    with pytest.raises(ValueError, match="captures_dir"):
+        confirm_no_match(report)
+
+
 def test_confirm_result_top1_marks_correct(tmp_path):
     import json
 
