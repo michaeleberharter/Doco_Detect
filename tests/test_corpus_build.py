@@ -115,7 +115,7 @@ def test_mismatching_db_forces_tier1(welt, tmp_path, monkeypatch):
                 ("LOEFFEL-1", json.dumps({"n_shots": 9,
                  "scalar_mean": {"diameter_mm": 111.11}}), 0.0))
     con.commit(); con.close()
-    corpus_build.BUNDLE_QUELLEN["test-session"]["db"] = str(fremd)
+    monkeypatch.setitem(corpus_build.BUNDLE_QUELLEN["test-session"], "db", str(fremd))
     corpus_build.build_corpus(cfg)
     m = Manifest.load()
     assert m.sessions["test-session"]["db_verified"] == 0.0
@@ -150,3 +150,34 @@ def test_build_never_writes_into_the_source_db(welt):
     vorher = db.read_bytes()
     corpus_build.build_corpus(cfg)
     assert db.read_bytes() == vorher
+
+
+def test_removed_source_session_keeps_its_manifest_entry(welt, monkeypatch):
+    """Fehlt der Report-Ordner einer Session in einem spaeteren Lauf (z.B.
+    weil sie archiviert wurde), muessen ihre Session-Metadaten UND ihre
+    Bilder im Manifest erhalten bleiben statt zu verschwinden."""
+    cfg, _, _ = welt
+    corpus_build.build_corpus(cfg)
+    vorher = Manifest.load()
+    alte_session = vorher.sessions["test-session"]
+    alte_bilder = [e for e in vorher.images if e.session == "test-session"]
+    assert alte_session and alte_bilder
+
+    # Naechster Lauf: die Session taucht in SOURCES nicht mehr auf.
+    monkeypatch.setattr(corpus_build, "SOURCES", [])
+    corpus_build.build_corpus(cfg)
+
+    nachher = Manifest.load()
+    assert nachher.sessions["test-session"] == alte_session
+    nachher_bilder = [e for e in nachher.images if e.session == "test-session"]
+    assert {e.sha for e in nachher_bilder} == {e.sha for e in alte_bilder}
+
+
+def test_dry_run_writes_nothing_but_reports_correct_stats(welt):
+    cfg, korpus, _ = welt
+    stat = corpus_build.build_corpus(cfg, dry_run=True)
+    assert stat["neu"] == 2
+    assert stat["gesamt"] == 2
+    assert not korpus.exists()
+    from docodetect.corpus.manifest import MANIFEST_PATH
+    assert not MANIFEST_PATH.exists()

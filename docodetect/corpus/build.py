@@ -12,7 +12,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from ..config import project_root, resolve
+from ..config import project_root
 from ..reporting import load_reports
 from .bundle import (SessionBundle, copy_db_readonly, db_match_ratio,
                      recover_mm_per_px, recover_sigma_floors,
@@ -160,7 +160,10 @@ def build_corpus(cfg: dict, *, dry_run: bool = False) -> dict:
             "n_images": sum(1 for e in eintraege if e.session == session)}
 
     manifest.images = eintraege
-    manifest.sessions = {s: v for s, v in stat["sessions"].items()}
+    # Mergen statt ersetzen: Sessions, deren Report-Ordner in diesem Lauf
+    # fehlt (verschoben/archiviert), behalten ihre Metadaten. Sonst wuerden
+    # ihre Bilder in manifest.images verwaisen -> Bild ohne Session-Eintrag.
+    manifest.sessions = {**manifest.sessions, **stat["sessions"]}
     manifest.generated = datetime.now().isoformat(timespec="seconds")
     stat["gesamt"] = len(eintraege)
     if not dry_run:
