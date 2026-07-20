@@ -37,6 +37,13 @@ def pytest_configure(config):
         "markers",
         f"hardware: braucht eine echte, angeschlossene Kamera – "
         f"übersprungen, solange {HW_ENV}=1 nicht gesetzt ist")
+    config.addinivalue_line(
+        "markers",
+        "corpus: voller Lauf gegen den Regressions-Korpus – "
+        "uebersprungen, solange paths.corpus_dir lokal fehlt")
+    config.addinivalue_line(
+        "markers",
+        "corpus_smoke: festes 20-Bilder-Subset des Korpus fuer den Alltag")
 
 
 def pytest_collection_modifyitems(config, items):
