@@ -1,8 +1,10 @@
 """Drei-Band-Logik: PASS / DRIFT / FAIL je Merkmal."""
 
+import math
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -12,6 +14,7 @@ from docodetect.corpus.compare import (DRIFT, FAIL, PASS, QUANTUM, SOFT, band,
                                        compare_tier1, compare_tier2, worst_band)
 from docodetect.features import Features
 from docodetect.matcher import CandidateReport, MatchReport
+from docodetect.pipeline import _thin_contour
 
 
 def test_identical_values_pass():
@@ -135,11 +138,17 @@ _TIER1_SKALAR_FELDER = ("equiv_diameter_mm", "circle_diameter_mm", "area_mm2",
 _SQUARE_CONTOUR = [[0, 0], [0, 10], [10, 10], [10, 0]]
 
 
-def _square_area_px() -> float:
-    import cv2
-    import numpy as np
-    pts = np.asarray(_SQUARE_CONTOUR, dtype=np.int32).reshape(-1, 1, 2)
-    return float(cv2.contourArea(pts))
+def _feiner_kreis(n: int, radius: float, cx: float = 500.0,
+                  cy: float = 500.0) -> list:
+    """n Punkte auf einem Kreis, wie ihn eine echte Segmentierung liefern
+    wuerde (int32-Bildkoordinaten). n=2000 liegt weit ueber den ~400 Punkten,
+    auf die pipeline._thin_contour ausduennt."""
+    out = []
+    for i in range(n):
+        theta = 2.0 * math.pi * i / n
+        out.append([int(round(cx + radius * math.cos(theta))),
+                   int(round(cy + radius * math.sin(theta)))])
+    return out
 
 
 def _features(**overrides) -> Features:
@@ -222,7 +231,7 @@ def test_tier1_missing_golden_contour_but_replay_has_area_fails():
     hatte -> darf nicht stillschweigend uebersprungen werden."""
     feats = _features()
     golden = _golden_report(feats, contour=None)
-    diffs = compare_tier1(golden, feats, seg_area_px=1234.0)
+    diffs = compare_tier1(golden, feats, seg_contour=_SQUARE_CONTOUR)
     d = next(d for d in diffs if d.field == "seg_area_px")
     assert d.band == FAIL
 
@@ -232,7 +241,7 @@ def test_tier1_golden_has_contour_but_replay_area_missing_fails():
     findet keines mehr."""
     feats = _features()
     golden = _golden_report(feats, contour=_SQUARE_CONTOUR)
-    diffs = compare_tier1(golden, feats, seg_area_px=None)
+    diffs = compare_tier1(golden, feats, seg_contour=None)
     d = next(d for d in diffs if d.field == "seg_area_px")
     assert d.band == FAIL
 
@@ -249,7 +258,7 @@ def test_tier1_missing_golden_centroid_but_replay_has_one_fails():
 def test_tier1_both_sides_without_segmentation_signal_is_no_finding():
     feats = _features()
     golden = _golden_report(feats, contour=None, centroid_px=None)
-    diffs = compare_tier1(golden, feats, seg_area_px=None, centroid=None)
+    diffs = compare_tier1(golden, feats, seg_contour=None, centroid=None)
     fields = {d.field for d in diffs}
     assert "seg_area_px" not in fields
     assert "centroid_x" not in fields
@@ -259,9 +268,50 @@ def test_tier1_both_sides_without_segmentation_signal_is_no_finding():
 def test_tier1_matching_contour_and_centroid_pass():
     feats = _features()
     golden = _golden_report(feats, contour=_SQUARE_CONTOUR, centroid_px=[12.0, 34.0])
-    diffs = compare_tier1(golden, feats, seg_area_px=_square_area_px(),
+    diffs = compare_tier1(golden, feats, seg_contour=_SQUARE_CONTOUR,
                           centroid=[12.0, 34.0])
     seg_diffs = [d for d in diffs
                 if d.field in ("seg_area_px", "centroid_x", "centroid_y")]
     assert len(seg_diffs) == 3
     assert all(d.band == PASS for d in seg_diffs)
+
+
+def test_tier1_thinned_golden_vs_full_replay_contour_passes():
+    """Kernfall des Fixes: Golden traegt die von pipeline._thin_contour
+    ausgeduennte Kontur (so wie sie im Report-JSON steht), der Replay liefert
+    die VOLLE, deutlich mehr als 400 Punkte lange Kontur derselben Form.
+    Vor dem Fix wurde hier contourArea(ausgeduennt) gegen contourArea(voll)
+    verglichen -> Scheinabweichung von ein paar Dutzend Pixeln, faelschlich
+    DRIFT/FAIL. Nach dem Fix duennt compare_tier1 den Replay mit derselben
+    Funktion aus, wodurch beide Seiten exakt gleich behandelt werden."""
+    voller_kreis = _feiner_kreis(n=2000, radius=250.0)
+    assert len(voller_kreis) > 400
+    import numpy as np
+    ausgeduennt = _thin_contour(
+        SimpleNamespace(contour=np.asarray(voller_kreis, dtype=np.int32)))
+    assert len(ausgeduennt) < len(voller_kreis)
+
+    feats = _features()
+    golden = _golden_report(feats, contour=ausgeduennt)
+    diffs = compare_tier1(golden, feats, seg_contour=voller_kreis)
+    d = next(d for d in diffs if d.field == "seg_area_px")
+    assert d.band == PASS
+    assert d.delta == pytest.approx(0.0)
+
+
+def test_tier1_genuinely_different_contour_fails():
+    """Gegenprobe zum vorigen Test: eine ECHT veraenderte Kontur (deutlich
+    kleinerer Radius) muss weiterhin als FAIL erkannt werden — der Fix darf
+    den Vergleich nicht pauschal entschaerfen, sondern nur den
+    Ausduennungsfehler beseitigen."""
+    voller_kreis_golden = _feiner_kreis(n=2000, radius=300.0)
+    import numpy as np
+    ausgeduennt = _thin_contour(
+        SimpleNamespace(contour=np.asarray(voller_kreis_golden, dtype=np.int32)))
+    voller_kreis_replay = _feiner_kreis(n=2000, radius=150.0)
+
+    feats = _features()
+    golden = _golden_report(feats, contour=ausgeduennt)
+    diffs = compare_tier1(golden, feats, seg_contour=voller_kreis_replay)
+    d = next(d for d in diffs if d.field == "seg_area_px")
+    assert d.band == FAIL

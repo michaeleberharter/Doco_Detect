@@ -14,6 +14,9 @@ Triage 'uniforme Drift' von 'Ausreisser' unterscheiden kann.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import SimpleNamespace
+
+from ..pipeline import _thin_contour
 
 PASS = "pass"
 DRIFT = "drift"
@@ -128,9 +131,18 @@ _TIER1_VEKTOREN = ("mean_hsv", "hue_hist", "hu_moments", "lab_center",
                    "lab_rim", "hs_hist_center", "hs_hist_rim")
 
 
-def compare_tier1(golden, measured, seg_area_px: float | None = None,
+def compare_tier1(golden, measured, seg_contour=None,
                   centroid: list | None = None) -> list:
-    """Golden-Report gegen eine frische Messung (Features + Segmentierung)."""
+    """Golden-Report gegen eine frische Messung (Features + Segmentierung).
+
+    `seg_contour` ist die VOLLE Replay-Kontur (SegmentationResult.contour).
+    golden.contour ist dagegen bereits die von pipeline._thin_contour
+    ausgeduennte Fassung, die auch im Report-JSON landet — ein Vergleich
+    voll-gegen-ausgeduennt erzeugt einen reinen Ausduennungsfehler von ein
+    paar Dutzend Pixeln (siehe Modul-Docstring/Aufgabenhistorie). Deshalb
+    wird die Replay-Kontur hier mit DERSELBEN Funktion ausgeduennt, bevor
+    die Flaechen verglichen werden: ausgeduennt gegen ausgeduennt.
+    """
     gm = golden.measured or {}
     out = []
     for f in _TIER1_SKALARE:
@@ -141,13 +153,20 @@ def compare_tier1(golden, measured, seg_area_px: float | None = None,
         d = _vector_diff(f, gm.get(f), getattr(measured, f, None))
         if d is not None:
             out.append(d)
-    golden_area_px = None
-    if golden.contour:
-        import cv2
-        import numpy as np
-        pts = np.asarray(golden.contour, dtype=np.int32).reshape(-1, 1, 2)
-        golden_area_px = float(cv2.contourArea(pts))
-    actual_area_px = float(seg_area_px) if seg_area_px is not None else None
+    import cv2
+    import numpy as np
+
+    def _area_px(points) -> float:
+        pts = np.asarray(points, dtype=np.int32).reshape(-1, 1, 2)
+        return float(cv2.contourArea(pts))
+
+    golden_area_px = _area_px(golden.contour) if golden.contour else None
+    actual_area_px = None
+    if seg_contour is not None:
+        thin = _thin_contour(SimpleNamespace(
+            contour=np.asarray(seg_contour, dtype=np.int32)))
+        if thin:
+            actual_area_px = _area_px(thin)
     d = _scalar_diff("seg_area_px", golden_area_px, actual_area_px)
     if d is not None:
         out.append(d)

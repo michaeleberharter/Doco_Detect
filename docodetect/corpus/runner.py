@@ -241,7 +241,7 @@ def run_one(entry_dict: dict, tier: int, run_id: str) -> dict:
         else:
             try:
                 feats, seg = measure_shot(img, _tier1_cfg(bcfg))
-                diffs = compare_tier1(golden, feats, seg.area_px,
+                diffs = compare_tier1(golden, feats, seg.contour,
                                       _centroid_px(seg))
             except SegmentationError:
                 # measured ist leer <-> die Segmentierung des Goldens brach
