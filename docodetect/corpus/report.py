@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..config import project_root
-from ..reporting import summarize, top_k_accuracy
+from ..reporting import NO_MATCH, judgement, summarize
 from .compare import DRIFT, FAIL
 
 BASELINE_PATH = project_root() / "corpus" / "baseline.json"
@@ -34,10 +34,24 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple:
 
 def tier2_quotas(reports: list) -> dict:
     """Kennzahlen ueber Replay-Reports. Nutzt dieselbe Aggregation wie
-    `analyze`, damit die Zahlen zwischen den Werkzeugen identisch bleiben."""
+    `analyze`, damit die Zahlen zwischen den Werkzeugen identisch bleiben.
+
+    accuracy_top1 rechnet ueber `judgement()`, nicht ueber `top_k_accuracy`:
+    judgement() gibt dem menschlichen Urteil (report.verdict, schliesst das
+    z-Gate ein) Vorrang vor dem reinen Label-Vergleich. Ein Report wie
+    1784562586318.png (Rang-1-Kandidat == Label, aber vom Gate verworfen und
+    darum verdict="wrong") ist in top_k_accuracy ein Treffer, im
+    `analyze`-Befehl aber nicht — ohne diesen Wechsel weichen die
+    Korpus-Zahlen vom bestehenden Werkzeug ab.
+    """
     s = summarize(reports)
-    h1, n1 = top_k_accuracy(reports, 1)
-    h3, n3 = top_k_accuracy(reports, 3)
+    judged = [(r, judgement(r)) for r in reports if judgement(r) is not None]
+    labeled = [r for r in reports if r.label]
+    h1, n1 = sum(1 for _, ok in judged if ok), len(judged)
+    h3 = sum(1 for r in labeled
+             if (r.label in [c.article_number for c in r.candidates[:3]]
+                 or (not r.candidates and r.label == NO_MATCH)))
+    n3 = len(labeled)
     akzeptiert = [r for r in reports if r.decision == "accept"]
     falsch_akzeptiert = sum(
         1 for r in akzeptiert

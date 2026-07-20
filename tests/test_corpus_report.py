@@ -8,7 +8,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from docodetect.corpus.report import (check_against_baseline, classify_drift,
-                                      wilson)
+                                      tier2_quotas, wilson)
+from docodetect.matcher import CandidateReport, MatchReport
+from docodetect.reporting import NO_MATCH
 
 
 def test_wilson_centre_matches_the_point_estimate():
@@ -115,3 +117,60 @@ def test_check_accepts_a_quota_inside_the_baseline_interval():
     code, _ = check_against_baseline(
         _run({"pass": 10}), quotas, baseline, accept_drift=False)
     assert code == 0
+
+
+# ---- tier2_quotas(): accuracy_top1/top3 muessen mit analysis.py uebereinstimmen ----
+
+def _cand(nr):
+    return CandidateReport(article_number=nr, name=nr, nominal_size_mm=200.0,
+                           height_mm=0.0, corrected_diameter_mm=200.0,
+                           geometry_error_mm=0.0, has_references=True, n_shots=2)
+
+
+def _report(decision="accept", label=None, verdict=None, cands=()):
+    return MatchReport(decision=decision, message="", candidates=list(cands),
+                       label=label, verdict=verdict)
+
+
+def test_tier2_quotas_accuracy_top1_respects_a_gate_rejection_over_the_label():
+    """Fall 1784562586318.png: Rang-1-Kandidat == Label, aber das z-Gate hat
+    verworfen (verdict='wrong') -> zaehlt NICHT als Top-1-Treffer, obwohl der
+    Rang stimmt. So bleibt die Zahl identisch mit dem analyze-Befehl, der
+    ueber judgement() (menschliches Urteil vor Label-Vergleich) rechnet."""
+    r = _report(decision="reject", label="LOEFFEL-9", verdict="wrong",
+               cands=[_cand("LOEFFEL-9")])
+    q = tier2_quotas([r])
+    assert q["accuracy_top1"]["k"] == 0
+    assert q["accuracy_top1"]["n"] == 1
+
+
+def test_tier2_quotas_accuracy_top1_counts_a_correct_verdict():
+    r = _report(decision="accept", label="LOEFFEL-9", verdict="correct",
+               cands=[_cand("LOEFFEL-9")])
+    q = tier2_quotas([r])
+    assert q["accuracy_top1"]["k"] == 1
+    assert q["accuracy_top1"]["n"] == 1
+
+
+def test_tier2_quotas_accuracy_top1_falls_back_to_the_label_without_a_verdict():
+    r = _report(decision="accept", label="LOEFFEL-9", verdict=None,
+               cands=[_cand("LOEFFEL-9")])
+    q = tier2_quotas([r])
+    assert q["accuracy_top1"]["k"] == 1
+    assert q["accuracy_top1"]["n"] == 1
+
+
+def test_tier2_quotas_accuracy_top1_ignores_reports_without_verdict_or_label():
+    r = _report(decision="reject", label=None, verdict=None, cands=[])
+    q = tier2_quotas([r])
+    assert q["accuracy_top1"]["k"] == 0
+    assert q["accuracy_top1"]["n"] == 0
+
+
+def test_tier2_quotas_accuracy_top3_counts_a_correctly_rejected_no_match():
+    """Kein Kandidat UND label == NO_MATCH zaehlt als Top-3-Treffer – der
+    Sonderfall aus analysis.py, den top_k_accuracy() nicht kennt."""
+    r = _report(decision="reject", label=NO_MATCH, verdict=None, cands=[])
+    q = tier2_quotas([r])
+    assert q["accuracy_top3"]["k"] == 1
+    assert q["accuracy_top3"]["n"] == 1
