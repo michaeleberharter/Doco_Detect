@@ -28,6 +28,7 @@ from .pipeline_worker import PipelineWorker
 from .state import UiState, compute_state
 from .widgets.action_bar import ActionBar
 from .widgets.common import section_label
+from .widgets.history import HistoryList, entry_from_report
 from .widgets.live_indicator import LiveIndicator
 from .widgets.preview import PreviewWidget
 from .widgets.preview import Detection
@@ -256,11 +257,9 @@ class MainWindow(QMainWindow):
         history_row.addWidget(self.history_clear)
         lay.addLayout(history_row)
 
-        self.history_box = QWidget()
-        self.history_layout = QVBoxLayout(self.history_box)
-        self.history_layout.setContentsMargins(0, 0, 0, 0)
-        self.history_layout.setSpacing(0)
-        lay.addWidget(self.history_box)
+        self.history = HistoryList()
+        lay.addWidget(self.history)
+        self.history_clear.clicked.connect(self.history.clear)
 
         lay.addStretch(1)
         scroll.setWidget(inner)
@@ -283,12 +282,21 @@ class MainWindow(QMainWindow):
         self.tool_rail.triggered.connect(
             lambda key: self._rail_actions[key]())
         self.tool_rail.theme_toggle.connect(self.toggle_theme)
-        # Leertaste = Identifizieren, egal wo der Fokus im Fenster liegt.
-        space = QAction("Identifizieren", self)
-        space.setShortcut(QKeySequence(Qt.Key_Space))
-        space.setShortcutContext(Qt.WindowShortcut)
-        space.triggered.connect(self.identify_now)
-        self.addAction(space)
+        # Tastatur: Leertaste UND Eingabetaste identifizieren, egal wo der
+        # Fokus im Fenster liegt – an der Box wird oft blind bedient.
+        for key in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
+            act = QAction("Identifizieren", self)
+            act.setShortcut(QKeySequence(key))
+            act.setShortcutContext(Qt.WindowShortcut)
+            act.triggered.connect(self.identify_now)
+            self.addAction(act)
+        # 1..9 waehlen bei AMBIGUOUS den Kandidaten dieses Rangs.
+        for i in range(1, 10):
+            act = QAction(f"Kandidat {i}", self)
+            act.setShortcut(QKeySequence(str(i)))
+            act.setShortcutContext(Qt.WindowShortcut)
+            act.triggered.connect(partial(self._choose_candidate_by_rank, i))
+            self.addAction(act)
 
     def _attach_demo_source(self) -> None:
         from .demo_scenes import SCENE_NAMES
@@ -336,7 +344,7 @@ class MainWindow(QMainWindow):
         # Details nur ins Ergebnis-Panel, wenn keine Karte etwas Wichtigeres
         # zeigt – die Vorschau zeigt bereits „Keine Kamera gefunden…“.
         if self.state is UiState.NO_CAMERA and self._last_report is None:
-            self.result_area.setText(message)
+            self._set_guide(message)
 
     def _on_fps_update(self, fps: float) -> None:
         self.status_content.set_camera_text(f"Kamera {fps:.0f} fps")
@@ -381,8 +389,16 @@ class MainWindow(QMainWindow):
         self.live_indicator.set_live(state is not UiState.NO_CAMERA)
         self.preview.set_message(
             _NO_CAMERA_TEXT if state is UiState.NO_CAMERA else None)
+        # Leerzustände in derselben Bildsprache wie die Ergebnisse: Badge und
+        # Kopfzeile sagen, WAS los ist, der Text darunter, was zu tun ist.
+        # Nur solange noch kein Ergebnis dasteht – ein Kameraabriss nach einer
+        # Identifikation soll deren Anzeige nicht wegräumen.
         if state is UiState.NOT_READY:
-            self.result_area.setText(self._setup_guide())
+            self._set_guide(self._setup_guide())
+            if self._last_report is None:
+                self._set_headline("Einrichtung nötig", "ambiguous")
+        elif state is UiState.NO_CAMERA and self._last_report is None:
+            self._set_headline("Keine Kamera", "reject")
 
     def toggle_theme(self) -> None:
         """Zahnrad in der Schiene: dunkel <-> hell, ohne Neustart.
@@ -515,7 +531,7 @@ class MainWindow(QMainWindow):
             self.refresh_status()
             self._set_headline("Kalibrierung aktualisiert.", "accept")
             if self.state is UiState.READY and not self.demo:
-                self.result_area.setText(
+                self._set_guide(
                     "Bereit. Objekt mittig auflegen und „Identifizieren“ "
                     "drücken (Leertaste).")
         self._calibrate_dialog = None
@@ -534,7 +550,7 @@ class MainWindow(QMainWindow):
             self.refresh_status()
             self._set_headline(
                 f"{dlg.saved_count} Referenz(en) gespeichert.", "accept")
-            self.result_area.setText(
+            self._set_guide(
                 "Die neuen Referenzen wirken ab sofort beim Identifizieren.")
 
     # ---------- Job-Ergebnisse ----------
@@ -553,7 +569,7 @@ class MainWindow(QMainWindow):
         elif kind == "seed":
             self.refresh_status()
             self._set_headline("Demo-Artikel eingelernt.", "accept")
-            self.result_area.setText(
+            self._set_guide(
                 f"{result['n']} Demo-Artikel mit je 5 Referenzen angelegt. "
                 "Jetzt z.B. „Teller 18“ wählen und identifizieren "
                 "(Leertaste).")
@@ -567,13 +583,20 @@ class MainWindow(QMainWindow):
         self._set_headline("Aktion fehlgeschlagen.", "reject")
         # Pipeline-Fehlertexte nennen bereits die Abhilfe (z.B. „Marker
         # prüfen“, „weiter zur Mitte legen“) – unverändert anzeigen.
-        self.result_area.setText(message)
+        self._set_guide(message)
 
     # ---------- Ergebnis-Darstellung ----------
 
     def _set_headline(self, text: str, tone: str = "neutral",
                       value: str = "") -> None:
         self.result_header.show_state(tone, text, value)
+
+    def _set_guide(self, text: str) -> None:
+        """Führungstext setzen. Leer heisst AUSBLENDEN: die Karte hat seit
+        Phase 5 einen eigenen Rahmen und stünde sonst als leerer Kasten in
+        der Spalte."""
+        self.result_area.setText(text)
+        self.result_area.setVisible(bool(text))
 
     def _clear_layout(self, layout) -> None:
         while layout.count():
@@ -649,6 +672,7 @@ class MainWindow(QMainWindow):
         {"accept": self._render_accept, "ambiguous": self._render_ambiguous,
          "border": self._render_border}.get(
             tone, self._render_reject)(report, cands)
+        self.history.add(entry_from_report(report, tone))
 
     # ---------- die vier Zustände ----------
 
@@ -658,7 +682,7 @@ class MainWindow(QMainWindow):
         # der Kopfzeile wiederholt, drängt er die Kennzahl an den Rand.
         text, cls = headline(report.decision)
         self._set_headline(text, cls, f"{best.posterior * 100:.0f} %")
-        self.result_area.setText("")
+        self._set_guide("")
         card = ResultCard(best, self.cfg, tone="accept")
         self.cards_layout.addWidget(card)
         # Bewertung sitzt AUF der Karte, tritt zurueck und blockiert nichts –
@@ -672,7 +696,7 @@ class MainWindow(QMainWindow):
         text, cls = headline(report.decision)
         value = f"{cands[0].posterior * 100:.0f} %" if cands else ""
         self._set_headline(text, cls, value)
-        self.result_area.setText("")
+        self._set_guide("")
         card = MessageCard(
             "ambiguous", "Unsicher – bitte wählen",
             subtitle="Kein Kandidat liegt weit genug vorn. Den richtigen "
@@ -689,7 +713,7 @@ class MainWindow(QMainWindow):
         es wurde nichts falsch erkannt, es lässt sich nur nicht messen.
         Ohne Bewertungsleiste: hier gibt es kein Ergebnis zu beurteilen."""
         self._set_headline("Objekt berührt den Bildrand", "border", "–")
-        self.result_area.setText("")
+        self._set_guide("")
         self.cards_layout.addWidget(MessageCard(
             "border", "Neu platzieren",
             subtitle="Objekt weiter zur Mitte legen, dann erneut "
@@ -700,7 +724,7 @@ class MainWindow(QMainWindow):
     def _render_reject(self, report, cands) -> None:
         text, cls = headline(report.decision)
         self._set_headline(text, cls, "?")
-        self.result_area.setText("")
+        self._set_guide("")
         m = report.measured or {}
         d = m.get("circle_diameter_mm")
         card = MessageCard(
@@ -752,6 +776,18 @@ class MainWindow(QMainWindow):
             self.cards_layout.addWidget(bar)
         self._verdict_bar = bar
 
+    def _choose_candidate_by_rank(self, rank: int) -> None:
+        """Zifferntaste bei AMBIGUOUS: Kandidat dieses Rangs bestaetigen.
+        In allen anderen Zustaenden passiert nichts – es gibt dort nichts
+        zu waehlen."""
+        rep = self._last_report
+        if rep is None or self.report_tone(rep) != "ambiguous":
+            return
+        top_k = int(self.cfg["matching"].get("top_k", 3))
+        cands = rep.candidates[:top_k]
+        if 1 <= rank <= len(cands):
+            self._confirm_candidate(cands[rank - 1].article_number)
+
     def _verdict_correct(self) -> None:
         """„Richtig": bei ACCEPT bestätigt es den Sieger, bei REJECT die
         Ablehnung selbst („Objekt ist nicht in der Datenbank") – zwei
@@ -766,7 +802,7 @@ class MainWindow(QMainWindow):
                 confirm_no_match(rep)
         except ValueError as e:
             self._set_headline("Bewertung nicht gespeichert.", "reject")
-            self.result_area.setText(str(e))
+            self._set_guide(str(e))
             return
         if self._verdict_bar is not None:
             self._verdict_bar.acknowledge("Als richtig vermerkt.")
@@ -796,7 +832,7 @@ class MainWindow(QMainWindow):
                                true_article=article_number)
         except ValueError as e:
             self._set_headline("Bestätigung nicht gespeichert.", "reject")
-            self.result_area.setText(str(e))
+            self._set_guide(str(e))
             return
         # Die Karten selbst bleiben neutral (kein zustandsabhängiger Rahmen
         # mehr, Task 4) – die Bestätigung zeigt sich einzig über die
@@ -807,7 +843,7 @@ class MainWindow(QMainWindow):
                 name = c.name
                 break
         self._set_headline(f"Bestätigt: {name}", "accept")
-        self.result_area.setText("Auswahl wurde im Protokoll vermerkt.")
+        self._set_guide("Auswahl wurde im Protokoll vermerkt.")
 
     def _manual_correction(self) -> None:
         """„Keiner davon": Artikel-Picker (oder Unbekannt), Ergebnis geht als
@@ -826,11 +862,11 @@ class MainWindow(QMainWindow):
                                true_article=chosen)
         except ValueError as e:
             self._set_headline("Korrektur nicht gespeichert.", "reject")
-            self.result_area.setText(str(e))
+            self._set_guide(str(e))
             return
         name = chosen or "Unbekannt"
         self._set_headline(f"Korrigiert: {name}", "ambiguous")
-        self.result_area.setText("Auswahl wurde im Protokoll vermerkt.")
+        self._set_guide("Auswahl wurde im Protokoll vermerkt.")
         if self._verdict_bar is not None:
             self._verdict_bar.acknowledge(f"Korrigiert auf {name}.")
 
