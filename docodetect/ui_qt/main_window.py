@@ -13,26 +13,31 @@ from __future__ import annotations
 
 from functools import partial
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QHBoxLayout,
-                               QLabel, QMainWindow, QPushButton, QVBoxLayout,
-                               QWidget)
+                               QLabel, QMainWindow, QPushButton, QScrollArea,
+                               QVBoxLayout, QWidget)
 
 from docodetect.pipeline import (confirm_result, format_measured,
                                  format_rank_line, get_status, headline,
                                  list_articles, reject_result)
 
-from .app import ui_cfg
+from .app import apply_theme, current_theme, ui_cfg
 from .pipeline_worker import PipelineWorker
 from .state import UiState, compute_state
+from .widgets.action_bar import ActionBar
+from .widgets.common import section_label
+from .widgets.live_indicator import LiveIndicator
 from .widgets.preview import PreviewWidget
 from .widgets.result_card import ResultCard
 from .widgets.status_bar import StatusBarContent
+from .widgets.tool_rail import ToolRail
 
-# Feste Breite des Aktions-Panels: die Vorschau soll den restlichen Platz
-# füllen; 360 px reichen für ResultCards mit Messwert-Zeile.
-_PANEL_WIDTH = 360
+# Feste Breite der Ergebnisspalte (Entwurf: 372 px) – die Vorschau bekommt
+# den Rest. Der Wert ist bewusst fix: die Karte soll beim Fensterziehen
+# nicht atmen, das Bild schon.
+_PANEL_WIDTH = 372
 
 _NO_CAMERA_TEXT = "Keine Kamera gefunden –\nVerbindung wird gesucht…"
 _BORDER_WARNING = "Objekt berührt den Bildrand – weiter zur Mitte legen."
@@ -114,12 +119,29 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(self.ui["window_min_width"],
                             self.ui["window_min_height"])
 
+        # Aufbau wie im Entwurf: Icon-Schiene | Live-Bild | Ergebnisspalte,
+        # darunter über die volle Breite die Aktionsleiste.
         central = QWidget()
-        root = QHBoxLayout(central)
-        root.setContentsMargins(12, 12, 12, 12)
-        root.setSpacing(12)
-        root.addWidget(self._build_preview_area(), stretch=1)
-        root.addWidget(self._build_action_panel())
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        body = QWidget()
+        body_lay = QHBoxLayout(body)
+        body_lay.setContentsMargins(0, 0, 0, 0)
+        body_lay.setSpacing(0)
+        self.tool_rail = ToolRail()
+        body_lay.addWidget(self.tool_rail)
+        body_lay.addWidget(self._build_preview_area(), stretch=1)
+        body_lay.addWidget(self._build_action_panel())
+        root.addWidget(body, stretch=1)
+
+        self.action_bar = ActionBar()
+        self.identify_button = self.action_bar.identify_button
+        self.background_button = self.action_bar.background_button
+        self.calibrate_button = self.action_bar.calibrate_button
+        self.enroll_button = self.action_bar.enroll_button
+        root.addWidget(self.action_bar)
         self.setCentralWidget(central)
 
         self.status_content = StatusBarContent()
@@ -136,42 +158,62 @@ class MainWindow(QMainWindow):
 
     def _build_preview_area(self) -> QWidget:
         wrap = QWidget()
+        wrap.setObjectName("previewArea")
         lay = QVBoxLayout(wrap)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(6)
+        lay.setSpacing(0)
 
-        # Schmale Demo-Leiste (nur --demo): Szenen umschalten ohne Hardware.
+        # Schmale Leiste über dem Bild. Rechts die Live-Anzeige des Entwurfs
+        # (immer da), links die Demo-Szenenwahl – die ist ein reines
+        # Entwicklerwerkzeug und NUR im --demo-Modus sichtbar (`demo_bar`),
+        # kein Produktfeature.
+        toolbar = QWidget()
+        toolbar.setObjectName("previewToolbar")
+        bar = QHBoxLayout(toolbar)
+        bar.setContentsMargins(16, 10, 16, 10)
+        bar.setSpacing(10)
+
         self.demo_bar = QWidget()
-        bar = QHBoxLayout(self.demo_bar)
-        bar.setContentsMargins(0, 0, 0, 0)
-        bar.addWidget(QLabel("Demo-Bild:"))
+        demo_lay = QHBoxLayout(self.demo_bar)
+        demo_lay.setContentsMargins(0, 0, 0, 0)
+        demo_lay.setSpacing(10)
+        demo_label = QLabel("Demo-Bild")
+        demo_label.setObjectName("toolbarLabel")
+        demo_lay.addWidget(demo_label)
         self.demo_scene_box = QComboBox()
-        bar.addWidget(self.demo_scene_box, stretch=1)
+        self.demo_scene_box.setMinimumWidth(190)
+        demo_lay.addWidget(self.demo_scene_box)
         self.demo_bar.setVisible(False)
-        lay.addWidget(self.demo_bar)
+        bar.addWidget(self.demo_bar)
+
+        bar.addStretch(1)
+        self.live_indicator = LiveIndicator()
+        bar.addWidget(self.live_indicator)
+        lay.addWidget(toolbar)
 
         self.preview = PreviewWidget()
         lay.addWidget(self.preview, stretch=1)
         return wrap
 
     def _build_action_panel(self) -> QWidget:
+        """Ergebnisspalte: Kopfzeile, Ergebnisbereich, Kandidaten, Verlauf.
+
+        Der Inhalt scrollt, der Rahmen nicht – bei drei Kandidaten plus
+        Verlauf reicht die Fensterhöhe sonst nicht."""
         panel = QWidget()
+        panel.setObjectName("resultColumn")
         panel.setFixedWidth(_PANEL_WIDTH)
-        lay = QVBoxLayout(panel)
-        lay.setContentsMargins(0, 0, 0, 0)
+        outer = QVBoxLayout(panel)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        inner = QWidget()
+        lay = QVBoxLayout(inner)
+        lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(8)
-
-        title = QLabel("DOCO DETECT")
-        title.setObjectName("appTitle")
-        lay.addWidget(title)
-
-        self.identify_button = QPushButton("Identifizieren")
-        self.identify_button.setObjectName("primaryButton")
-        lay.addWidget(self.identify_button)
-
-        result_header = QLabel("Ergebnis")
-        result_header.setObjectName("sectionLabel")
-        lay.addWidget(result_header)
 
         self.result_headline = QLabel("")
         self.result_headline.setObjectName("resultHeadline")
@@ -189,15 +231,37 @@ class MainWindow(QMainWindow):
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(8)
         lay.addWidget(self.cards_box)
-        lay.addStretch(1)
 
-        self.background_button = QPushButton("Hintergrund aufnehmen")
-        self.calibrate_button = QPushButton("Kalibrieren")
-        self.enroll_button = QPushButton("Artikel einlernen…")
-        for b in (self.background_button, self.calibrate_button,
-                  self.enroll_button):
-            b.setObjectName("secondaryButton")
-            lay.addWidget(b)
+        # Platzhalter der Phase 2: Kandidaten und Verlauf bekommen ihren
+        # Inhalt in Phase 3 bzw. 5, die Abschnitte stehen aber schon.
+        self.candidates_label = section_label("Weitere Kandidaten")
+        lay.addWidget(self.candidates_label)
+        self.candidates_box = QWidget()
+        self.candidates_layout = QVBoxLayout(self.candidates_box)
+        self.candidates_layout.setContentsMargins(0, 0, 0, 0)
+        self.candidates_layout.setSpacing(7)
+        lay.addWidget(self.candidates_box)
+
+        history_row = QHBoxLayout()
+        history_row.setContentsMargins(0, 0, 0, 0)
+        self.history_label = section_label("Verlauf")
+        history_row.addWidget(self.history_label)
+        history_row.addStretch(1)
+        self.history_clear = QPushButton("Leeren")
+        self.history_clear.setObjectName("linkButton")
+        self.history_clear.setCursor(Qt.PointingHandCursor)
+        history_row.addWidget(self.history_clear)
+        lay.addLayout(history_row)
+
+        self.history_box = QWidget()
+        self.history_layout = QVBoxLayout(self.history_box)
+        self.history_layout.setContentsMargins(0, 0, 0, 0)
+        self.history_layout.setSpacing(0)
+        lay.addWidget(self.history_box)
+
+        lay.addStretch(1)
+        scroll.setWidget(inner)
+        outer.addWidget(scroll)
         return panel
 
     def _wire_actions(self) -> None:
@@ -207,6 +271,16 @@ class MainWindow(QMainWindow):
         self.calibrate_button.clicked.connect(
             partial(self._start_capture_action, "calibrate"))
         self.enroll_button.clicked.connect(self._open_enroll_dialog)
+        # Icon-Schiene löst dieselben Aktionen aus wie die untere Leiste.
+        self._rail_actions = {
+            "identify": self.identify_now,
+            "background": partial(self._start_capture_action, "background"),
+            "calibrate": partial(self._start_capture_action, "calibrate"),
+            "enroll": self._open_enroll_dialog,
+        }
+        self.tool_rail.triggered.connect(
+            lambda key: self._rail_actions[key]())
+        self.tool_rail.theme_toggle.connect(self.toggle_theme)
         # Leertaste = Identifizieren, egal wo der Fokus im Fenster liegt.
         space = QAction("Identifizieren", self)
         space.setShortcut(QKeySequence(Qt.Key_Space))
@@ -298,10 +372,46 @@ class MainWindow(QMainWindow):
         self.enroll_button.setToolTip(
             "" if state is UiState.READY
             else "Einlernen braucht Kamera + Kalibrierung.")
+        # Die Schiene spiegelt exakt dieselbe Freigabe wie die untere Leiste.
+        self.tool_rail.set_enabled_actions(
+            identify=state is UiState.READY, background=setup_ok,
+            calibrate=setup_ok, enroll=state is UiState.READY)
+        self.live_indicator.set_live(state is not UiState.NO_CAMERA)
         self.preview.set_message(
             _NO_CAMERA_TEXT if state is UiState.NO_CAMERA else None)
         if state is UiState.NOT_READY:
             self.result_area.setText(self._setup_guide())
+
+    def toggle_theme(self) -> None:
+        """Zahnrad in der Schiene: dunkel <-> hell, ohne Neustart.
+
+        Der Wert wird bewusst NICHT in die config zurückgeschrieben – das
+        Erscheinungsbild der Fotobox gehört in config.local.yaml und wird
+        dort gesetzt, nicht von der laufenden App überschrieben."""
+        app = QApplication.instance()
+        new = "light" if current_theme().is_dark else "dark"
+        apply_theme(app, new)
+        self.retheme()
+
+    def retheme(self) -> None:
+        """Alles neu einfärben, was Qt nicht per Stylesheet erreicht:
+        selbst gezeichnete Icons, Punkte und Flächen."""
+        self.tool_rail.retheme()
+        self.action_bar.retheme()
+        self.live_indicator.retheme()
+        self.preview.update()
+
+    def changeEvent(self, event) -> None:        # noqa: N802 (Qt-API)
+        """Auf einen Themewechsel reagieren, egal wer ihn ausgelöst hat.
+
+        `apply_theme()` setzt Palette und Stylesheet – die gezeichneten Icons
+        erreicht es nicht. Statt jeden Aufrufer daran zu erinnern, `retheme()`
+        nachzuschieben, hängen wir uns an das Ereignis, das Qt dabei ohnehin
+        verschickt. Ohne das blieben die Icons in der Farbe des alten Themes
+        stehen und wären im hellen Theme praktisch unsichtbar."""
+        super().changeEvent(event)
+        if event.type() == QEvent.PaletteChange:
+            self.retheme()
 
     def _setup_guide(self) -> str:
         """Empty State als Handlungsanleitung: erledigte Schritte markiert."""

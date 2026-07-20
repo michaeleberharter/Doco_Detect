@@ -26,14 +26,113 @@ QMainWindow, QDialog, QWidget {
     font-size: 12px;
 }
 
-/* ---------- rechtes Panel ---------- */
+/* Labels malen NIE ihren eigenen Hintergrund: die Regel oben trifft jedes
+   QWidget, und Labels stecken auch in Buttons und auf farbigen Karten – ein
+   $bg-Kasten hinter jeder Beschriftung waere die Folge. Wer einen
+   Hintergrund braucht (Tasten-Chip), setzt ihn selbst. */
+QLabel { background: transparent; }
 
-#appTitle {
-    font-size: 16px;
-    font-weight: 700;
-    color: $text;
-    padding: 4px 0 12px 0;
+/* ---------- Grundgeruest: Schiene | Bild | Ergebnisspalte ---------- */
+
+#toolRail {
+    background: $bg;
+    border-right: 1px solid $line;
 }
+
+/* Schienen-Button 58x58 (Entwurf): Icon ueber kleinem Label. Der aktive
+   Bereich ("Scan") ist der einzige eingerastete Zustand. */
+#railButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    color: $dim;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 0;
+}
+#railButton:hover    { background: $panel2; color: $text; }
+#railButton:checked  { background: $accentWeak; border-color: $accent;
+                       color: $accent; }
+#railButton:disabled { color: $faint; background: transparent; }
+
+#previewToolbar {
+    background: $bg;
+    border-bottom: 1px solid $line;
+}
+#toolbarLabel { font-size: 11px; font-weight: 600; color: $dim; }
+
+/* „Live"-Anzeige rechts in der Bildleiste; der Punkt wird gezeichnet. */
+#liveLabel             { font-size: 11px; font-weight: 600; color: $ok; }
+#liveLabel[live="no"]  { color: $faint; }
+
+#resultColumn {
+    background: $bg;
+    border-left: 1px solid $line;
+}
+
+/* Textlink-Optik („Leeren" im Verlaufskopf). */
+#linkButton {
+    background: transparent;
+    border: none;
+    color: $accent;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 2px;
+    min-height: 0;
+}
+#linkButton:hover { color: $accentH; text-decoration: underline; }
+
+/* ---------- untere Aktionsleiste ---------- */
+
+#actionBar {
+    background: $bg;
+    border-top: 1px solid $line;
+}
+
+/* Leisten-Buttons: KEIN padding hier – die Innenabstaende macht das
+   Layout in action_bar.py, sonst passt die zweite Textzeile nicht in
+   die 72 px des Entwurfs. */
+#barPrimary {
+    background: $accent;
+    border: none;
+    border-radius: 15px;
+    padding: 0;
+}
+#barPrimary:hover    { background: $accentH; }
+#barPrimary:pressed  { background: $accentH; }
+#barPrimary:disabled { background: $panel2; }
+
+#barButton {
+    background: $panel2;
+    border: 1px solid $line;
+    border-radius: 14px;
+    padding: 0;
+}
+#barButton:hover    { background: $panel; border-color: $accent; }
+#barButton:pressed  { background: $track; }
+#barButton:disabled { background: $bg; border-color: $line; }
+#primaryTitle { font-size: 20px; font-weight: 700; color: #ffffff; }
+#primarySub   { font-size: 11px; font-weight: 600;
+                color: rgba(255, 255, 255, 0.85); }
+#primaryKbd {
+    font-family: "$fontMono";
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 7px;
+    padding: 5px 9px;
+}
+#secondaryLabel { font-size: 12px; font-weight: 600; color: $text;
+                  background: transparent; }
+
+/* Gesperrte Buttons: Qt vererbt den Zustand nicht an Kindlabels, deshalb
+   setzt action_bar.py die Eigenschaft `off` (siehe _mark_disabled). */
+#primaryTitle[off="yes"], #primarySub[off="yes"] { color: $faint; }
+#primaryKbd[off="yes"]   { color: $faint; background: transparent; }
+#secondaryLabel[off="yes"] { color: $faint; }
+
+/* ---------- Ergebnisspalte ---------- */
 
 /* Abschnittslabel ("ERGEBNIS", "WEITERE KANDIDATEN", "VERLAUF"):
    klein, ruhig, gross geschrieben – die Sperrung setzt der Code. */
@@ -44,33 +143,37 @@ QMainWindow, QDialog, QWidget {
     padding-top: 8px;
 }
 
-/* Primaeraktion „Identifizieren": grosse Flaeche, Touch-tauglich. */
+/* Buttons in DIALOGEN (Einlern-Assistent, spaeter Kalibrier-Dialog).
+   Bewusst getrennt von den Leisten-Buttons unten: die tragen Icon plus
+   mehrzeilige Beschriftung in einem eigenen Layout und vertragen kein
+   zusaetzliches QSS-padding – das addiert sich zur Layouthoehe und
+   schneidet die zweite Textzeile ab. */
 #primaryButton {
     background: $accent;
     color: #ffffff;
-    font-size: 20px;
+    font-size: 13px;
     font-weight: 700;
     border: none;
-    border-radius: 15px;
-    min-height: 72px;
+    border-radius: 9px;
+    min-height: 40px;
+    padding: 6px 14px;
 }
-#primaryButton:hover   { background: $accentH; }
-#primaryButton:pressed { background: $accentH; }
+#primaryButton:hover    { background: $accentH; }
+#primaryButton:pressed  { background: $accentH; }
 #primaryButton:disabled { background: $panel2; color: $faint; }
 
-/* Sekundaeraktionen (Hintergrund, Kalibrieren, Einlernen). */
 #secondaryButton {
     background: $panel2;
     color: $text;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     border: 1px solid $line;
-    border-radius: 14px;
-    min-height: 44px;
-    padding: 6px 12px;
+    border-radius: 9px;
+    min-height: 40px;
+    padding: 6px 14px;
 }
-#secondaryButton:hover   { background: $panel; border-color: $accent; }
-#secondaryButton:pressed { background: $track; }
+#secondaryButton:hover    { background: $panel; border-color: $accent; }
+#secondaryButton:pressed  { background: $track; }
 #secondaryButton:disabled { color: $faint; border-color: $line; background: $bg; }
 
 /* ---------- Vorschau ---------- */
