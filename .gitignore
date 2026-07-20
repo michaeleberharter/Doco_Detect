@@ -24,3 +24,6 @@ models/
 
 # Sicherungen vor Umbauten (DB, Referenzfotos, Captures) – nie versionieren
 backups/
+
+# Korpus-Laufartefakte (der Korpus selbst liegt ausserhalb des Repos)
+corpus/runs/
