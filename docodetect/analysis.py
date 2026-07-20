@@ -283,16 +283,71 @@ def _analysis_near_miss(reports: list, out: Path, run_id: str, cfg: dict) -> _Se
 
 # ---------- D) Teilscore-Attribution bei Fehlern ----------
 
+def attribution_case(report: MatchReport) -> tuple[str, object, object]:
+    """Warum ist ein als falsch bewerteter Report (nicht) attribuierbar?
+
+    -> (Fall, Top-1-Kandidat, Kandidat des wahren Artikels)
+
+    Die vier Nicht-Attribuierbar-Fälle haben GRUNDVERSCHIEDENE Ursachen und
+    dürfen nicht in einen Topf – insbesondere ist `top1_korrekt` gar keine
+    Fehlidentifikation: der richtige Artikel gewann, nur die Entscheidung war
+    reject/ambiguous (bei 1-Shot-Referenzen der Normalfall, weil sigma_enroll
+    = 0 das max|z|-Gate sprengt). Diese Fälle als 'Vorfilter-Kill' zu melden
+    war der Bug hinter dem Widerspruch '13 Kills bei 59/60 Top-3'.
+    """
+    top = _top1(report)
+    if top is None:
+        return "keine_kandidaten", None, None
+    right = next((c for c in report.candidates
+                  if c.article_number == report.label), None)
+    if right is None:
+        return "vorfilter_kill", top, None
+    if right is top:
+        return "top1_korrekt", top, right
+    if not top.features or not right.features:
+        return "keine_merkmalsscores", top, right
+    return "attribuierbar", top, right
+
+
+# Fall -> ehrliche Meldung im report.md (keine Sammelkategorie mehr)
+_ATTRIB_NOTES = {
+    "vorfilter_kill":
+        "der richtige Artikel hat den Geometrie-Vorfilter nicht überlebt "
+        "(Toleranz bzw. Stammdaten prüfen – siehe `sync-stammdaten`)",
+    "top1_korrekt":
+        "der richtige Artikel stand auf Platz 1, die Entscheidung lautete aber "
+        "reject/ambiguous – KEINE Fehlidentifikation, sondern eine Gate-/"
+        "Margin-Frage; eine Teilscore-Attribution ist hier nicht anwendbar",
+    "keine_kandidaten":
+        "kein einziger Kandidat im Report (Segmentierung abgelehnt oder "
+        "Vorfilter leer) – Attribution nicht berechenbar",
+    "keine_merkmalsscores":
+        "Attribution nicht berechenbar: dem Report fehlen die Merkmals-Scores "
+        "(alte Report-Version)",
+}
+
+
 def _analysis_attribution(reports: list, out: Path, run_id: str, cfg: dict) -> _Section:
     sec = _Section("D) Teilscore-Attribution bei Fehlern")
     errors = [r for r in reports
               if judgement(r) is False and r.label and r.label != NO_MATCH]
-    rows, missing = [], 0
+    rows: list = []
+    cases: Counter = Counter()
+    unattributed: list = []
     for r in errors:
-        wrong = _top1(r)
-        right = next((c for c in r.candidates if c.article_number == r.label), None)
-        if wrong is None or right is None or wrong is right:
-            missing += 1  # richtiger Artikel gar nicht im Kandidatenset (Vorfilter)
+        case, wrong, right = attribution_case(r)
+        cases[case] += 1
+        if case != "attribuierbar":
+            rang = next((i + 1 for i, c in enumerate(r.candidates)
+                         if c.article_number == r.label), None)
+            unattributed.append([
+                case, r.timestamp, r.label,
+                wrong.article_number if wrong else "", r.decision,
+                len(r.candidates), rang if rang is not None else "",
+                (r.measured or {}).get("circle_diameter_mm", ""),
+                wrong.corrected_diameter_mm if wrong else "",
+                wrong.nominal_size_mm if wrong else "",
+                r.image_path or ""])
             continue
         chw, chr_ = channel_scores(wrong), channel_scores(right)
         diffs = {ch: round(chw[ch] - chr_[ch], 4) for ch in CHANNELS}
@@ -307,10 +362,20 @@ def _analysis_attribution(reports: list, out: Path, run_id: str, cfg: dict) -> _
     _write_csv(out / "error_attribution.csv", rows=rows,
                header=header + ["verursacher"])
     sec.artifacts.append(out / "error_attribution.csv")
-    if missing:
-        sec.notes.append(f"{missing} Fehler ohne Attribution: der richtige "
-                         "Artikel hat den Geometrie-Vorfilter nicht überlebt "
-                         "(dort hilft nur Toleranz/Stammdaten prüfen).")
+
+    sec.notes.append(f"{len(errors)} als falsch bewertete Identifikationen, "
+                     f"davon {len(rows)} attribuierbar.")
+    for case, note in _ATTRIB_NOTES.items():
+        if cases.get(case):
+            sec.notes.append(f"{cases[case]}× {note}.")
+    if unattributed:
+        _write_csv(out / "error_attribution_unattributed.csv",
+                   ["fall", "timestamp", "wahr", "top1", "entscheidung",
+                    "n_kandidaten", "rang_wahr", "gemessen_kreis_mm",
+                    "top1_korrigiert_mm", "top1_nominal_mm", "bilddatei"],
+                   sorted(unattributed))
+        sec.artifacts.append(out / "error_attribution_unattributed.csv")
+
     if not rows:
         sec.notes.append("Keine attribuierbaren Fehlidentifikationen – gut so.")
         return sec
