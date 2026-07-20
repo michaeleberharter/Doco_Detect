@@ -19,6 +19,8 @@ from .database import Article, Database
 from .features import (Features, describe_color_hsv, extract,
                        height_corrected_scale, min_area_rect_mm)
 from .matcher import DECISION_REJECT, MatchReport, match
+from .display import (channel_percentages, format_delta, format_diameter,  # noqa: F401
+                      format_rank_line, headline)  # Re-Export: UIs importieren Anzeige-Helfer NUR über pipeline
 from .segmentation import SegmentationError, SegmentationResult, segment
 
 
