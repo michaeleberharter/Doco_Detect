@@ -2737,7 +2737,7 @@ def triage_run(cfg: dict, root: Path, run_id: str) -> Path:
 - [ ] **Step 4: Tests laufen lassen, grün bestätigen**
 
 Run: `.venv/bin/python -m pytest tests/test_corpus_triage.py -q`
-Expected: PASS, 9 passed
+Expected: PASS, 10 passed
 
 - [ ] **Step 5: Commit**
 
