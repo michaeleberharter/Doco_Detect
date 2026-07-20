@@ -207,7 +207,7 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     win.identify_now()
     assert _wait_until(qapp, lambda: not win._busy)
     assert win._last_report.decision == "accept"
-    assert win.result_headline.text() == "Erkannt: Teller flach 18"
+    assert win.result_headline.text() == "✓ Automatisch übernommen: Teller flach 18"
     best = win._last_report.candidates[0]
     assert best.article_number == "DEMO-T18"
     assert abs(best.corrected_diameter_mm - 180.0) < 4.0

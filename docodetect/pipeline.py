@@ -150,6 +150,16 @@ def confirm_result(report: MatchReport, article_number: str):
                         true_article=article_number)
 
 
+def reject_result(report: MatchReport, true_article: str | None = None):
+    """Manuelle Korrektur „Keiner davon" (Button bei AMBIGUOUS/REJECT):
+    verdict=wrong, unabhängig von der Top-1-Vorhersage – der wahre Artikel
+    (oder None = weiterhin unbekannt) fließt als Label ins Report-JSON, Futter
+    für die Verwechslungsmatrix der Batch-Auswertung. Dünne Fassade wie
+    confirm_result, damit UIs reporting.py nie direkt importieren müssen."""
+    from .reporting import save_verdict
+    return save_verdict(report, correct=False, true_article=true_article)
+
+
 def render_report_overlay(image: np.ndarray, report: MatchReport) -> np.ndarray:
     """Annotiertes Ergebnisbild: Kontur (rot bei Randberührung, sonst grün)
     plus Ø-Maßlinie mit mm-Beschriftung. Arbeitet nur mit dem MatchReport

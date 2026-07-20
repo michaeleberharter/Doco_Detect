@@ -5,8 +5,8 @@ Alle Pipeline-Aktionen laufen im PipelineWorker (nie im GUI-Thread) und
 erhalten das Bild als Argument vom jeweiligen Frame-Lieferanten (DemoSource
 bzw. CameraWorker) – die UI besitzt keine Kamera und rechnet nie selbst.
 
-Interface-Sprache: ein Begriff pro Aktion („Identifizieren“ → „Erkannt“),
-Fehlertexte nennen immer die Abhilfe.
+Interface-Sprache: ein Begriff pro Aktion („Identifizieren“ →
+„Automatisch übernommen“), Fehlertexte nennen immer die Abhilfe.
 """
 
 from __future__ import annotations
@@ -15,10 +15,12 @@ from functools import partial
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import (QApplication, QComboBox, QHBoxLayout, QLabel,
-                               QMainWindow, QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QHBoxLayout,
+                               QLabel, QMainWindow, QPushButton, QVBoxLayout,
+                               QWidget)
 
-from docodetect.pipeline import confirm_result, get_status
+from docodetect.pipeline import (confirm_result, format_rank_line, get_status,
+                                 headline, list_articles, reject_result)
 
 from .app import ui_cfg
 from .pipeline_worker import PipelineWorker
@@ -119,6 +121,9 @@ class MainWindow(QMainWindow):
         self._worker: PipelineWorker | None = None
         self._seed_attempted = False
         self._last_report = None
+        self._rank_lines: list = []          # QLabel je Rang 2/3 (accept)
+        self._none_button = None             # „Keiner davon" (ambiguous)
+        self._diagnose_label = None          # Rohmesswert-Diagnose (reject)
         self.state: UiState | None = None
         self.setWindowTitle("Doco Detect" + (" – Demo" if demo else ""))
         self.setMinimumSize(self.ui["window_min_width"],
@@ -428,7 +433,7 @@ class MainWindow(QMainWindow):
                 "(Leertaste).")
         elif kind == "identify":
             self.update_state()
-            self._show_report(result)
+            self._show_report(result["outcome"].report, result["annotated"])
 
     def _on_job_failed(self, message: str) -> None:
         self._job_finished()
@@ -451,14 +456,19 @@ class MainWindow(QMainWindow):
             item = self.cards_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+        self._rank_lines = []
+        self._none_button = None
+        self._diagnose_label = None
 
-    def _show_report(self, result: dict) -> None:
-        outcome = result["outcome"]
-        report = outcome.report
+    def _show_report(self, report, annotated=None) -> None:
+        """Rendert einen MatchReport gemäß Entscheidung (accept/ambiguous/
+        reject). `annotated` ist das optionale Overlay-Bild aus dem
+        Identifizieren-Job (None in Tests, die _show_report direkt mit einem
+        gebauten Report aufrufen)."""
         self._last_report = report
         self._clear_cards()
-        self.preview.set_overlay(result["annotated"],
-                                 self.ui["result_overlay_secs"])
+        if annotated is not None:
+            self.preview.set_overlay(annotated, self.ui["result_overlay_secs"])
         touches = bool(report.touches_border)
         self.preview.set_warning(_BORDER_WARNING if touches else None)
 
@@ -467,20 +477,30 @@ class MainWindow(QMainWindow):
 
         if report.decision == "accept":
             best = cands[0]
-            self._set_headline(f"Erkannt: {best.name}", "accept")
+            text, cls = headline(report.decision, best.name)
+            self._set_headline(text, cls)
             self.result_area.setText("")
-            for c in cands:
-                self.cards_layout.addWidget(ResultCard(c, self.cfg))
+            self.cards_layout.addWidget(ResultCard(best, self.cfg))
+            # Plätze 2-3 kompakt als Rang-Zeile statt volle Karte.
+            for rank, c in enumerate(cands[1:], start=2):
+                lbl = QLabel(format_rank_line(c, rank))
+                lbl.setObjectName("rankLine")
+                self.cards_layout.addWidget(lbl)
+                self._rank_lines.append(lbl)
             if self.ui["confirm_sound"]:
                 QApplication.beep()
         elif report.decision == "ambiguous":
-            self._set_headline("Bitte bestätigen:", "confirm")
+            text, cls = headline(report.decision)
+            self._set_headline(text, cls)
             self.result_area.setText(
                 "Karte anklicken, um den richtigen Artikel zu bestätigen.")
             for c in cands:
                 card = ResultCard(c, self.cfg, clickable=True)
                 card.clicked.connect(self._confirm_candidate)
                 self.cards_layout.addWidget(card)
+            self._none_button = QPushButton("Keiner davon / manuell korrigieren")
+            self._none_button.clicked.connect(self._manual_correction)
+            self.cards_layout.addWidget(self._none_button)
         elif touches:
             self._set_headline("Objekt berührt den Bildrand.", "reject")
             self.result_area.setText(
@@ -488,26 +508,58 @@ class MainWindow(QMainWindow):
                 "drücken. Passt das Objekt nicht vollständig ins Bild, kann "
                 "es nicht gemessen werden (siehe README, FOV).")
         else:
-            self._set_headline("Kein Artikel passt.", "reject")
+            text, cls = headline(report.decision)
+            self._set_headline(text, cls)
             self.result_area.setText(
                 "Prüfen: Objekt richtig gelegt? Artikel eingelernt? "
                 "Mit „Artikel einlernen…“ unten lässt sich der Artikel "
                 "jetzt anlegen.\n\nDetails: " + report.message)
+            # NO_MATCH-Diagnose: die Rohmesswerte zeigen, WAS gemessen wurde,
+            # auch wenn kein Artikel passt (kein Kandidat, also kein Ø-Wert
+            # aus format_diameter verfügbar).
+            m = report.measured or {}
+            if m:
+                diag = QLabel(
+                    "Gemessen: Ø {} mm (Bodenebene) · Rundheit {} · "
+                    "Fläche {} cm²".format(
+                        f"{m.get('circle_diameter_mm', 0):.1f}".replace(".", ","),
+                        f"{m.get('circularity', 0):.2f}".replace(".", ","),
+                        f"{m.get('area_mm2', 0) / 100:.0f}"))
+                diag.setObjectName("diagnoseLine")
+                diag.setWordWrap(True)
+                self.cards_layout.addWidget(diag)
+                self._diagnose_label = diag
+
+    def _save_verdict(self, report, correct: bool,
+                      true_article: str | None = None) -> None:
+        """Gemeinsamer Speicherweg für Kartenklick (AMBIGUOUS-Bestätigung)
+        UND „Keiner davon"-Korrektur – eine Stelle, die über die
+        pipeline-Fassade ins Report-JSON schreibt (nie reporting.py direkt,
+        UI-Regel). `correct` entscheidet nur, welche Fassadenfunktion den
+        Verdict setzt; beide landen im selben Report."""
+        if correct:
+            confirm_result(report, true_article)
+        else:
+            reject_result(report, true_article)
 
     def _confirm_candidate(self, article_number: str) -> None:
         """Karten-Klick bei AMBIGUOUS: visuell quittieren + im Report-JSON
         vermerken (Buchungs-Anbindung ist bewusst nicht Teil der UI)."""
         if self._last_report is None:
             return
+        top1 = (self._last_report.candidates[0].article_number
+                if self._last_report.candidates else None)
         try:
-            confirm_result(self._last_report, article_number)
+            self._save_verdict(self._last_report,
+                               correct=(article_number == top1),
+                               true_article=article_number)
         except ValueError as e:
             self._set_headline("Bestätigung nicht gespeichert.", "reject")
             self.result_area.setText(str(e))
             return
         # Die Karten selbst bleiben neutral (kein zustandsabhängiger Rahmen
         # mehr, Task 4) – die Bestätigung zeigt sich einzig über die
-        # Headline (Task 5 baut das weiter aus).
+        # Headline.
         name = article_number
         for c in self._last_report.candidates:
             if c.article_number == article_number:
@@ -515,3 +567,41 @@ class MainWindow(QMainWindow):
                 break
         self._set_headline(f"Bestätigt: {name}", "accept")
         self.result_area.setText("Auswahl wurde im Protokoll vermerkt.")
+
+    def _manual_correction(self) -> None:
+        """„Keiner davon": Artikel-Picker (oder Unbekannt), Ergebnis geht als
+        verdict=wrong (+ wahrer Artikel) ins Report-JSON – kein Buchungs-
+        Backend, nur Testprotokoll (Batch-Auswertung)."""
+        if self._last_report is None:
+            return
+        from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+        dlg = CorrectionDialog(list_articles(self.cfg), self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        chosen = dlg.chosen()
+        try:
+            self._save_verdict(self._last_report, correct=False,
+                               true_article=chosen)
+        except ValueError as e:
+            self._set_headline("Korrektur nicht gespeichert.", "reject")
+            self.result_area.setText(str(e))
+            return
+        name = chosen or "Unbekannt"
+        self._set_headline(f"Korrigiert: {name} — im Testprotokoll vermerkt.",
+                           "confirm")
+        self.result_area.setText("Auswahl wurde im Protokoll vermerkt.")
+
+    # ---------- Testhilfen (analog ResultCard.all_text) ----------
+
+    def headline_text(self) -> str:
+        return self.result_headline.text()
+
+    def rank_lines_count(self) -> int:
+        return len(self._rank_lines)
+
+    def none_of_these_button(self):
+        return self._none_button
+
+    def diagnose_text(self) -> str:
+        return self._diagnose_label.text() if self._diagnose_label else ""

@@ -128,6 +128,11 @@ QMainWindow, QDialog {
 #channelTitle { font-size: 8pt; color: #969ba0; }
 #channelNoData { font-size: 8pt; color: #6a6f74; font-style: italic; }
 
+/* Kompakte Plätze 2-3 (accept) und Rohmesswert-Diagnose (reject): dezent,
+   kleine Schrift, gedämpfte Farbe – lenken nicht von der Headline/Karte ab. */
+#rankLine { font-size: 10pt; color: #969ba0; padding: 2px 0; }
+#diagnoseLine { font-size: 9.5pt; color: #969ba0; padding-top: 6px; }
+
 /* ---------- Statusleiste ---------- */
 
 QStatusBar {
