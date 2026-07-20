@@ -55,7 +55,6 @@ _IDENTIFY_TOOLTIPS = {
 _BUSY_TEXTS = {
     "identify": "Auswertung läuft…",
     "background": "Hintergrund wird gespeichert…",
-    "calibrate": "Kalibrierung läuft…",
     "seed": "Demo-Artikel werden eingelernt…",
 }
 
@@ -92,13 +91,6 @@ def _job_background(frame, cfg: dict) -> dict:
     return {"kind": "background"}
 
 
-def _job_calibrate(frame, cfg: dict) -> dict:
-    from docodetect.pipeline import calibrate
-
-    cal = calibrate(frame, cfg)
-    return {"kind": "calibrate", "mm_per_px": cal.mm_per_px}
-
-
 def _job_seed_demo(cfg: dict) -> dict:
     """Demo-Artikel anlegen + einlernen (5 Varianten pro Artikel), damit
     „Identifizieren“ im Demo-Modus ACCEPT/CONFIRM erreichen kann. Der Ablauf
@@ -124,6 +116,7 @@ class MainWindow(QMainWindow):
         self._none_button = None             # „Keiner davon" (ambiguous)
         self._diagnose_label = None          # Rohmesswert-Diagnose (reject)
         self._verdict_bar = None             # Richtig/Falsch (accept, reject)
+        self._calibrate_dialog = None        # offener Kalibrier-Dialog
         self.state: UiState | None = None
         self.setWindowTitle("Doco Detect" + (" – Demo" if demo else ""))
         self.setMinimumSize(self.ui["window_min_width"],
@@ -278,14 +271,13 @@ class MainWindow(QMainWindow):
         self.identify_button.clicked.connect(self.identify_now)
         self.background_button.clicked.connect(
             partial(self._start_capture_action, "background"))
-        self.calibrate_button.clicked.connect(
-            partial(self._start_capture_action, "calibrate"))
+        self.calibrate_button.clicked.connect(self._open_calibrate_dialog)
         self.enroll_button.clicked.connect(self._open_enroll_dialog)
         # Icon-Schiene löst dieselben Aktionen aus wie die untere Leiste.
         self._rail_actions = {
             "identify": self.identify_now,
             "background": partial(self._start_capture_action, "background"),
-            "calibrate": partial(self._start_capture_action, "calibrate"),
+            "calibrate": self._open_calibrate_dialog,
             "enroll": self._open_enroll_dialog,
         }
         self.tool_rail.triggered.connect(
@@ -463,11 +455,12 @@ class MainWindow(QMainWindow):
         action, self._pending = self._pending, None
         if action is None:
             return  # Frame war für einen anderen Empfänger (z.B. Dialog)
+        # Kalibrieren fehlt hier bewusst: das macht der Kalibrier-Dialog
+        # selbst, er hört auf dieselbe Frame-Quelle.
         jobs = {
             "identify": partial(_job_identify, frame, self.cfg,
                                 self.ui["preview_max_width"]),
             "background": partial(_job_background, frame, self.cfg),
-            "calibrate": partial(_job_calibrate, frame, self.cfg),
         }
         self._start_worker(jobs[action])
 
@@ -501,6 +494,33 @@ class MainWindow(QMainWindow):
             self.preview.set_busy(_BUSY_TEXTS["seed"])
             self._start_worker(partial(_job_seed_demo, self.cfg))
 
+    def _open_calibrate_dialog(self) -> None:
+        """Kalibrier-Dialog: Anleitung, Live-Vorschau, Maßstab.
+
+        Bewusst `open()` statt `exec()`: `exec()` startet eine verschachtelte
+        Ereignisschleife, in der die Kamera-Signale des Hauptfensters
+        auflaufen – der Dialog braucht sie aber. Nebeneffekt: der Ablauf
+        bleibt von aussen steuerbar und damit testbar."""
+        if self.state not in (UiState.NOT_READY, UiState.READY):
+            return
+        from .widgets.calibrate_dialog import CalibrateDialog
+
+        dlg = CalibrateDialog(self.cfg, self.source, self)
+        dlg.finished.connect(partial(self._calibrate_dialog_closed, dlg))
+        self._calibrate_dialog = dlg
+        dlg.open()
+
+    def _calibrate_dialog_closed(self, dlg, _result: int) -> None:
+        if dlg.calibrated:
+            self.refresh_status()
+            self._set_headline("Kalibrierung aktualisiert.", "accept")
+            if self.state is UiState.READY and not self.demo:
+                self.result_area.setText(
+                    "Bereit. Objekt mittig auflegen und „Identifizieren“ "
+                    "drücken (Leertaste).")
+        self._calibrate_dialog = None
+        dlg.deleteLater()
+
     def _open_enroll_dialog(self) -> None:
         """Einlern-Assistent (modal). Nutzt dieselbe Frame-Quelle; nach dem
         Speichern wirken die neuen Referenzen sofort beim Identifizieren."""
@@ -530,14 +550,6 @@ class MainWindow(QMainWindow):
         if kind == "background":
             self._set_headline("Hintergrund gespeichert.", "accept")
             self.refresh_status()   # Checkliste rückt weiter / READY
-        elif kind == "calibrate":
-            mm = f"{result['mm_per_px']:.3f}".replace(".", ",")
-            self._set_headline(f"Kalibriert: {mm} mm/px.", "accept")
-            self.refresh_status()
-            if self.state is UiState.READY and not self.demo:
-                self.result_area.setText(
-                    "Bereit. Objekt mittig auflegen und „Identifizieren“ "
-                    "drücken (Leertaste).")
         elif kind == "seed":
             self.refresh_status()
             self._set_headline("Demo-Artikel eingelernt.", "accept")

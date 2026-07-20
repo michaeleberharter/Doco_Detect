@@ -395,3 +395,63 @@ QComboBox QAbstractItemView {
     selection-background-color: $accent;
     selection-color: #ffffff;
 }
+
+/* ---------- Dialoge (Kalibrieren, Einlernen) ---------- */
+
+/* Die Karte im rahmenlosen Dialogfenster – runde Ecken gaebe es sonst
+   nicht (siehe widgets/dialog_shell.py). */
+#dialogCard {
+    background: $panel;
+    border: 1px solid $line;
+    border-radius: 16px;
+}
+#dialogHeader {
+    background: $panel;
+    border-bottom: 1px solid $line;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
+#dialogBody, #dialogFooter { background: $panel; }
+#dialogFooter { border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+
+#dialogBadge {
+    background: $accentWeak;
+    border-radius: 9px;
+}
+#dialogTitle { font-size: 16px; font-weight: 700; color: $text; }
+#dialogClose {
+    background: $panel2;
+    border: 1px solid $line;
+    border-radius: 8px;
+    color: $dim;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 0;
+    padding: 0;
+}
+#dialogClose:hover { color: $text; border-color: $accent; }
+
+#dialogIntro  { font-size: 12.5px; color: $dim; }
+#dialogHint   { font-size: 12px; color: $warn; }
+#dialogStatus { font-size: 12px; color: $dim; }
+#dialogPreview {
+    background: $stage;
+    border: 1px solid $line;
+    border-radius: 11px;
+    color: $faint;
+    font-size: 12px;
+}
+
+/* Feld-Bausteine des Entwurfs: Label 10px versal, Anzeige 40px hoch. */
+#fieldLabel { font-size: 10px; font-weight: 600; color: $faint; }
+#fieldValue, #fieldValueAccent {
+    background: $track;
+    border: 1px solid $line;
+    border-radius: 9px;
+    padding: 6px 12px;
+    font-family: "$fontMono";
+    font-size: 13px;
+    font-weight: 600;
+    color: $dim;
+}
+#fieldValueAccent { color: $accent; }

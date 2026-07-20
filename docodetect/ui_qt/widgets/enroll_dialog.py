@@ -18,13 +18,14 @@ from functools import partial
 import cv2
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import (QComboBox, QCompleter, QDialog, QHBoxLayout,
-                               QLabel, QListWidget, QListWidgetItem,
-                               QPushButton, QSpinBox, QVBoxLayout)
+from PySide6.QtWidgets import (QComboBox, QCompleter, QHBoxLayout, QLabel,
+                               QListWidget, QListWidgetItem, QPushButton,
+                               QSpinBox)
 
 from docodetect.pipeline import list_articles
 
 from ..pipeline_worker import PipelineWorker
+from .dialog_shell import DialogShell, read_only
 from ..qimage import bgr_to_qimage, downscale_width
 
 _THUMB_W = 128
@@ -52,12 +53,12 @@ def _job_save(cfg: dict, article_number: str, shots: list) -> dict:
     return {"n": n, "article_number": article_number}
 
 
-class EnrollDialog(QDialog):
+class EnrollDialog(DialogShell):
     """Nach Schließen: saved_count > 0 => Referenzen wurden angelegt
     (Aufrufer macht refresh_status())."""
 
     def __init__(self, cfg: dict, ui: dict, source, parent=None):
-        super().__init__(parent)
+        super().__init__("plus", "Artikel einlernen", "Speichern", parent)
         self.cfg = cfg
         self.source = source
         self.saved_count = 0
@@ -67,10 +68,10 @@ class EnrollDialog(QDialog):
         self._worker: PipelineWorker | None = None
         self._target_shots = int(ui["enroll_shots"])
 
-        self.setWindowTitle("Artikel einlernen")
-        self.setModal(True)
-        self.setMinimumWidth(560)
-        lay = QVBoxLayout(self)
+        self.card.setMinimumWidth(560)     # mehr als der Entwurf: die
+        # Thumbnail-Leiste braucht Breite, sonst passen keine drei Aufnahmen
+        # nebeneinander.
+        lay = self.body
         lay.setSpacing(10)
 
         # -- Artikelwahl: durchsuchbares Dropdown + Referenz-Anzeige --
@@ -103,6 +104,16 @@ class EnrollDialog(QDialog):
         self.ref_label.setObjectName("guideLabel")
         lay.addWidget(self.ref_label)
 
+        # Toleranz NUR zur Information: sie ist global
+        # (matching.diameter_tolerance_mm) und KEIN Artikelattribut. Der
+        # Entwurf hatte hier ein Eingabefeld – das würde ein DB-Feld
+        # vortäuschen, das es nicht gibt, und die Konfiguration überschreiben.
+        tol = float(cfg["matching"]["diameter_tolerance_mm"])
+        tol_box, _ = read_only(
+            "Toleranz ± (global, aus der Konfiguration)",
+            f"{tol:.1f} mm".replace(".", ","))
+        lay.addWidget(tol_box)
+
         # -- Fortschritt + Aufnehmen --
         self.progress_label = QLabel("")
         self.progress_label.setObjectName("resultHeadline")
@@ -127,18 +138,9 @@ class EnrollDialog(QDialog):
         self.thumbs.itemClicked.connect(self._thumb_clicked)
         lay.addWidget(self.thumbs)
 
-        # -- Abschluss --
-        btns = QHBoxLayout()
-        btns.addStretch(1)
-        self.save_button = QPushButton("Speichern")
-        self.save_button.setObjectName("secondaryButton")
-        self.save_button.clicked.connect(self._save)
-        self.cancel_button = QPushButton("Abbrechen")
-        self.cancel_button.setObjectName("secondaryButton")
-        self.cancel_button.clicked.connect(self.reject)  # Esc macht dasselbe
-        btns.addWidget(self.cancel_button)
-        btns.addWidget(self.save_button)
-        lay.addLayout(btns)
+        # -- Abschluss: die Hauptaktion der Hülle IST das Speichern --
+        self.save_button = self.primary_button
+        self.primary.connect(self._save)
 
         source.full_frame_ready.connect(self._on_full_frame)
         self._article_changed()

@@ -189,6 +189,24 @@ def _wait_until(qapp, cond, timeout=90.0):
     return False
 
 
+def _calibrate_via_dialog(qapp, win):
+    """Kalibrieren laeuft seit dem UI-Redesign ueber einen Dialog: oeffnen,
+    Hauptaktion druecken, schliessen. Fachlich derselbe Ablauf wie vorher der
+    direkte Buttonklick – nur mit Anleitung und Maszstab-Anzeige davor.
+
+    Der Dialog ist bewusst nicht-blockierend (open() statt exec()), sonst
+    liefe die Kamera-Signalkette des Hauptfensters in einer verschachtelten
+    Ereignisschleife auf."""
+    win.calibrate_button.click()
+    dlg = win._calibrate_dialog
+    assert dlg is not None, "Kalibrier-Dialog wurde nicht geoeffnet"
+    dlg.primary_button.click()
+    assert _wait_until(qapp, lambda: dlg.calibrated), "Kalibrierung lief nicht"
+    assert "mm/px" in dlg.scale_value.text()
+    dlg.accept()
+    return dlg
+
+
 def test_demo_end_to_end_identify(qapp, tmp_path):
     """Der Phase-3-Abnahmepfad als Test: Hintergrund aufnehmen ->
     Kalibrieren -> (Auto-Seed) -> Teller 18 ACCEPT -> Teller 20 ACCEPT ->
@@ -214,7 +232,7 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
 
     # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (4 Artikel)
     win.demo_scene_box.setCurrentText("Marker")
-    win.calibrate_button.click()
+    _calibrate_via_dialog(qapp, win)
     assert _wait_until(
         qapp, lambda: (not win._busy
                        and win.pipeline_status.articles_with_references == 4))
@@ -280,7 +298,7 @@ def test_demo_confirm_scene_is_ambiguous(qapp, tmp_path):
     assert _wait_until(qapp, lambda: not win._busy)
 
     win.demo_scene_box.setCurrentText("Marker")
-    win.calibrate_button.click()
+    _calibrate_via_dialog(qapp, win)
     assert _wait_until(
         qapp, lambda: (not win._busy
                        and win.pipeline_status.articles_with_references == 4))
@@ -316,7 +334,7 @@ def test_demo_no_match_scene_is_reject(qapp, tmp_path):
     assert _wait_until(qapp, lambda: not win._busy)
 
     win.demo_scene_box.setCurrentText("Marker")
-    win.calibrate_button.click()
+    _calibrate_via_dialog(qapp, win)
     assert _wait_until(
         qapp, lambda: (not win._busy
                        and win.pipeline_status.articles_with_references == 4))
