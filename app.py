@@ -24,7 +24,7 @@ from docodetect.database import Database
 from docodetect.pipeline import Pipeline
 from docodetect.segmentation import SegmentationError
 from ui_common import (CAMERA_HINT, capture_frame, get_camera, make_overlay,
-                       release_camera, render_feedback, resize_width)
+                       release_camera, resize_width)
 
 st.set_page_config(page_title="Doco_Detect – Live-Test-UI", layout="wide")
 
@@ -37,6 +37,88 @@ def render_features(feats) -> None:
     c4.metric("Seitenverh.", f"{feats.aspect_ratio:.3f}")
     with st.expander("Alle Merkmale (JSON)"):
         st.json(asdict(feats))
+
+
+def _render_identify_result(res: dict, cfg: dict) -> None:
+    """Entscheidungsanzeige — nutzt dieselben Helfer wie die Qt-App
+    (inhaltlich identisch, Streamlit-Bordmittel); einzige Render-Stelle
+    des Identify-Ergebnisses. Speichert Verdicts über die pipeline-
+    Fassaden confirm_result/reject_result (UIs importieren reporting.py
+    nie direkt)."""
+    from docodetect.pipeline import (channel_percentages, confirm_result,
+                                     format_delta, format_diameter,
+                                     format_measured, format_rank_line,
+                                     headline, list_articles, reject_result)
+
+    report = res["report"]                       # MatchReport
+    best = report.candidates[0] if report.candidates else None
+    text, cls = headline(report.decision, best.name if best else None)
+    {"accept": st.success, "confirm": st.warning, "reject": st.error}[cls](text)
+
+    if report.decision == "reject":
+        m = report.measured or {}
+        if m:
+            st.caption(format_measured(m))
+        st.caption(report.message)
+        return
+
+    def _candidate_block(c):
+        st.markdown(f"**{c.name}**  \n{c.article_number}")
+        st.caption(f"{format_diameter(c)} · {format_delta(c, cfg)}")
+        st.progress(min(1.0, c.posterior),
+                    text=f"Gesamt {c.posterior * 100:.0f} %")
+        cols = st.columns(3)
+        titles = {"geometry": "Geometrie", "color": "Farbe", "shape": "Form"}
+        for col, (ch, pct) in zip(cols, channel_percentages(c).items()):
+            with col:
+                if pct is None:
+                    st.caption(f"{titles[ch]}: keine Daten")
+                else:
+                    st.progress(min(1.0, pct), text=titles[ch])
+
+    if report.decision == "accept":
+        _candidate_block(best)
+        top_k = int(report.thresholds.get("top_k", 3))
+        for rank, c in enumerate(report.candidates[1:top_k], start=2):
+            st.caption(format_rank_line(c, rank))
+        return
+
+    # ambiguous: Kandidaten auswählbar + „Keiner davon" — nach dem ersten
+    # gespeicherten Verdict verschwinden die Buttons (verdict_saved-Flag im
+    # selben identify_result-Dict in session_state), damit ein Rerun (z.B.
+    # durch einen anderen Widget-Klick) nicht versehentlich ein zweites,
+    # widersprüchliches Verdict speichert.
+    saved = res.get("verdict_saved")
+    top_k = int(report.thresholds.get("top_k", 3))
+    for c in report.candidates[:top_k]:
+        _candidate_block(c)
+        if not saved and st.button(f"✓ {c.article_number} bestätigen",
+                                   key=f"conf_{c.article_number}"):
+            try:
+                confirm_result(report, c.article_number)
+            except ValueError as e:
+                st.error(f"Bestätigung nicht gespeichert: {e}")
+            else:
+                res["verdict_saved"] = c.article_number
+                st.rerun()
+    if saved:
+        label = "Unbekannt" if saved == "__unknown__" else saved
+        st.success(f"Bewertung gespeichert: {label} — im Testprotokoll vermerkt.")
+    else:
+        with st.expander("Keiner davon / manuell korrigieren"):
+            arts = list_articles(cfg)
+            labels = ["Unbekannt / nicht in der Liste"] + [
+                f"{a.name}  ({a.article_number})" for a in arts]
+            pick = st.selectbox("Wahrer Artikel", labels, key="none_of_these_pick")
+            if st.button("Korrektur speichern", key="none_of_these_save"):
+                nr = None if pick == labels[0] else arts[labels.index(pick) - 1].article_number
+                try:
+                    reject_result(report, nr)
+                except ValueError as e:
+                    st.error(f"Korrektur nicht gespeichert: {e}")
+                else:
+                    res["verdict_saved"] = nr or "__unknown__"
+                    st.rerun()
 
 
 def render_seg_debug(seg) -> None:
@@ -308,14 +390,7 @@ with tab_identify:
 
         res = st.session_state.get("identify_result")
         if res:
-            r = res["report"]
             frame = res["frame"]
-            if r.decision == "accept":
-                st.success(f"ACCEPT — {r.message}")
-            elif r.decision == "ambiguous":
-                st.warning(f"AMBIGUOUS — {r.message}")
-            else:
-                st.error(f"REJECT — {r.message}")
 
             col1, col2 = st.columns(2)
             col1.image(resize_width(frame, 960), channels="BGR", caption="Original")
@@ -329,24 +404,9 @@ with tab_identify:
             if res["features"] is not None:
                 render_features(res["features"])
 
-            if r.candidates:
-                st.subheader("Top-Kandidaten")
-                rows = [{
-                    "Rang": i + 1,
-                    "Artikel": c.article_number,
-                    "Name": c.name,
-                    "Posterior": f"{c.posterior:.0%}",
-                    "log-Score": round(c.log_score, 2),
-                    "max |z|": round(c.max_abs_z, 2),
-                    "Δ Geometrie (mm)": c.geometry_error_mm,
-                    "Ø korrigiert (mm)": c.corrected_diameter_mm,
-                    "Referenzen?": c.has_references,
-                } for i, c in enumerate(r.candidates[:3])]
-                st.dataframe(pd.DataFrame(rows), width="stretch")
-                st.caption("Volle Aufschlüsselung (z-Werte, Gewichte, "
-                           "Top-1-vs-Top-2): Seite **Scoring-Analyse** in der Sidebar.")
-
-            render_feedback(r, cfg, key="identify_fb")
+            _render_identify_result(res, cfg)
+            st.caption("Volle Aufschlüsselung (z-Werte, Gewichte, "
+                       "Top-1-vs-Top-2): Seite **Scoring-Analyse** in der Sidebar.")
 
 
 # ---------- Tab: Neuer Artikel ----------

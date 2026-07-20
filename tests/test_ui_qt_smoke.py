@@ -193,12 +193,12 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     assert win.pipeline_status.background_present
     assert "[erledigt]" in win.result_area.text()  # Checkliste rückt weiter
 
-    # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (3 Artikel)
+    # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (4 Artikel)
     win.demo_scene_box.setCurrentText("Marker")
     win.calibrate_button.click()
     assert _wait_until(
         qapp, lambda: (not win._busy
-                       and win.pipeline_status.articles_with_references == 3))
+                       and win.pipeline_status.articles_with_references == 4))
     assert win.state is UiState.READY
     assert win.identify_button.isEnabled()
 
@@ -207,7 +207,7 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     win.identify_now()
     assert _wait_until(qapp, lambda: not win._busy)
     assert win._last_report.decision == "accept"
-    assert win.result_headline.text() == "Erkannt: Teller flach 18"
+    assert win.result_headline.text() == "✓ Automatisch übernommen: Teller flach 18"
     best = win._last_report.candidates[0]
     assert best.article_number == "DEMO-T18"
     assert abs(best.corrected_diameter_mm - 180.0) < 4.0
@@ -230,6 +230,77 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     assert win._last_report.touches_border
     assert win.preview._warn_text and "Bildrand" in win.preview._warn_text
     assert "Bildrand" in win.result_headline.text()
+    win.close()
+
+
+def test_demo_confirm_scene_is_ambiguous(qapp, tmp_path):
+    """Knapp-Bild 195 mm zwischen TELLER-19 (190) und TELLER-20 (200):
+    beide im Toleranzfenster, identische Farbe/Form -> CONFIRM (ambiguous)."""
+    from docodetect.config import load_config
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    win = MainWindow(cfg, demo=True)
+    assert win.state is UiState.NOT_READY
+
+    win.background_button.click()
+    assert _wait_until(qapp, lambda: not win._busy)
+
+    win.demo_scene_box.setCurrentText("Marker")
+    win.calibrate_button.click()
+    assert _wait_until(
+        qapp, lambda: (not win._busy
+                       and win.pipeline_status.articles_with_references == 4))
+    assert win.state is UiState.READY
+
+    win.demo_scene_box.setCurrentText("Teller 19/20 (knapp)")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    rep = win._last_report
+    assert rep.decision == "ambiguous"
+    nrs = {c.article_number for c in rep.candidates}
+    assert {"DEMO-T19", "DEMO-T20"} <= nrs
+    win.close()
+
+
+def test_demo_no_match_scene_is_reject(qapp, tmp_path):
+    """Unbekanntes Objekt (Ø 120 mm): kein Artikel innerhalb der
+    Geometrie-Toleranz -> NO_MATCH (reject), leere Kandidatenliste."""
+    from docodetect.config import load_config
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    win = MainWindow(cfg, demo=True)
+    assert win.state is UiState.NOT_READY
+
+    win.background_button.click()
+    assert _wait_until(qapp, lambda: not win._busy)
+
+    win.demo_scene_box.setCurrentText("Marker")
+    win.calibrate_button.click()
+    assert _wait_until(
+        qapp, lambda: (not win._busy
+                       and win.pipeline_status.articles_with_references == 4))
+    assert win.state is UiState.READY
+
+    win.demo_scene_box.setCurrentText("Unbekanntes Objekt")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    rep = win._last_report
+    assert rep.decision == "reject"
+    assert rep.candidates == []
     win.close()
 
 
@@ -399,3 +470,77 @@ def test_status_bar_calibrated(qapp, tmp_path):
     win = MainWindow(cfg)
     assert win.status_content.calibration.text().startswith("Kalibriert ")
     assert "0,171 mm/px" in win.status_content.calibration.text()
+
+
+def test_correction_dialog_chosen_returns_article_number(qapp):
+    """Artikel-Radio (Default) + Combo-Auswahl -> chosen() liefert die
+    Artikelnummer des gewählten Eintrags."""
+    from docodetect.pipeline import ArticleInfo
+    from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+    articles = [
+        ArticleInfo(article_number="A-1", name="Teller A", category=None,
+                   diameter_mm=180.0, height_mm=20.0, n_references=3),
+        ArticleInfo(article_number="B-2", name="Teller B", category=None,
+                   diameter_mm=220.0, height_mm=25.0, n_references=1),
+    ]
+    dlg = CorrectionDialog(articles, None)
+    assert dlg._pick_known.isChecked()  # Default laut __init__
+    dlg._combo.setCurrentIndex(1)
+    assert dlg.chosen() == "B-2"
+
+
+def test_correction_dialog_chosen_returns_none_for_unknown(qapp):
+    """„Unbekannt"-Radio gewählt -> chosen() liefert None, unabhängig von
+    der (dann irrelevanten) Combo-Auswahl."""
+    from docodetect.pipeline import ArticleInfo
+    from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+    articles = [ArticleInfo(article_number="A-1", name="Teller A",
+                            category=None, diameter_mm=180.0, height_mm=20.0,
+                            n_references=3)]
+    dlg = CorrectionDialog(articles, None)
+    dlg._pick_unknown.setChecked(True)
+    assert not dlg._pick_known.isChecked()  # Auto-exklusive Radiogruppe
+    assert dlg.chosen() is None
+
+
+def test_correction_dialog_reject_sets_rejected_result_code(qapp):
+    """Abbruchpfad: reject() (Cancel-Button ruft dies auf) setzt den
+    Qt-Rückgabecode auf Rejected; MainWindow._manual_correction prüft
+    `dlg.exec() != QDialog.Accepted` und bricht dann früh ab, ohne
+    _save_verdict/reject_result aufzurufen (siehe main_window.py)."""
+    from PySide6.QtWidgets import QDialog
+
+    from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
+
+    dlg = CorrectionDialog([], None)
+    dlg.reject()
+    assert dlg.result() == QDialog.Rejected
+
+
+def test_result_card_shows_helper_strings_and_channel_bars(qapp):
+    """ResultCard zeigt Ø/Δ ausschließlich über die zentralen Helfer
+    (pipeline.format_diameter/format_delta) und ein Teilscore-Balken je
+    Kanal; ein Kanal ohne Merkmale (hier: geometry-only) bleibt None statt
+    fälschlich 100 % anzuzeigen."""
+    from docodetect.matcher import CandidateReport, FeatureScore
+    from docodetect.ui_qt.widgets.result_card import ResultCard
+
+    cand = CandidateReport(
+        article_number="S-140", name="Schüssel 14", nominal_size_mm=140.0,
+        height_mm=60.0, corrected_diameter_mm=141.0, geometry_error_mm=2.4,
+        has_references=True, n_shots=3,
+        features=[FeatureScore(feature="diameter_mm", measured=141.0,
+                               reference=140.0, distance=1.0, sigma_enroll=0.0,
+                               sigma_eff=1.5, z=0.67, log_contrib=-0.22,
+                               w_eff=0.5, weighted=-0.11)],
+        log_score=-0.11, posterior=0.87, max_abs_z=0.67)
+    cfg = {"matching": {"diameter_tolerance_mm": 6.0}}
+    card = ResultCard(cand, cfg)
+    texts = card.all_text()   # neue Testhilfe fuer Offscreen-Tests
+    assert "Ø 141,0 mm (höhenkorrigiert, h = 60 mm)" in texts
+    assert "Δ 2,4 mm von ±6,0" in texts
+    bars = card.channel_bars()  # dict Kanal -> QProgressBar|None
+    assert bars["geometry"] is not None
+    assert bars["color"] is None and bars["shape"] is None

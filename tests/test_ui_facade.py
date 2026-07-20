@@ -301,3 +301,31 @@ def test_confirm_result_other_candidate_marks_wrong_with_truth(tmp_path):
     saved = json.loads(p.read_text(encoding="utf-8"))
     assert saved["verdict"] == "wrong"
     assert saved["label"] == "B"
+
+
+# ---------- manuelle Korrektur „Keiner davon" (reject_result) ----------
+
+def test_reject_result_with_article_marks_wrong_with_truth(tmp_path):
+    import json
+
+    from docodetect.pipeline import reject_result
+
+    report, p = _ambiguous_report(tmp_path)
+    reject_result(report, "A")
+    saved = json.loads(p.read_text(encoding="utf-8"))
+    assert saved["verdict"] == "wrong"
+    assert saved["label"] == "A"
+
+
+def test_reject_result_without_article_marks_wrong_no_label(tmp_path):
+    """Unbekannt-Option (kein wahrer Artikel): verdict=wrong, label bleibt
+    unbelegt (kein evaluate-Label vorhanden, das stehen bleiben könnte)."""
+    import json
+
+    from docodetect.pipeline import reject_result
+
+    report, p = _ambiguous_report(tmp_path)
+    reject_result(report)
+    saved = json.loads(p.read_text(encoding="utf-8"))
+    assert saved["verdict"] == "wrong"
+    assert saved.get("label") is None

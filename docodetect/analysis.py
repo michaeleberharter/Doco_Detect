@@ -44,23 +44,8 @@ import numpy as np  # noqa: E402
 from .config import resolve  # noqa: E402
 from .database import Database  # noqa: E402
 from .features import height_corrected_scale  # noqa: E402
-from .matcher import CandidateReport, MatchReport  # noqa: E402
+from .matcher import CHANNELS, CandidateReport, MatchReport, channel_scores  # noqa: E402, F401
 from .reporting import NO_MATCH, judgement, load_reports, predicted_article  # noqa: E402
-
-# Merkmals-Kanäle: Aggregation der gewichteten Log-Beiträge zu den drei
-# klassischen Teilscores. Höher = besser (0 = perfekte Übereinstimmung).
-CHANNELS = {
-    "geometry": ("diameter_mm",),
-    "color": ("delta_e_center", "delta_e_rim", "hist_center", "hist_rim"),
-    "shape": ("circularity", "solidity", "hu_log"),
-}
-
-
-def channel_scores(candidate: CandidateReport) -> dict:
-    """Teilscores eines Kandidaten: Summe der gewichteten Log-Beiträge je Kanal."""
-    by_feature = {f.feature: f.weighted for f in candidate.features}
-    return {ch: round(sum(by_feature.get(f, 0.0) for f in feats), 4)
-            for ch, feats in CHANNELS.items()}
 
 
 def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float, float]:

@@ -19,6 +19,8 @@ from .database import Article, Database
 from .features import (Features, describe_color_hsv, extract,
                        height_corrected_scale, min_area_rect_mm)
 from .matcher import DECISION_REJECT, MatchReport, match
+from .display import (channel_percentages, format_delta, format_diameter,  # noqa: F401
+                      format_measured, format_rank_line, headline)  # Re-Export: UIs importieren Anzeige-Helfer NUR über pipeline
 from .segmentation import SegmentationError, SegmentationResult, segment
 
 
@@ -146,6 +148,16 @@ def confirm_result(report: MatchReport, article_number: str):
     from .reporting import predicted_article, save_verdict
     return save_verdict(report, correct=(article_number == predicted_article(report)),
                         true_article=article_number)
+
+
+def reject_result(report: MatchReport, true_article: str | None = None):
+    """Manuelle Korrektur „Keiner davon" (Button bei AMBIGUOUS/REJECT):
+    verdict=wrong, unabhängig von der Top-1-Vorhersage – der wahre Artikel
+    (oder None = weiterhin unbekannt) fließt als Label ins Report-JSON, Futter
+    für die Verwechslungsmatrix der Batch-Auswertung. Dünne Fassade wie
+    confirm_result, damit UIs reporting.py nie direkt importieren müssen."""
+    from .reporting import save_verdict
+    return save_verdict(report, correct=False, true_article=true_article)
 
 
 def render_report_overlay(image: np.ndarray, report: MatchReport) -> np.ndarray:

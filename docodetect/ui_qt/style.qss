@@ -98,13 +98,13 @@ QMainWindow, QDialog {
 #resultHeadline[tone="confirm"] { color: #d4a72c; }
 #resultHeadline[tone="reject"]  { color: #cc4b4b; }
 
+/* Karte ist bewusst neutral: kein zustandsabhängiger Rahmen mehr – der
+   Status wird ausschließlich über #resultHeadline oben signalisiert. */
 #resultCard {
     background: #26282b;
     border: 1px solid #3a3d40;
     border-radius: 8px;
 }
-#resultCard[tone="accept"]  { border: 2px solid #2e9e5b; }
-#resultCard[tone="confirm"] { border: 2px solid #d4a72c; }
 
 #cardName {
     font-size: 14pt;
@@ -123,8 +123,15 @@ QMainWindow, QDialog {
     text-align: center;
 }
 #resultCard QProgressBar::chunk { background: #3a3d40; border-radius: 3px; }
-#resultCard[tone="accept"] QProgressBar::chunk  { background: #2e9e5b; }
-#resultCard[tone="confirm"] QProgressBar::chunk { background: #d4a72c; }
+
+/* Teilscore-Balken (Geometrie/Farbe/Form): kompakt, ohne eigenen Rahmen. */
+#channelTitle { font-size: 8pt; color: #969ba0; }
+#channelNoData { font-size: 8pt; color: #6a6f74; font-style: italic; }
+
+/* Kompakte Plätze 2-3 (accept) und Rohmesswert-Diagnose (reject): dezent,
+   kleine Schrift, gedämpfte Farbe – lenken nicht von der Headline/Karte ab. */
+#rankLine { font-size: 10pt; color: #969ba0; padding: 2px 0; }
+#diagnoseLine { font-size: 9.5pt; color: #969ba0; padding-top: 6px; }
 
 /* ---------- Statusleiste ---------- */
 

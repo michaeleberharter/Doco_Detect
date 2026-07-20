@@ -80,6 +80,22 @@ class FeatureScore:
     weighted: float             # Beitrag zum log_score (pro Kandidat renormiert)
 
 
+# Merkmals-Kanäle: Aggregation der gewichteten Log-Beiträge zu den drei
+# klassischen Teilscores. Höher = besser (0 = perfekte Übereinstimmung).
+CHANNELS = {
+    "geometry": ("diameter_mm",),
+    "color": ("delta_e_center", "delta_e_rim", "hist_center", "hist_rim"),
+    "shape": ("circularity", "solidity", "hu_log"),
+}
+
+
+def channel_scores(candidate: CandidateReport) -> dict:
+    """Teilscores eines Kandidaten: Summe der gewichteten Log-Beiträge je Kanal."""
+    by_feature = {f.feature: f.weighted for f in candidate.features}
+    return {ch: round(sum(by_feature.get(f, 0.0) for f in feats), 4)
+            for ch, feats in CHANNELS.items()}
+
+
 @dataclass
 class CandidateReport:
     article_number: str
@@ -94,6 +110,7 @@ class CandidateReport:
     log_score: float = 0.0
     posterior: float = 0.0
     max_abs_z: float = 0.0
+    margin_to_next: float | None = None   # log_score-Abstand zum Naechstplatzierten
 
 
 @dataclass
@@ -291,6 +308,10 @@ def match(measured: Features, db: Database, cal: Calibration, cfg: dict,
             max_abs_z=round(max((abs(s.z) for s in scores), default=0.0), 4)))
 
     candidates.sort(key=lambda c: c.log_score, reverse=True)
+
+    for i, c in enumerate(candidates):
+        c.margin_to_next = (round(c.log_score - candidates[i + 1].log_score, 4)
+                            if i + 1 < len(candidates) else None)
 
     # Posterior: Softmax der Log-Scores (numerisch stabil, optionale Temperatur)
     ls = np.asarray([c.log_score for c in candidates], dtype=np.float64) / temperature
