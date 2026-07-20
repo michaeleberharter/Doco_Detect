@@ -193,12 +193,12 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     assert win.pipeline_status.background_present
     assert "[erledigt]" in win.result_area.text()  # Checkliste rückt weiter
 
-    # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (3 Artikel)
+    # Schritt 2: Kalibrieren mit Marker-Szene -> READY -> Auto-Seed (4 Artikel)
     win.demo_scene_box.setCurrentText("Marker")
     win.calibrate_button.click()
     assert _wait_until(
         qapp, lambda: (not win._busy
-                       and win.pipeline_status.articles_with_references == 3))
+                       and win.pipeline_status.articles_with_references == 4))
     assert win.state is UiState.READY
     assert win.identify_button.isEnabled()
 
@@ -230,6 +230,77 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     assert win._last_report.touches_border
     assert win.preview._warn_text and "Bildrand" in win.preview._warn_text
     assert "Bildrand" in win.result_headline.text()
+    win.close()
+
+
+def test_demo_confirm_scene_is_ambiguous(qapp, tmp_path):
+    """Knapp-Bild 195 mm zwischen TELLER-19 (190) und TELLER-20 (200):
+    beide im Toleranzfenster, identische Farbe/Form -> CONFIRM (ambiguous)."""
+    from docodetect.config import load_config
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    win = MainWindow(cfg, demo=True)
+    assert win.state is UiState.NOT_READY
+
+    win.background_button.click()
+    assert _wait_until(qapp, lambda: not win._busy)
+
+    win.demo_scene_box.setCurrentText("Marker")
+    win.calibrate_button.click()
+    assert _wait_until(
+        qapp, lambda: (not win._busy
+                       and win.pipeline_status.articles_with_references == 4))
+    assert win.state is UiState.READY
+
+    win.demo_scene_box.setCurrentText("Teller 19/20 (knapp)")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    rep = win._last_report
+    assert rep.decision == "ambiguous"
+    nrs = {c.article_number for c in rep.candidates}
+    assert {"DEMO-T19", "DEMO-T20"} <= nrs
+    win.close()
+
+
+def test_demo_no_match_scene_is_reject(qapp, tmp_path):
+    """Unbekanntes Objekt (Ø 120 mm): kein Artikel innerhalb der
+    Geometrie-Toleranz -> NO_MATCH (reject), leere Kandidatenliste."""
+    from docodetect.config import load_config
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.state import UiState
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    win = MainWindow(cfg, demo=True)
+    assert win.state is UiState.NOT_READY
+
+    win.background_button.click()
+    assert _wait_until(qapp, lambda: not win._busy)
+
+    win.demo_scene_box.setCurrentText("Marker")
+    win.calibrate_button.click()
+    assert _wait_until(
+        qapp, lambda: (not win._busy
+                       and win.pipeline_status.articles_with_references == 4))
+    assert win.state is UiState.READY
+
+    win.demo_scene_box.setCurrentText("Unbekanntes Objekt")
+    win.identify_now()
+    assert _wait_until(qapp, lambda: not win._busy)
+    rep = win._last_report
+    assert rep.decision == "reject"
+    assert rep.candidates == []
     win.close()
 
 
