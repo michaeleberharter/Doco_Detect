@@ -39,13 +39,6 @@ def render_features(feats) -> None:
         st.json(asdict(feats))
 
 
-def _cached_articles(cfg: dict):
-    from docodetect.pipeline import list_articles
-    if "articles_cache" not in st.session_state:
-        st.session_state.articles_cache = list_articles(cfg)
-    return st.session_state.articles_cache
-
-
 def _render_identify_result(res: dict, cfg: dict) -> None:
     """Entscheidungsanzeige — nutzt dieselben Helfer wie die Qt-App
     (inhaltlich identisch, Streamlit-Bordmittel); einzige Render-Stelle
@@ -55,7 +48,7 @@ def _render_identify_result(res: dict, cfg: dict) -> None:
     from docodetect.pipeline import (channel_percentages, confirm_result,
                                      format_delta, format_diameter,
                                      format_rank_line, headline,
-                                     reject_result)
+                                     list_articles, reject_result)
 
     report = res["report"]                       # MatchReport
     best = report.candidates[0] if report.candidates else None
@@ -89,7 +82,8 @@ def _render_identify_result(res: dict, cfg: dict) -> None:
 
     if report.decision == "accept":
         _candidate_block(best)
-        for rank, c in enumerate(report.candidates[1:3], start=2):
+        top_k = int(report.thresholds.get("top_k", 3))
+        for rank, c in enumerate(report.candidates[1:top_k], start=2):
             st.caption(format_rank_line(c, rank))
         return
 
@@ -116,7 +110,7 @@ def _render_identify_result(res: dict, cfg: dict) -> None:
         st.success(f"Bewertung gespeichert: {label} — im Testprotokoll vermerkt.")
     else:
         with st.expander("Keiner davon / manuell korrigieren"):
-            arts = _cached_articles(cfg)
+            arts = list_articles(cfg)
             labels = ["Unbekannt / nicht in der Liste"] + [
                 f"{a.name}  ({a.article_number})" for a in arts]
             pick = st.selectbox("Wahrer Artikel", labels, key="none_of_these_pick")
