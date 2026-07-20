@@ -1102,7 +1102,7 @@ def test_build_is_idempotent(welt):
     assert zweit["gesamt"] == erst["gesamt"]
 
 
-def test_build_deduplicates_identical_images(welt, tmp_path):
+def test_build_deduplicates_identical_images(welt):
     cfg, _, quelle = welt
     # dasselbe Bild ein zweites Mal, unter anderem Namen und mit eigenem Report
     doppelt = quelle / "bild_doppelt.png"
@@ -1114,7 +1114,7 @@ def test_build_deduplicates_identical_images(welt, tmp_path):
     assert stat["uebersprungen_dublette"] == 1
 
 
-def test_build_never_writes_into_the_source_db(welt, tmp_path):
+def test_build_never_writes_into_the_source_db(welt):
     cfg, _, _ = welt
     db = Path(corpus_build.BUNDLE_QUELLEN["test-session"]["db"])
     vorher = db.read_bytes()
@@ -2531,15 +2531,20 @@ def test_label_suspicion_for_high_confidence_against_the_label():
     assert categorize(_fail([]), g) == "label_verdacht"
 
 
-def test_position_correlation_finds_a_planted_relationship():
+def test_pearson_finds_a_planted_relationship():
     """Je zentraler, desto kuerzer — die Signatur aus Spec 7.1."""
-    punkte = [{"dist": d, "delta": -8.0 + 0.02 * d} for d in range(0, 1000, 50)]
-    got = position_correlation.__wrapped__(punkte) \
-        if hasattr(position_correlation, "__wrapped__") else None
-    # Direkt die reine Rechenfunktion pruefen:
     from docodetect.corpus.triage import _pearson
+    punkte = [{"dist": d, "delta": -8.0 + 0.02 * d} for d in range(0, 1000, 50)]
     r = _pearson([p["dist"] for p in punkte], [p["delta"] for p in punkte])
     assert r == pytest.approx(1.0, abs=1e-6)
+
+
+def test_pearson_detects_the_inverse_relationship():
+    from docodetect.corpus.triage import _pearson
+    assert _pearson([0, 100, 200, 300], [-8.0, -6.0, -4.0, -2.0]) == pytest.approx(
+        1.0, abs=1e-6)
+    assert _pearson([0, 100, 200, 300], [-2.0, -4.0, -6.0, -8.0]) == pytest.approx(
+        -1.0, abs=1e-6)
 
 
 def test_pearson_is_zero_without_a_relationship():
