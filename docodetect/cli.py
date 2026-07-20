@@ -406,6 +406,20 @@ def cmd_analyze(args, cfg):
         publish_run(cfg, out)
 
 
+def cmd_corpus_build(args, cfg):
+    """Regressions-Korpus aus Captures, archivierten Reports und Backups bauen."""
+    from .corpus.build import build_corpus
+    stat = build_corpus(cfg, dry_run=args.dry_run)
+    print(f"[corpus-build] {stat['neu']} neu, {stat['gesamt']} gesamt "
+          f"({stat['uebersprungen_dublette']} Dubletten, "
+          f"{stat['uebersprungen_ohne_bild']} ohne Bild)")
+    for s, v in stat["sessions"].items():
+        print(f"  {s:16} Tier {v['tier']}  DB-Abgleich {v['db_verified']:.0%}  "
+              f"{v['n_images']} Bilder (+{v['neu']})")
+    if args.dry_run:
+        print("[corpus-build] dry-run – nichts geschrieben.")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="docodetect")
     parser.add_argument("--config", default=None, help="path to config.yaml")
@@ -506,6 +520,12 @@ def main(argv=None):
                         "zusätzlich ins versionierte Archiv kopieren "
                         "(analysis.publish_dir, Default reports/archive)")
 
+    p = sub.add_parser("corpus-build",
+                       help="Regressions-Korpus aufbauen/aktualisieren "
+                            "(idempotent, dedupliziert per SHA-256)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="nur zaehlen, nichts schreiben")
+
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
 
@@ -526,6 +546,7 @@ def main(argv=None):
         "make-smoke-testset": cmd_make_smoke_testset,
         "sync-stammdaten": cmd_sync_stammdaten,
         "analyze": cmd_analyze,
+        "corpus-build": cmd_corpus_build,
     }[args.cmd](args, cfg)
 
 
