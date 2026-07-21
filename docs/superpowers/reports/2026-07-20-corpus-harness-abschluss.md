@@ -93,7 +93,7 @@ Der Korpus liegt bewusst **ausserhalb** des Repos — er enthält 129
 
 ### Tests
 
-Neun neue Testdateien mit zusammen **129 Tests**, plus `tests/test_corpus.py`
+Neun neue Testdateien mit zusammen **151 Tests**, plus `tests/test_corpus.py`
 mit den Markern `corpus` (voller Lauf) und `corpus_smoke` (20-Bilder-Subset).
 `tests/conftest.py` wurde rein additiv um die zwei Marker-Registrierungen
 ergänzt.
@@ -203,6 +203,27 @@ Behoben: der Replay-Report wandert in den Cache-Eintrag und wird bei
 Cache-Treffern im aktuellen Lauf materialisiert; zusätzlich bricht `--check`
 bei unvollständigen Quoten mit Exit 1 ab.
 
+**Das Merge-Gate konnte sich selbst entwaffnen.** Das Final-Review fand, dass
+`corpus-run --update-baseline` mit dem Default `--tier 1` leere Quoten in die
+Baseline schrieb — danach übersprang der Baseline-Vergleich jede Kennzahl
+dauerhaft und lautlos. Erschwerend nannte `CLAUDE.md` als Dauerregel
+ausgerechnet die Tier-1-Variante. Behoben: `--update-baseline` verweigert den
+Vorgang bei leeren Quoten mit Exit 2, und die Dauerregel nennt jetzt beide
+Stufen.
+
+**Die Prüfung der Falsch-Akzeptanz-Rate war richtungsverkehrt.** Der
+Baseline-Vergleich prüfte durchgehend gegen die *Untergrenze* des
+Wilson-Intervalls. Für eine Fehlerrate ist das wirkungslos: sie regressiert
+nach oben, und bei einer Baseline von 0/25 mit Untergrenze 0,0 konnte die
+Bedingung nie greifen. Belegt: 0/25 → 5/25 lieferte Exit 0. Fehlerraten werden
+jetzt gegen die Obergrenze geprüft — relevant, weil `CLAUDE.md` den Schutz vor
+Fehlbuchungen als zentrale Eigenschaft des Systems benennt.
+
+**Ein Teil-Lauf sah aus wie eine Freigabe.** `--check` liess sich mit
+`--subset`, `--session` und `--article` kombinieren und endete bei sauberem
+Ausschnitt mit Exit 0. Jetzt verweigert jeder gefilterte `--check`-Lauf die
+Freigabe mit Exit 1 und nennt den gesetzten Filter.
+
 **Zwei Kritische im Runner, gefunden vor dem ersten Lauf.** Erstens galt ein
 Segmentierungs-Abbruch als „reproduziert", wenn der Golden `decision ==
 "reject"` trug. Das ist untauglich: der Geometrie-Vorfilter verwirft auch
@@ -219,8 +240,8 @@ fehlende Dateien anlegt — genau die Datei, die `corpus-build` dort entfernt.
 
 ### Ja, mit belegten Zahlen
 
-**Testlauf.** Vollständige Suite: **378 passed, 17 skipped**, keine
-Fehlschläge. Davon 129 Tests in den neun neuen Korpus-Testdateien. Die 17
+**Testlauf.** Vollständige Suite: **389 passed, 17 skipped**, keine
+Fehlschläge. Davon 151 Tests in den neun neuen Korpus-Testdateien. Die 17
 übersprungenen sind die Hardware-Tests, die eine angeschlossene Kamera
 brauchen (`DOCODETECT_HW_TESTS=1`). `pytest -m corpus_smoke` läuft in 46,6 s.
 
@@ -328,11 +349,28 @@ mit der Objektbreite skaliert. **Es wurde nichts daran geändert.**
    kopiert die Bündel-Dateien neu und invalidiert den Cache dadurch
    konservativ zu oft. Kein Fehler, aber der Grund, wenn ein
    `--changed-only`-Lauf nach einem Build länger dauert als erwartet.
-7. **Kleinere Beobachtungen aus den Reviews**, nicht blockierend: Der
-   Replay-Report landet über `write_run` auch in den Failure-Dateien und
-   bläht sie auf; der Tier-2-Cache wächst dadurch spürbar;
-   `cmd_corpus_run`/`cmd_corpus_diff` lassen rohe Tracebacks durch, während
-   der Rest von `cli.py` `sys.exit()` mit Meldung nutzt; `classify_drift`
-   hat keine Mindestbildzahl, wodurch bei sehr kleinen Läufen ein Einzelfall
-   als „uniform" gelten kann; eine Pipeline-Instanz wird pro Bild statt pro
-   Worker gebaut (bewusst zurückgestellt, Gewinn wäre rund 2 %).
+7. **Die Baseline führt `n` ohne Stufentrennung.** Die neue
+   Vollständigkeitsschranke vergleicht die Bildzahl des Laufs gegen dieses
+   Feld. Heute geht das auf (Tier 1: 129, Tier 2: 60, Baseline `n` = 60),
+   und eine Tier-1-Baseline ist ohnehin verboten. Eine nach Stufe getrennte
+   `n`-Führung wäre robuster.
+8. **`--changed-only` ist beim Arbeiten am Runner wirkungslos.**
+   `CODE_DATEIEN` enthält jetzt `corpus/runner.py` und `corpus/bundle.py`,
+   damit eine Änderung an der Falsch-Grün-Logik den Cache invalidiert. Die
+   Kehrseite: wer am Runner arbeitet, rechnet jedes Mal alles neu. Das ist
+   die gewollte, konservative Richtung.
+9. **Der volle Testlauf legt Lauf-Verzeichnisse im echten Korpus an.** Die
+   Marker `corpus`/`corpus_smoke` werden nicht deselektiert, laufen also im
+   normalen `pytest` mit; `test_corpus_tier2_decisions_reproduce` erzeugt
+   dabei jedes Mal ein neues `runs/<zeitstempel>/replay/`. By design, aber
+   unbegrenzt wachsend — gelegentlich aufräumen.
+10. **Kleinere Beobachtungen aus den Reviews**, nicht blockierend: Der
+    Replay-Report landet über `write_run` auch in den Failure-Dateien und
+    bläht sie auf; der Tier-2-Cache wächst dadurch spürbar;
+    `cmd_corpus_run`/`cmd_corpus_diff` lassen rohe Tracebacks durch, während
+    der Rest von `cli.py` `sys.exit()` mit Meldung nutzt; `classify_drift`
+    hat keine Mindestbildzahl, wodurch bei sehr kleinen Läufen ein Einzelfall
+    als „uniform" gelten kann; eine Pipeline-Instanz wird pro Bild statt pro
+    Worker gebaut (bewusst zurückgestellt, Gewinn wäre rund 2 %); das
+    `corpus_smoke`-Subset liegt durch die Sortierung vollständig in
+    `phase-a` und berührt damit weder `phase-b` noch Tier 2.
