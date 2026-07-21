@@ -46,6 +46,17 @@ Darum ist die Spalte `height_mm` in der Artikeldatenbank wichtig.
 Nach dem harten Geometrie-Vorfilter (höhenkompensiert, `diameter_tolerance_mm` /
 `area_tolerance_pct`) wird jedes Merkmal f als Gauß-Messung modelliert:
 
+Der Vorfilter vergleicht den gemessenen minEnclosingCircle-Durchmesser gegen
+eine artikelabhängige Nominalgröße: bei runden Artikeln (`diameter_mm`)
+direkt gegen den Durchmesser; bei länglichen Artikeln (Löffel, Gabel,
+Messer – `width_mm`/`depth_mm`) gegen die LÄNGE (`max(width_mm, depth_mm)`),
+nicht gegen die Diagonale des minAreaRect. Grund: Besteck ist eine
+„Stadion"-Form (Schaft + abgerundete Enden), keine scharfkantige
+Rechteckkontur – für eine solche Form entspricht der
+minEnclosingCircle-Durchmesser exakt der Länge, für jedes Breite/Länge-
+Verhältnis (siehe `docs/superpowers/reports/2026-07-21-vorfilter-laengliche-
+artikel-ergebnis.md`).
+
     sigma_eff(f) = sqrt(sigma_enroll(f)² + sigma_floor(f)²)
     z(f)    = d(f) / sigma_eff(f)          d = Distanz Messung ↔ Enrollment-Referenz
     logL(f) = −0.5 · z(f)²                 (Log-Likelihood bis auf Konstante)

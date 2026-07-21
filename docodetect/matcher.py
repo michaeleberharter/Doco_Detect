@@ -160,13 +160,31 @@ class MatchReport:
 
 
 def _nominal_size_mm(article: Article) -> float | None:
-    """Nominal footprint size to compare against the measured circle diameter.
-    Round items: diameter. Non-round: the diagonal-ish max of width/depth,
-    since min-enclosing-circle of a rectangle equals its diagonal."""
+    """Nominal footprint size to compare against the measured circle diameter
+    (docodetect.features.extract: cv2.minEnclosingCircle). Round items:
+    diameter. Non-round (spoon/fork/knife): the LONGER side of the
+    minAreaRect, not the diagonal. Cutlery footprints are a "stadium" shape
+    (shaft + rounded ends), not a sharp-cornered rectangle: for a stadium of
+    length L and width W <= L, the min-enclosing-circle diameter equals L
+    exactly, independent of W (verified analytically and against rasterized
+    contours down to W == L). The diagonal hypot(W, L) is only correct for a
+    sharp-cornered rectangle, which no enrolled article is.
+
+    CAVEAT for future non-cutlery articles: this only holds for CONVEX,
+    rounded-end footprints. A sharp-cornered RECTANGULAR item (tray,
+    rectangular platter, GN pan) has its min-enclosing-circle at the
+    DIAGONAL, not the length - comparing against the length there would
+    systematically UNDER-estimate the nominal (mirror image of the diagonal
+    bug this replaced: the geometric error would run too large in the
+    opposite direction and could again fail the pre-filter, this time for
+    boxy rather than elongated shapes). Before enrolling such an article,
+    verify this assumption still holds, or add a shape-class distinction
+    (see docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-
+    ergebnis.md, Empfehlung e)."""
     if article.diameter_mm:
         return float(article.diameter_mm)
     if article.width_mm and article.depth_mm:
-        return float(np.hypot(article.width_mm, article.depth_mm))
+        return float(max(article.width_mm, article.depth_mm))
     if article.width_mm:
         return float(article.width_mm)
     return None

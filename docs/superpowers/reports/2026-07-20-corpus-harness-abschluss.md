@@ -327,10 +327,19 @@ mit der Objektbreite skaliert. **Es wurde nichts daran geändert.**
 
 ### Offene Punkte
 
-1. **Der Vorfilter vergleicht zwei verschiedene Grössen.** Siehe oben: der
-   Versatz erklärt die fünf bekannten Fehlbuchungen vollständig. Eine
-   Korrektur berührt `matcher.py` und die Schwellen und braucht einen
-   eigenen Auftrag mit Datenbegründung.
+1. **~~Der Vorfilter vergleicht zwei verschiedene Grössen.~~ Erledigt
+   2026-07-21.** `_nominal_size_mm` vergleicht für längliche Artikel jetzt
+   gegen `max(width_mm, depth_mm)` (Länge) statt `hypot(width_mm, depth_mm)`
+   (Diagonale) — datenbasiert entschieden und geometrisch für Cutlery
+   (Stadion-Form) exakt bewiesen, nicht nur für sehr längliche Objekte.
+   Details, Verteilungszahlen und die vollständige Tier-2-Diff-Liste (32
+   Bilder, davon 5 die bekannten Kills) in
+   [2026-07-21-vorfilter-laengliche-artikel-ergebnis.md](2026-07-21-vorfilter-laengliche-artikel-ergebnis.md).
+   Dabei entstand zusätzlich eine neue Harness-Schicht
+   (`docodetect/corpus/accepted.py` + `corpus/accepted_deltas/`), weil sich
+   zeigte, dass `--update-baseline` nur Aggregat-Quoten aktualisiert, nicht
+   aber die per-Bild-Golden-Reports — ohne diese Schicht hätte jede
+   akzeptierte Matcher-Änderung `--check` auf Dauer rot gelassen.
 2. **`analysis.py` widerspricht sich selbst.** In
    `reports/analysis/phase-b-korrigiert/` zeigt `confusion_matrix.csv` eine
    Diagonale von 47, `metrics.json` nennt `accuracy_top1` = 46. Ursache ist

@@ -1,0 +1,546 @@
+{
+  "version": 1,
+  "generated": "2026-07-21T18:40:00",
+  "fix_commit": null,
+  "fix_commit_note": "Nach Freigabe des Commits durch den Nutzer mit dem tatsaechlichen Commit-Hash befuellen (git log -1 --format=%H).",
+  "results_doc": "docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md",
+  "plan_doc": "docs/superpowers/plans/2026-07-21-vorfilter-laengliche-artikel.md",
+  "beschreibung": "32 phase-b-Tier-2-Bilder, deren Matcher-Ausgabe sich durch den Vorfilter-Fix (Laenge statt Diagonale fuer laengliche Artikel) gegenueber dem Original-Golden aendert. Alle 32 einzeln geprueft (siehe results_doc): 5x Kategorie a (bekannte Vorfilter-Kills, wahres Label jetzt im Kandidatenset), 26x Kategorie b (reine Kandidatenset-Verschiebung, Sieger+Entscheidung unveraendert), 1x Kategorie c (Entscheidungswechsel accept->ambiguous, Sieger bleibt korrekt). In KEINEM der 32 faellt das wahre Label neu aus dem Kandidatenset.",
+  "images": {
+    "0b695ec4": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.095,
+        "max_z_winner": 2.0027
+      }
+    },
+    "2c88e15a": {
+      "kategorie": "c",
+      "reason": "Zwei neue geometrische Nachbarn (LOEFFEL-5, LOEFFEL-2) treten durch die korrigierte Vergleichsbasis (Laenge statt Diagonale) neu ins Kandidatenset ein. Das vergroesserte Kandidatenset veraendert die Fisher-adaptive Gewichtung (matching.adaptive_weight_alpha=2.0) ueber ALLE Kandidaten hinweg (w_eff = w_global * (1 + alpha*D_norm)), wodurch llr_margin von 5.8807 auf 1.7029 sinkt (< matching.min_llr_margin=2.0). Die Entscheidung kippt von accept auf ambiguous; der Sieger bleibt der korrekte Artikel LOEFFEL-4 (Top-1 unveraendert). Kein Fehlbuchungsrisiko - lediglich eine zusaetzliche menschliche Bestaetigung statt Auto-Buchung. Das ist die LLR-Margin-Schutzfunktion (CLAUDE.md: 'einziger wirksamer Schutz gegen Fehlbuchungen bei baugleichen Artikeln') bei einem groesser gewordenen Kandidatenset.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.7029,
+        "max_z_winner": 0.8855
+      }
+    },
+    "340fea39": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-6"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.5914,
+        "max_z_winner": 1.9616
+      }
+    },
+    "3869c80d": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-11",
+          "LOEFFEL-13",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1493,
+        "max_z_winner": 1.1367
+      }
+    },
+    "39cb6e0c": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.266,
+        "max_z_winner": 2.1252
+      }
+    },
+    "3aae112e": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-15",
+          "LOEFFEL-13"
+        ],
+        "gate_passed": true,
+        "llr_margin": 6.1453,
+        "max_z_winner": 1.1141
+      }
+    },
+    "41a471ce": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-6"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.594,
+        "max_z_winner": 1.39
+      }
+    },
+    "4276dbde": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.7482,
+        "max_z_winner": 1.4359
+      }
+    },
+    "4587d1a8": {
+      "kategorie": "a",
+      "reason": "Einer der 5 ursprünglich dokumentierten Vorfilter-Kills (Uebergabebericht docs/superpowers/reports/2026-07-20-corpus-harness-abschluss.md, Abschnitt 'Triage-Ergebnis'). Vor dem Fix war das wahre Label nicht im Kandidatenset (Diagonale zu gross); nach dem Fix ist es enthalten, die Entscheidung bleibt ambiguous (der bisherige falsche Top-1 bleibt vorerst Sieger nach Farbe/Form) - das wahre Label ist jetzt aber in der AMBIGUOUS-Kandidatenliste fuer den Menschen waehlbar, vorher war es dort gar nicht vertreten.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-12",
+          "LOEFFEL-6"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.381,
+        "max_z_winner": 1.4821
+      }
+    },
+    "4f08405b": {
+      "kategorie": "a",
+      "reason": "Einer der 5 ursprünglich dokumentierten Vorfilter-Kills (Uebergabebericht docs/superpowers/reports/2026-07-20-corpus-harness-abschluss.md, Abschnitt 'Triage-Ergebnis'). Vor dem Fix war das wahre Label nicht im Kandidatenset (Diagonale zu gross); nach dem Fix ist es enthalten, die Entscheidung bleibt ambiguous (der bisherige falsche Top-1 bleibt vorerst Sieger nach Farbe/Form) - das wahre Label ist jetzt aber in der AMBIGUOUS-Kandidatenliste fuer den Menschen waehlbar, vorher war es dort gar nicht vertreten.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.2361,
+        "max_z_winner": 3.0603
+      }
+    },
+    "53a17205": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0099,
+        "max_z_winner": 1.1658
+      }
+    },
+    "57e075d6": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.2285,
+        "max_z_winner": 1.0553
+      }
+    },
+    "5db55def": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.0163,
+        "max_z_winner": 0.7552
+      }
+    },
+    "5e952338": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-3",
+          "LOEFFEL-6",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.3418,
+        "max_z_winner": 1.039
+      }
+    },
+    "69287856": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-6"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.3079,
+        "max_z_winner": 1.3481
+      }
+    },
+    "8bf4b322": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-11",
+          "LOEFFEL-13",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0594,
+        "max_z_winner": 2.3037
+      }
+    },
+    "937b7df1": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-15",
+          "LOEFFEL-11",
+          "LOEFFEL-13"
+        ],
+        "gate_passed": true,
+        "llr_margin": 4.0342,
+        "max_z_winner": 1.1757
+      }
+    },
+    "957a3f77": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-12",
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-3",
+          "LOEFFEL-2",
+          "LOEFFEL-6"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.3324,
+        "max_z_winner": 2.4374
+      }
+    },
+    "99718c24": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-6",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0425,
+        "max_z_winner": 1.2258
+      }
+    },
+    "99dfc89c": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.2745,
+        "max_z_winner": 0.8943
+      }
+    },
+    "9b1d4eb7": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-15",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.115,
+        "max_z_winner": 1.9059
+      }
+    },
+    "a2883cb7": {
+      "kategorie": "a",
+      "reason": "Einer der 5 ursprünglich dokumentierten Vorfilter-Kills (Uebergabebericht docs/superpowers/reports/2026-07-20-corpus-harness-abschluss.md, Abschnitt 'Triage-Ergebnis'). Vor dem Fix war das wahre Label nicht im Kandidatenset (Diagonale zu gross); nach dem Fix ist es enthalten, die Entscheidung bleibt ambiguous (der bisherige falsche Top-1 bleibt vorerst Sieger nach Farbe/Form) - das wahre Label ist jetzt aber in der AMBIGUOUS-Kandidatenliste fuer den Menschen waehlbar, vorher war es dort gar nicht vertreten.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0731,
+        "max_z_winner": 2.1783
+      }
+    },
+    "a8cf4d7a": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0394,
+        "max_z_winner": 2.2739
+      }
+    },
+    "a8d8c8d7": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-6",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1173,
+        "max_z_winner": 1.6571
+      }
+    },
+    "b22df805": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.35,
+        "max_z_winner": 1.9238
+      }
+    },
+    "b26a6160": {
+      "kategorie": "a",
+      "reason": "Einer der 5 ursprünglich dokumentierten Vorfilter-Kills (Uebergabebericht docs/superpowers/reports/2026-07-20-corpus-harness-abschluss.md, Abschnitt 'Triage-Ergebnis'). Vor dem Fix war das wahre Label nicht im Kandidatenset (Diagonale zu gross); nach dem Fix ist es enthalten, die Entscheidung bleibt ambiguous (der bisherige falsche Top-1 bleibt vorerst Sieger nach Farbe/Form) - das wahre Label ist jetzt aber in der AMBIGUOUS-Kandidatenliste fuer den Menschen waehlbar, vorher war es dort gar nicht vertreten.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0367,
+        "max_z_winner": 1.4822
+      }
+    },
+    "b6376f78": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.3748,
+        "max_z_winner": 0.6796
+      }
+    },
+    "cc1f627e": {
+      "kategorie": "a",
+      "reason": "Einer der 5 ursprünglich dokumentierten Vorfilter-Kills (Uebergabebericht docs/superpowers/reports/2026-07-20-corpus-harness-abschluss.md, Abschnitt 'Triage-Ergebnis'). Vor dem Fix war das wahre Label nicht im Kandidatenset (Diagonale zu gross); nach dem Fix ist es enthalten, die Entscheidung bleibt ambiguous (der bisherige falsche Top-1 bleibt vorerst Sieger nach Farbe/Form) - das wahre Label ist jetzt aber in der AMBIGUOUS-Kandidatenliste fuer den Menschen waehlbar, vorher war es dort gar nicht vertreten.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.6187,
+        "max_z_winner": 2.2236
+      }
+    },
+    "d7fe79aa": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.7055,
+        "max_z_winner": 0.9303
+      }
+    },
+    "e24cb7e5": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1575,
+        "max_z_winner": 1.111
+      }
+    },
+    "e51bafab": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-14"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1553,
+        "max_z_winner": 1.9627
+      }
+    },
+    "f8abf277": {
+      "kategorie": "b",
+      "reason": "Vorfilter-Vergleichsbasis fuer laengliche Artikel (width_mm/depth_mm gesetzt) geaendert: Laenge (max(width_mm,depth_mm)) statt Diagonale (hypot(width_mm,depth_mm)) - docodetect/matcher.py::_nominal_size_mm, siehe docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md. Der Diagonal-Offset verschob das Vorfilter-Toleranzfenster fuer JEDEN laenglichen Kandidaten in JEDEM Bild simultan; bei mehreren Loeffeln nahezu gleicher Laenge im Korpus (Cluster ~188-194mm, ~124-141mm) aendert sich das geometrische Kandidatenset dadurch auch ausserhalb der 5 urspruenglich bekannten Vorfilter-Kills. Sieger (Top-1) und Entscheidung bleiben in diesem Bild identisch - reine Kandidatenset-/Score-Verschiebung, kein Fehlbuchungsrisiko (false_accept_rate unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-6",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-12"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0984,
+        "max_z_winner": 1.0633
+      }
+    }
+  }
+}

@@ -262,6 +262,107 @@ def test_hoehenkorrektur_pro_kandidat_formel(cfg, cal, tmp_path):
         db.close()
 
 
+# ---------- Vorfilter: laengliche Artikel vergleichen gegen Laenge ----------
+# Siehe docs/superpowers/plans/2026-07-21-vorfilter-laengliche-artikel.md:
+# _nominal_size_mm verglich fuer width_mm/depth_mm-Artikel bisher gegen die
+# Diagonale des minAreaRect (hypot), gemessen wird aber der
+# minEnclosingCircle-Durchmesser, der fuer eine "Stadion"-Form (Schaft +
+# abgerundete Enden, wie Loeffel/Gabel/Messer) der LAENGE entspricht.
+
+def test_laenglicher_artikel_vergleicht_gegen_laenge_nicht_diagonale(cfg, cal, tmp_path):
+    """Kern des Fixes: Ø-Vergleich fuer laengliche Artikel (width/depth
+    gesetzt) muss gegen die LAENGE (max(width,depth)) gehen, nicht gegen
+    die Diagonale (hypot). Ein Loeffel mit Laenge 190mm/Breite 40mm hat
+    Diagonale ~194.15mm - eine Messung von 187mm liegt 7.15mm von der
+    Diagonale entfernt (> 6mm Toleranz, waere ALT gekillt) aber nur 3mm
+    von der Laenge entfernt (<= 6mm, UEBERLEBT den Vorfilter)."""
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(
+        article_number="LOEFFEL", name="Loeffel", category=None,
+        diameter_mm=None, width_mm=190.0, depth_mm=40.0, height_mm=None,
+        color_desc=None, notes=None))
+    db.add_reference("LOEFFEL", fake(190.0))
+    try:
+        rep = match(fake(187.0), db, cal, cfg)
+        assert [c.article_number for c in rep.candidates] == ["LOEFFEL"]
+        assert rep.candidates[0].nominal_size_mm == pytest.approx(190.0)
+    finally:
+        db.close()
+
+
+def test_laenglicher_artikel_ausserhalb_laengen_toleranz_wird_gekillt(cfg, cal, tmp_path):
+    """Gegenprobe: liegt die Messung auch von der LAENGE weiter als 6mm weg,
+    bleibt der Artikel zu Recht draussen (kein pauschales Aufweichen)."""
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(
+        article_number="LOEFFEL", name="Loeffel", category=None,
+        diameter_mm=None, width_mm=190.0, depth_mm=40.0, height_mm=None,
+        color_desc=None, notes=None))
+    db.add_reference("LOEFFEL", fake(190.0))
+    try:
+        rep = match(fake(180.0), db, cal, cfg)  # 10mm von der Laenge weg
+        assert rep.candidates == []
+        assert rep.decision == "reject"
+    finally:
+        db.close()
+
+
+def test_rundes_produkt_unveraendert_ueber_diameter_mm(cfg, cal, tmp_path):
+    """Runde Artikel (diameter_mm gesetzt) durchlaufen weiterhin den
+    Diameter-Zweig von _nominal_size_mm - der Fix darf diesen Pfad nicht
+    beruehren."""
+    db = make_db(cfg, [("TELLER", 200.0, 0.0, [fake(200.0)])])
+    try:
+        rep = match(fake(200.0), db, cal, cfg)
+        assert rep.candidates[0].nominal_size_mm == pytest.approx(200.0)
+    finally:
+        db.close()
+
+
+def test_laenglich_width_gleich_depth_randfall(cfg, cal, tmp_path):
+    """Randfall width==depth (entartete 'Stadion'-Form == Kreis): die
+    Laenge (max(width,depth)) UND die Diagonale (hypot) fallen hier
+    auseinander (50 vs. 70.7mm) - der Fix muss weiterhin gegen die Laenge
+    vergleichen, nicht gegen die (hier besonders grosse) Diagonale."""
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(
+        article_number="QUADRAT", name="Quadrat", category=None,
+        diameter_mm=None, width_mm=50.0, depth_mm=50.0, height_mm=None,
+        color_desc=None, notes=None))
+    db.add_reference("QUADRAT", fake(50.0))
+    try:
+        rep = match(fake(52.0), db, cal, cfg)  # 2mm von der Laenge (50) weg
+        assert [c.article_number for c in rep.candidates] == ["QUADRAT"]
+        assert rep.candidates[0].nominal_size_mm == pytest.approx(50.0)
+    finally:
+        db.close()
+
+
+def test_laenglich_hoehenkompensation_bleibt_pro_kandidat_wirksam(cfg, cal, tmp_path):
+    """Die Formel fuer corrected_diameter_mm (Hoehenkompensation) ist von
+    der Nominal-Wahl unabhaengig - muss fuer laengliche Artikel mit
+    height_mm > 0 weiterhin greifen (wie bei runden Artikeln)."""
+    from docodetect.features import height_corrected_scale
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(
+        article_number="LOEFFEL_HOCH", name="Loeffel", category=None,
+        diameter_mm=None, width_mm=190.0, depth_mm=40.0, height_mm=15.0,
+        color_desc=None, notes=None))
+    db.add_reference("LOEFFEL_HOCH", fake(190.0))
+    try:
+        measured_circle = 195.0
+        rep = match(fake(measured_circle), db, cal, cfg)
+        expected = height_corrected_scale(measured_circle, 15.0, cal.camera_height_mm)
+        assert rep.candidates[0].corrected_diameter_mm == pytest.approx(
+            round(expected, 2))
+    finally:
+        db.close()
+
+
 # ---------- border_clipped bleibt Fehlerpfad ----------
 
 def test_border_clipped_erzeugt_kein_match_ergebnis(cfg, cal, tmp_path):

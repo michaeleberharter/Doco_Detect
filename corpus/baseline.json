@@ -1,6 +1,6 @@
 {
-  "generated": "2026-07-21T01:58:53",
-  "run_id": "final-tier2",
+  "generated": "2026-07-21T19:09:32",
+  "run_id": "20260721-190727",
   "tier": 2,
   "n": 60,
   "quotas": {
@@ -12,32 +12,32 @@
       "wilson_hi": 0.8556
     },
     "accuracy_top3": {
-      "k": 54,
+      "k": 56,
       "n": 60,
-      "p": 0.9,
-      "wilson_lo": 0.7985,
-      "wilson_hi": 0.9534
+      "p": 0.9333,
+      "wilson_lo": 0.8407,
+      "wilson_hi": 0.9738
     },
     "auto_accept_rate": {
-      "k": 25,
+      "k": 24,
       "n": 60,
-      "p": 0.4167,
-      "wilson_lo": 0.3006,
-      "wilson_hi": 0.5427
+      "p": 0.4,
+      "wilson_lo": 0.2857,
+      "wilson_hi": 0.5263
     },
     "false_accept_rate": {
       "k": 0,
-      "n": 25,
+      "n": 24,
       "p": 0.0,
       "wilson_lo": 0.0,
-      "wilson_hi": 0.1332
+      "wilson_hi": 0.138
     },
     "decisions": {
-      "ambiguous": 34,
-      "accept": 25,
+      "ambiguous": 35,
+      "accept": 24,
       "reject": 1
     }
   },
-  "code_fingerprint": "49416b5c356b57c9aea7f0edd52061669672e14166d7ec2cebf3457b2716a76c",
+  "code_fingerprint": "fdeaafbc2f6468aa84b6e6778e3222616d1b1a504e63120d68cc1f2a5b7ec2ac",
   "config_fingerprint": "3d5e62253afb518adab6fa2401bd88ecf554d227df39c0b742204963b3be1eed"
 }

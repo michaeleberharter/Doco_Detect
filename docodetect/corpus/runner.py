@@ -22,6 +22,7 @@ from pathlib import Path
 
 from ..config import project_root
 from ..pipeline import _centroid_px
+from .accepted import resolve_diffs
 from .bundle import bundle_cfg
 from .compare import FAIL, PASS, compare_tier1, compare_tier2, worst_band
 from .manifest import ImageEntry, Manifest, corpus_root, sha256_file
@@ -35,7 +36,7 @@ from .manifest import ImageEntry, Manifest, corpus_root, sha256_file
 # bekaeme unter --changed-only sonst weiter die alten PASS-Eintraege.
 CODE_DATEIEN = ("segmentation.py", "features.py", "matcher.py", "pipeline.py",
                 "calibration.py", "database.py", "corpus/compare.py",
-                "corpus/runner.py", "corpus/bundle.py")
+                "corpus/runner.py", "corpus/bundle.py", "corpus/accepted.py")
 
 # Buendel-Bestandteile, die jedes Replay-Ergebnis dieser Session bestimmen.
 BUENDEL_DATEIEN = ("db.sqlite3", "calibration.json", "background.png")
@@ -61,6 +62,16 @@ def code_fingerprint() -> str:
                 f"nicht mehr zum Quellbaum.")
         h.update(name.encode())
         h.update(p.read_bytes())
+    # corpus/accepted_deltas/*.json liegt ausserhalb von docodetect/ (Repo-
+    # Wurzel, neben corpus/manifest.json) und bestimmt ueber accepted.py
+    # unmittelbar den gecachten Bandwert - ein neuer oder geaenderter
+    # Delta-Eintrag muss den Cache also genauso invalidieren wie eine
+    # geaenderte compare.py-Schwelle.
+    accepted_dir = project_root() / "corpus" / "accepted_deltas"
+    if accepted_dir.is_dir():
+        for p in sorted(accepted_dir.glob("*.json")):
+            h.update(p.name.encode())
+            h.update(p.read_bytes())
     return h.hexdigest()
 
 
@@ -257,6 +268,13 @@ def run_one(entry_dict: dict, tier: int, run_id: str) -> dict:
             # Verfuegung.
             res.replay_json = replay_json
             diffs = compare_tier2(golden, rep)
+            # Ein akzeptiertes Delta (docodetect/corpus/accepted.py) darf eine
+            # FAIL-Abweichung vom Original-Golden erklaeren - das Original
+            # bleibt dabei unveraendert, nur der Vergleichsmassstab fuer
+            # dieses eine Bild wechselt auf den reviewten, versionierten
+            # Delta-Eintrag. Nicht durch das Delta gedeckte Abweichungen
+            # bleiben FAIL.
+            diffs = resolve_diffs(e.sha, rep, diffs)
         else:
             try:
                 feats, seg = measure_shot(img, _tier1_cfg(bcfg))
