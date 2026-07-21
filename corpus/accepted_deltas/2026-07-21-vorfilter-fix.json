@@ -1,8 +1,7 @@
 {
   "version": 1,
   "generated": "2026-07-21T18:40:00",
-  "fix_commit": null,
-  "fix_commit_note": "Nach Freigabe des Commits durch den Nutzer mit dem tatsaechlichen Commit-Hash befuellen (git log -1 --format=%H).",
+  "fix_commit": "465c907c77837b3b85d2a3f8acd67b8ccff8cabf",
   "results_doc": "docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md",
   "plan_doc": "docs/superpowers/plans/2026-07-21-vorfilter-laengliche-artikel.md",
   "beschreibung": "32 phase-b-Tier-2-Bilder, deren Matcher-Ausgabe sich durch den Vorfilter-Fix (Laenge statt Diagonale fuer laengliche Artikel) gegenueber dem Original-Golden aendert. Alle 32 einzeln geprueft (siehe results_doc): 5x Kategorie a (bekannte Vorfilter-Kills, wahres Label jetzt im Kandidatenset), 26x Kategorie b (reine Kandidatenset-Verschiebung, Sieger+Entscheidung unveraendert), 1x Kategorie c (Entscheidungswechsel accept->ambiguous, Sieger bleibt korrekt). In KEINEM der 32 faellt das wahre Label neu aus dem Kandidatenset.",
