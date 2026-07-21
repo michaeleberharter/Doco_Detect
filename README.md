@@ -312,6 +312,99 @@ Gabelschlitze). `docodetect/neural_seg.py` und
 `requirements-seg-neural.txt` bleiben nur für Experimente im Repo; es gibt
 keinen `segmentation.neural`-Config-Block und keinen UI-Schalter mehr.
 
+## Regressions-Korpus (echte Aufnahmen)
+
+Der Korpus hält 129 echte, bewertete Aufnahmen aus zwei Sessions
+(`phase-a`, `phase-b`) und prüft jede Messpfad-Änderung dagegen. Die
+Original-MatchReports SIND die Goldens: sie enthalten Label, Urteil und
+die damals gemessenen Werte. Drei weitere Sessions sind bewusst
+ausgeschlossen, weil ihr damaliger Session-Zustand nicht mehr
+rekonstruierbar ist: `test_2_loeffel` (Hintergrund der Session existiert
+nicht mehr), `erster_test_loeffel` (nur 3 bewertete Reports, gemischte
+Auflösung) und `smoke-v2-uiqt` (synthetisch, Bilder fehlen).
+
+### Aufbau
+
+```bash
+python -m docodetect.cli corpus-build      # idempotent, dedupliziert per SHA-256
+python -m docodetect.cli corpus-run --tier 1
+python -m docodetect.cli corpus-run --tier 2 --check
+```
+
+Der Korpus liegt unter `paths.corpus_dir` (Default `../Doco_Detect_corpus`),
+bewusst ausserhalb des Repos — er enthält die 129 4K-PNGs. Versioniert
+sind nur `corpus/manifest.json` und `corpus/baseline.json`.
+
+### Zwei Stufen
+
+**Tier 1 (jedes Bild, ohne DB)** replayt Segmentierung und Merkmale gegen
+den Golden desselben Bildes. Der aktuelle Code reproduziert die
+Messwerte bit-exakt, deshalb liegt die PASS-Schwelle beim
+Rundungsquantum (Ø ±0,005 mm, Rundheit/Solidity ±0,00005).
+
+**Tier 2 (nur mit verifiziertem DB-Snapshot)** replayt die komplette
+Pipeline und vergleicht Entscheidung, Top-k-Reihenfolge und Gate exakt;
+`llr_margin` und `max_z_winner` laufen über dieselbe Drei-Band-Logik. Ob
+ein Snapshot passt, stellt `corpus-build` selbst fest — über einen
+exakten Abgleich der im Report gespeicherten Referenzwerte gegen die
+`reference_stats` des Snapshots; nur bei 100 % Übereinstimmung läuft die
+Session in Tier 2. `phase-a` (67 Bilder) hat keinen passenden Snapshot
+und läuft deshalb nur in Tier 1; von `phase-b` (62 Bilder) qualifizieren
+60 für Tier 2.
+
+Bänder: **PASS** (Abweichung innerhalb des Rundungsquantums der
+gespeicherten Werte, z. B. Durchmesser ±0,005 mm, Rundheit/Solidity
+±0,00005) · **DRIFT** (darüber, aber innerhalb der weichen Stufe, z. B.
+Durchmesser ±0,2 mm) · **FAIL** (darüber). `--check` bricht per Default
+bei DRIFT *und* FAIL, weil auf gepinnter Umgebung jede Abweichung
+code-verursacht ist. `--accept-drift` lässt nur FAIL brechen und ist für
+genau zwei Fälle gedacht: bewusstes Bibliotheks-Update und
+Plattformwechsel Mac → Windows — danach ist ein begründetes
+Re-Baselining Pflicht.
+
+Stand 2026-07-21: Tier 1 129/129 PASS, Tier 2 60/60 PASS, je 0 DRIFT und
+0 FAIL. Die Tier-2-Quoten reproduzieren die früher veröffentlichten
+Zahlen aus `reports/analysis/phase-b-korrigiert/metrics.json` exakt:
+`accuracy_top1` 46/60, `accuracy_top3` 54/60, `false_accept_rate` 0/25.
+
+### Sync Mac ↔ Windows
+
+Der Korpus zieht als Ordner um; alle Manifest-Pfade sind relativ.
+
+1. `<corpus_dir>` auf den Zielrechner kopieren (rsync, Stick, Netzlaufwerk)
+2. dort in `config/config.local.yaml`:
+   ```yaml
+   paths:
+     corpus_dir: D:/Doco_Detect_corpus
+   ```
+3. `python -m docodetect.cli corpus-run --tier 1` — das Manifest kommt aus git
+
+Der erste Lauf auf Windows wird sehr wahrscheinlich DRIFT melden (andere
+OpenCV-Build-Optionen) — das ist der dokumentierte Anwendungsfall für
+`--accept-drift` plus anschliessendes Re-Baselining auf dieser Plattform.
+
+### Baseline-Regel
+
+`corpus/baseline.json` ändert sich NUR über
+`corpus-run --update-baseline`, und der Commit muss begründen, warum die
+alten Zahlen nicht mehr gelten. Ohne diese Regel misst die Baseline
+irgendwann nur noch den Status quo.
+
+### Laufzeit (gemessen auf dem MacBook, 10 Kerne, 8 Worker)
+
+| Lauf | Dauer |
+|---|---|
+| Voller Tier-1-Lauf (129 Bilder) | 241,9 s (4,0 min), 0,53 Bilder/s |
+| Voller Tier-2-Lauf (60 Bilder) | 126,4 s, 0,47 Bilder/s |
+| `corpus-run --check --changed-only` ohne Änderung | 0,0 s (Volltreffer im Cache) |
+
+Die Segmentierung kostet 2,83 s je 4K-Bild und ist
+speicherbandbreiten-gebunden, nicht rechengebunden: acht Worker bringen
+Faktor 1,5, mehr Worker bringen nichts. Hochgerechnet auf 1000 Bilder
+sind das rund 31 min — das ursprüngliche Ziel „1000 Bilder unter 10 min"
+ist auf dieser Maschine nicht erreichbar. Das dokumentierte Ziel ist
+stattdessen „voller Korpus unter 6 min".
+
 ## Repo-Struktur
 
 ```

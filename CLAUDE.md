@@ -34,6 +34,23 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 - `tests/test_real_captures.py` (Goldens) läuft rein auf gespeicherten Bildern.
 - Nach jedem Paket kompletter Testlauf; `git commit`/`push` erst nach Rückfrage.
 
+## Regressions-Korpus
+
+- **Vor jedem Merge: `corpus-run --check`.** Exit 1 = Regression. DRIFT
+  bricht per Default mit — auf gepinnter Umgebung ist jede Abweichung
+  code-verursacht. `--accept-drift` nur bei bewusstem Bibliotheks-Update
+  oder Plattformwechsel Mac↔Windows, danach Re-Baselining mit Begründung.
+- Alltag: `pytest -m corpus_smoke` (20 Bilder). Vollständig:
+  `pytest -m corpus`. Beide skippen sauber ohne lokalen Korpus.
+- Der Korpus liegt AUSSERHALB des Repos (`paths.corpus_dir`, Default
+  `../Doco_Detect_corpus`). Versioniert sind nur `corpus/manifest.json`
+  und `corpus/baseline.json`.
+- **Baseline-Änderung nur über `corpus-run --update-baseline` MIT
+  Begründung im Commit.** Eine Baseline, die man ohne Erklärung
+  nachzieht, misst nichts mehr.
+- `corpus-triage` erzeugt NUR Befunde — nie Code-, Schwellen- oder
+  Baseline-Änderungen.
+
 ## Umgebungen
 
 - Entwicklung aktuell: **MacBook, OpenCV/AVFoundation** — Kamera-Props sind per
