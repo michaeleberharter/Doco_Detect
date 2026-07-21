@@ -327,9 +327,15 @@ Auflösung) und `smoke-v2-uiqt` (synthetisch, Bilder fehlen).
 
 ```bash
 python -m docodetect.cli corpus-build      # idempotent, dedupliziert per SHA-256
-python -m docodetect.cli corpus-run --tier 1
+python -m docodetect.cli corpus-run --tier 1 --check
 python -m docodetect.cli corpus-run --tier 2 --check
 ```
+
+Vor einem Merge laufen **beide** `--check`-Zeilen. Tier 1 allein prüft nur
+die Messwerte: dort ist `quotas` leer, die Baseline-Quoten werden nicht
+ausgewertet und die Entscheidungs-Reproduktion läuft nicht. `--check`
+verlangt einen ungefilterten Lauf — `--subset`, `--session` und
+`--article` enden mit Exit 1, weil ein Ausschnitt keine Freigabe ist.
 
 Der Korpus liegt unter `paths.corpus_dir` (Default `../Doco_Detect_corpus`),
 bewusst ausserhalb des Repos — er enthält die 129 4K-PNGs. Versioniert
@@ -386,9 +392,17 @@ OpenCV-Build-Optionen) — das ist der dokumentierte Anwendungsfall für
 ### Baseline-Regel
 
 `corpus/baseline.json` ändert sich NUR über
-`corpus-run --update-baseline`, und der Commit muss begründen, warum die
-alten Zahlen nicht mehr gelten. Ohne diese Regel misst die Baseline
-irgendwann nur noch den Status quo.
+`corpus-run --tier 2 --update-baseline`, und der Commit muss begründen,
+warum die alten Zahlen nicht mehr gelten. Ohne diese Regel misst die
+Baseline irgendwann nur noch den Status quo.
+
+Ohne `--tier 2` bricht der Befehl mit Exit 2 ab: nur ein Tier-2-Lauf
+erzeugt die Quoten, und eine ersetzend geschriebene Baseline mit leeren
+`quotas` würde jede Kennzahl dauerhaft aus dem Vergleich nehmen.
+Fehlerraten (`false_accept_rate`) prüft `--check` gegen die Wilson-
+**Ober**grenze, alle übrigen Kennzahlen gegen die Untergrenze; fehlt
+einer vorhandenen Kennzahl ihre Grenze, ist das ein Fehler und keine
+Erlaubnis.
 
 ### Laufzeit (gemessen auf dem MacBook, 10 Kerne, 8 Worker)
 

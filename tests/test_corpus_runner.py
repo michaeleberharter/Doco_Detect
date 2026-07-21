@@ -216,6 +216,21 @@ def test_code_fingerprint_umfasst_corpus_compare(tmp_path, monkeypatch):
     assert code_fingerprint() != vorher
 
 
+def test_code_fingerprint_umfasst_runner_und_bundle(tmp_path, monkeypatch):
+    """runner.py haelt den Diskriminator fuer Segmentierungs-Abbrueche und
+    _tier1_cfg, bundle.py baut ueber bundle_cfg die Replay-Config. Beide
+    entscheiden mit ueber jeden gecachten Bandwert."""
+    assert "corpus/runner.py" in runner.CODE_DATEIEN
+    assert "corpus/bundle.py" in runner.CODE_DATEIEN
+    _fake_quellbaum(tmp_path)
+    monkeypatch.setattr(runner, "project_root", lambda: tmp_path)
+    for name in ("corpus/runner.py", "corpus/bundle.py"):
+        vorher = code_fingerprint()
+        (tmp_path / "docodetect").joinpath(*name.split("/")).write_text(
+            f"# abgeschwaecht {name}\n", encoding="utf-8")
+        assert code_fingerprint() != vorher, f"{name} invalidiert den Cache nicht"
+
+
 def test_code_fingerprint_meldet_fehlenden_bestandteil(tmp_path, monkeypatch):
     """Ein still uebergangener Bestandteil waere schlimmer als keiner."""
     _fake_quellbaum(tmp_path)
@@ -360,6 +375,24 @@ def test_fehlendes_buendel_erzeugt_fail_statt_abbruch(tmp_path, monkeypatch):
     r = run_one(asdict(e), 1, "testlauf")
     assert r["band"] == FAIL
     assert "Buendel" in (r["error"] or "") or r["error"]
+
+
+def test_tier2_ohne_buendel_db_ist_fail_und_legt_nichts_an(tmp_path):
+    """build_corpus loescht die Buendel-DB, sobald eine Session den Abgleich
+    nicht mehr besteht, revidiert aber bestehende ImageEntry.tier-Werte nie.
+    sqlite3.connect wuerde dann eine 0-Byte-Datei in den fingerprint-
+    verifizierten Session-Zustand schreiben und der Lauf liefe weiter."""
+    e = _e("cd" * 32, tier=2)
+    golden = MatchReport(decision="accept", message="", measured={})
+    _schreibe_korpus(tmp_path, e, golden)
+    _ctx(tmp_path)
+    db = tmp_path / e.session / "bundle" / "db.sqlite3"
+    assert not db.exists()
+
+    r = run_one(asdict(e), 2, "testlauf")
+    assert r["band"] == FAIL, r
+    assert "db.sqlite3" in (r["error"] or "") or "Buendel-DB" in (r["error"] or "")
+    assert not db.exists(), "Tier-2-Replay hat eine leere Buendel-DB angelegt"
 
 
 # --- M2: Zentroid kommt aus pipeline --------------------------------------

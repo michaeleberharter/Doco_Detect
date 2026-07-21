@@ -10,9 +10,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from docodetect.corpus.bundle import (bundle_cfg, copy_db_readonly,
-                                      db_match_ratio, recover_mm_per_px,
-                                      recover_sigma_floors)
+from docodetect.corpus.bundle import (SessionBundle, bundle_cfg,
+                                      copy_db_readonly, db_match_ratio,
+                                      recover_mm_per_px, recover_sigma_floors,
+                                      write_session_json)
 from docodetect.matcher import (CandidateReport, FeatureScore, MatchReport)
 
 
@@ -121,3 +122,58 @@ def test_bundle_cfg_points_at_the_bundle_and_disables_captures(tmp_path):
     assert out["calibration"]["file"] == str(tmp_path / "calibration.json")
     assert out["calibration"]["background_file"] == str(tmp_path / "background.png")
     assert cfg["paths"]["captures_dir"] == "data/captures"   # Original unberuehrt
+
+
+# ---- tier2_ready: das einzige Tor nach Tier 2 ----------------------------
+
+def _bundle(**kw) -> SessionBundle:
+    basis = {"name": "phase-b", "bundle_dir": "phase-b/bundle", "has_db": True,
+             "db_verified": 1.0, "mm_per_px": 0.0787}
+    basis.update(kw)
+    return SessionBundle(**basis)
+
+
+def test_tier2_ready_requires_db_and_full_verification():
+    assert _bundle(has_db=True, db_verified=1.0).tier2_ready is True
+
+
+def test_tier2_ready_is_false_without_a_db():
+    assert _bundle(has_db=False, db_verified=1.0).tier2_ready is False
+
+
+def test_tier2_ready_is_false_just_below_full_verification():
+    """Ein fast passender Snapshot ist eine ANDERE Datenbank, kein
+    'fast richtig' — 0,99 darf Tier 2 nicht oeffnen."""
+    assert _bundle(db_verified=0.99).tier2_ready is False
+    assert _bundle(db_verified=0.999999).tier2_ready is False
+
+
+def test_tier2_ready_is_false_without_any_verification():
+    assert _bundle(db_verified=0.0).tier2_ready is False
+
+
+# ---- write_session_json --------------------------------------------------
+
+def test_write_session_json_roundtrips_every_field(tmp_path):
+    b = _bundle(sigma_floors={"diameter_mm": 1.5}, tier=2, provenance="backup")
+    p = write_session_json(tmp_path / "phase-b" / "bundle", b)
+    assert p == tmp_path / "phase-b" / "bundle" / "session.json"
+    got = json.loads(p.read_text(encoding="utf-8"))
+    assert got == {"name": "phase-b", "bundle_dir": "phase-b/bundle",
+                   "has_db": True, "db_verified": 1.0, "mm_per_px": 0.0787,
+                   "sigma_floors": {"diameter_mm": 1.5}, "tier": 2,
+                   "provenance": "backup"}
+
+
+def test_write_session_json_creates_missing_directories(tmp_path):
+    ziel = tmp_path / "neu" / "tief" / "bundle"
+    assert not ziel.exists()
+    p = write_session_json(ziel, _bundle())
+    assert p.exists()
+
+
+def test_write_session_json_overwrites_an_older_state(tmp_path):
+    write_session_json(tmp_path, _bundle(tier=2, db_verified=1.0))
+    write_session_json(tmp_path, _bundle(tier=1, db_verified=0.4))
+    got = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
+    assert got["tier"] == 1 and got["db_verified"] == 0.4

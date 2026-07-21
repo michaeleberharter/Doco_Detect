@@ -29,8 +29,13 @@ from .manifest import ImageEntry, Manifest, corpus_root, sha256_file
 # Quelldateien, deren Aenderung jedes Ergebnis ungueltig macht. Pfade
 # relativ zu docodetect/ — corpus/compare.py gehoert dazu, weil dessen
 # QUANTUM/SOFT-Tabellen unmittelbar den gecachten Bandwert erzeugen.
+# corpus/runner.py und corpus/bundle.py aus demselben Grund: hier stehen
+# der Diskriminator fuer Segmentierungs-Abbrueche und _tier1_cfg, dort baut
+# bundle_cfg die komplette Replay-Config. Wer den Diskriminator abschwaecht,
+# bekaeme unter --changed-only sonst weiter die alten PASS-Eintraege.
 CODE_DATEIEN = ("segmentation.py", "features.py", "matcher.py", "pipeline.py",
-                "calibration.py", "database.py", "corpus/compare.py")
+                "calibration.py", "database.py", "corpus/compare.py",
+                "corpus/runner.py", "corpus/bundle.py")
 
 # Buendel-Bestandteile, die jedes Replay-Ergebnis dieser Session bestimmen.
 BUENDEL_DATEIEN = ("db.sqlite3", "calibration.json", "background.png")
@@ -216,6 +221,20 @@ def run_one(entry_dict: dict, tier: int, run_id: str) -> dict:
             return _json_safe(asdict(res))
 
         if tier2_lauf:
+            # Vor dem Bau der Pipeline: Database.__init__ ruft
+            # sqlite3.connect, und das LEGT die Datei an, wenn sie fehlt —
+            # mitten in den fingerprint-verifizierten Session-Zustand, und
+            # der Replay liefe gegen eine leere DB weiter. Erreichbar, weil
+            # build_corpus die Buendel-DB loescht, sobald eine Session den
+            # Abgleich nicht mehr besteht, die ImageEntry.tier-Werte aber
+            # nie revidiert. Tier 1 ist ueber _tier1_cfg geschuetzt.
+            db_pfad = Path(bcfg.get("paths", {}).get("db_file") or "")
+            if not db_pfad.is_file():
+                res.error = (f"Buendel-DB fehlt: {db_pfad} — Session ist "
+                             f"nicht Tier-2-faehig ('corpus-build' erneut "
+                             f"ausfuehren)")
+                res.band = FAIL
+                return _json_safe(asdict(res))
             pipe = Pipeline(bcfg)
             try:
                 outcome = pipe.identify(img, source_path=str(root / e.image_rel),

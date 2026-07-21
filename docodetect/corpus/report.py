@@ -19,6 +19,13 @@ BASELINE_PATH = project_root() / "corpus" / "baseline.json"
 UNIFORM_MIN_ANTEIL = 0.5
 UNIFORM_MAX_STREUUNG = 0.25
 
+# Kennzahlen, bei denen GROESSER = SCHLECHTER ist. Sie regressieren nach
+# oben und muessen deshalb gegen die Wilson-OBERgrenze geprueft werden.
+# Die Untergrenzen-Pruefung ist bei ihnen wirkungslos: false_accept_rate
+# steht bei 0/25 mit wilson_lo 0.0, und p < 0.0 kann nie eintreten — eine
+# Fehlbuchungsrate von 0 auf 20 % liefe damit als "OK" durch.
+FEHLERRATEN = ("false_accept_rate",)
+
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple:
     """Punktschaetzer plus Wilson-Score-Intervall. Wilson statt Normal-
@@ -139,13 +146,35 @@ def check_against_baseline(run: dict, quotas: dict, baseline: dict, *,
 
     for name, jetzt in (quotas or {}).items():
         alt = (baseline.get("quotas") or {}).get(name)
+        # Kein Baseline-Eintrag: die Kennzahl ist neu, es gibt nichts zu
+        # vergleichen. `decisions` traegt kein "p" und faellt hier ebenfalls
+        # heraus — es ist eine Zaehlung, keine Quote.
         if not alt or not isinstance(jetzt, dict) or "p" not in jetzt:
             continue
-        if jetzt["p"] < alt.get("wilson_lo", 0.0):
+        grenze = "wilson_hi" if name in FEHLERRATEN else "wilson_lo"
+        schranke = alt.get(grenze) if isinstance(alt, dict) else None
+        if not isinstance(schranke, (int, float)):
+            # Eine fehlende Grenze ist ein Fehler, keine Erlaubnis: mit
+            # .get(..., 0.0) waere der Vergleich still ausgeschaltet und das
+            # Gate meldete Sicherheit, die es nicht geprueft hat.
+            code = 1
+            meldungen.append(
+                f"{name}: Baseline-Eintrag ohne {grenze} — Kennzahl nicht "
+                f"pruefbar. Baseline mit 'corpus-run --tier 2 "
+                f"--update-baseline' neu erzeugen.")
+            continue
+        if name in FEHLERRATEN:
+            if jetzt["p"] > schranke:
+                code = 1
+                meldungen.append(
+                    f"{name}: {jetzt['p']:.4f} ueber Baseline-Wilson-"
+                    f"Obergrenze {schranke:.4f} (Baseline p={alt.get('p')}) — "
+                    f"Fehlerrate gestiegen")
+        elif jetzt["p"] < schranke:
             code = 1
             meldungen.append(
                 f"{name}: {jetzt['p']:.4f} unter Baseline-Wilson-Untergrenze "
-                f"{alt['wilson_lo']:.4f} (Baseline p={alt.get('p')})")
+                f"{schranke:.4f} (Baseline p={alt.get('p')})")
     return code, meldungen
 
 

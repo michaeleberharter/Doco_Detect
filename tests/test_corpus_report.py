@@ -119,6 +119,77 @@ def test_check_accepts_a_quota_inside_the_baseline_interval():
     assert code == 0
 
 
+# ---- I1: Fehlerraten regressieren nach OBEN ------------------------------
+
+# Die echte Baseline: 0 Fehlbuchungen auf 25 Annahmen.
+_FAR_BASELINE = {"quotas": {"false_accept_rate": {
+    "k": 0, "n": 25, "p": 0.0, "wilson_lo": 0.0, "wilson_hi": 0.1332}}}
+
+
+def test_check_flags_a_rising_false_accept_rate():
+    """5 Fehlbuchungen statt 0 sind eine Regression — die Untergrenzen-
+    Pruefung kann das nie sehen (p < 0.0 ist unmoeglich)."""
+    quotas = {"false_accept_rate": {"k": 5, "n": 25, "p": 0.2,
+                                    "wilson_lo": 0.0888, "wilson_hi": 0.3901}}
+    code, meldungen = check_against_baseline(
+        _run({"pass": 10}), quotas, _FAR_BASELINE, accept_drift=False)
+    assert code == 1, "steigende Fehlbuchungsrate meldete OK"
+    assert any("false_accept_rate" in m for m in meldungen)
+
+
+def test_check_accepts_a_false_accept_rate_inside_the_ceiling():
+    """1/25 liegt noch unter der Wilson-Obergrenze der Baseline."""
+    quotas = {"false_accept_rate": {"k": 1, "n": 25, "p": 0.04,
+                                    "wilson_lo": 0.0071, "wilson_hi": 0.1961}}
+    code, _ = check_against_baseline(
+        _run({"pass": 10}), quotas, _FAR_BASELINE, accept_drift=False)
+    assert code == 0
+
+
+def test_check_does_not_flag_a_falling_false_accept_rate():
+    """Weniger Fehlbuchungen sind eine Verbesserung, keine Regression."""
+    baseline = {"quotas": {"false_accept_rate": {
+        "k": 5, "n": 25, "p": 0.2, "wilson_lo": 0.0888, "wilson_hi": 0.3901}}}
+    quotas = {"false_accept_rate": {"k": 0, "n": 25, "p": 0.0,
+                                    "wilson_lo": 0.0, "wilson_hi": 0.1332}}
+    code, _ = check_against_baseline(
+        _run({"pass": 10}), quotas, baseline, accept_drift=False)
+    assert code == 0
+
+
+# ---- I2: fehlende Grenze ist ein Fehler, keine Erlaubnis ------------------
+
+def test_check_fails_when_the_baseline_entry_lacks_its_floor():
+    baseline = {"quotas": {"accuracy_top1": {"k": 46, "n": 60, "p": 0.7667}}}
+    quotas = {"accuracy_top1": {"k": 10, "n": 60, "p": 0.1667,
+                                "wilson_lo": 0.0929, "wilson_hi": 0.2811}}
+    code, meldungen = check_against_baseline(
+        _run({"pass": 10}), quotas, baseline, accept_drift=False)
+    assert code == 1, "fehlendes wilson_lo schaltete die Kennzahl still ab"
+    assert any("wilson_lo" in m for m in meldungen)
+
+
+def test_check_fails_when_an_error_rate_entry_lacks_its_ceiling():
+    baseline = {"quotas": {"false_accept_rate": {"k": 0, "n": 25, "p": 0.0,
+                                                 "wilson_lo": 0.0}}}
+    quotas = {"false_accept_rate": {"k": 5, "n": 25, "p": 0.2,
+                                    "wilson_lo": 0.0888, "wilson_hi": 0.3901}}
+    code, meldungen = check_against_baseline(
+        _run({"pass": 10}), quotas, baseline, accept_drift=False)
+    assert code == 1
+    assert any("wilson_hi" in m for m in meldungen)
+
+
+def test_check_ignores_the_decisions_block(tmp_path):
+    """`decisions` ist eine Zaehlung ohne p — sie darf die Grenzen-Pruefung
+    nicht als 'fehlende Grenze' triggern."""
+    baseline = {"quotas": {"decisions": {"accept": 25, "ambiguous": 34}}}
+    quotas = {"decisions": {"accept": 25, "ambiguous": 34}}
+    code, meldungen = check_against_baseline(
+        _run({"pass": 10}), quotas, baseline, accept_drift=False)
+    assert code == 0, meldungen
+
+
 # ---- tier2_quotas(): accuracy_top1/top3 muessen mit analysis.py uebereinstimmen ----
 
 def _cand(nr):

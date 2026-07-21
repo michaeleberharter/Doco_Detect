@@ -468,6 +468,23 @@ def cmd_corpus_run(args, cfg):
     print(f"[corpus-run] Bericht: {out / 'summary.md'}")
 
     if args.update_baseline:
+        # Verweigern statt mergen. save_baseline() schreibt ERSETZEND, und
+        # --tier hat Default 1 — quotas bleibt dort leer. Ein durchgelassener
+        # Lauf schriebe also "quotas": {} und schaltete damit in
+        # check_against_baseline JEDE Kennzahl dauerhaft ab (der Zweig
+        # `if not alt: continue` greift dann fuer immer). Ein stilles Mergen
+        # waere zwar bequemer, verbaende aber Quoten und Fingerprints aus
+        # zwei verschiedenen Laeufen zu einer Baseline, die keinen realen
+        # Zustand mehr beschreibt. Der laute Abbruch ist schwerer falsch zu
+        # bedienen als eine Baseline gemischter Herkunft.
+        if not quotas:
+            print("[corpus-run] ABBRUCH: --update-baseline ohne Quoten. "
+                  "Nur ein Tier-2-Lauf erzeugt die Soll-Quoten; mit --tier 1 "
+                  "wuerde die Baseline mit leeren quotas ueberschrieben und "
+                  "der Regressionsvergleich waere dauerhaft abgeschaltet.")
+            print("[corpus-run] Stattdessen: corpus-run --tier 2 "
+                  "--update-baseline")
+            sys.exit(2)
         corpus_report.save_baseline({
             "generated": datetime.now().isoformat(timespec="seconds"),
             "run_id": run_id, "tier": run["tier"], "n": run["n"],
@@ -477,9 +494,33 @@ def cmd_corpus_run(args, cfg):
         print("[corpus-run] ACHTUNG: Begruendung im Commit ist Pflicht.")
 
     if args.check:
+        baseline = corpus_report.load_baseline()
         code, meldungen = corpus_report.check_against_baseline(
-            run, quotas, corpus_report.load_baseline(),
-            accept_drift=args.accept_drift)
+            run, quotas, baseline, accept_drift=args.accept_drift)
+
+        # Vollstaendigkeitsschranke: ein Ausschnitt kann sauber sein, ohne
+        # dass der Korpus es ist. Ohne diese Pruefung sieht
+        # `--check --subset 5` aus wie ein gruenes Merge-Gate. Der
+        # Tier-2-Zweig hat mit quoten_unvollstaendig bereits ein solches
+        # Netz — hier fehlte es fuer Tier 1.
+        gefiltert = [n for n, v in (("--subset", args.subset is not None),
+                                    ("--session", bool(args.session)),
+                                    ("--article", bool(args.article))) if v]
+        if gefiltert:
+            code = 1
+            meldungen.append(
+                f"--check auf einem gefilterten Teil-Lauf ({', '.join(gefiltert)}) "
+                f"— ein Ausschnitt ist keine Freigabe. Fuer das Merge-Gate "
+                f"ohne Filter laufen lassen.")
+        else:
+            basis_n = baseline.get("n")
+            if isinstance(basis_n, int) and run["n"] < basis_n:
+                code = 1
+                meldungen.append(
+                    f"Nur {run['n']} Bilder geprueft, die Baseline fuehrt "
+                    f"{basis_n} — der Lauf deckt den Korpus nicht ab. "
+                    f"'corpus-build' pruefen, dann erneut laufen lassen.")
+
         if quoten_unvollstaendig:
             # Nicht auf 0 enden duerfen: ein Gate, das wegen fehlender Daten
             # schweigt, meldet Sicherheit, die es nicht geprueft hat.
