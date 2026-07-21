@@ -34,6 +34,31 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 - `tests/test_real_captures.py` (Goldens) läuft rein auf gespeicherten Bildern.
 - Nach jedem Paket kompletter Testlauf; `git commit`/`push` erst nach Rückfrage.
 
+## Regressions-Korpus
+
+- **Vor jedem Merge BEIDE Stufen: `corpus-run --tier 1 --check` UND
+  `corpus-run --tier 2 --check`.** Exit 1 = Regression. Tier 1 allein
+  genügt nicht: dort ist `quotas` leer, die Baseline-Quoten werden nie
+  ausgewertet und die Entscheidungs-Reproduktion läuft gar nicht.
+  DRIFT bricht per Default mit — auf gepinnter Umgebung ist jede
+  Abweichung code-verursacht. `--accept-drift` nur bei bewusstem
+  Bibliotheks-Update oder Plattformwechsel Mac↔Windows, danach
+  Re-Baselining mit Begründung.
+- `--check` gilt nur ungefiltert: `--subset`/`--session`/`--article`
+  enden bewusst mit Exit 1. Ein Teil-Lauf ist keine Freigabe.
+- Alltag: `pytest -m corpus_smoke` (20 Bilder). Vollständig:
+  `pytest -m corpus`. Beide skippen sauber ohne lokalen Korpus.
+- Der Korpus liegt AUSSERHALB des Repos (`paths.corpus_dir`, Default
+  `../Doco_Detect_corpus`). Versioniert sind nur `corpus/manifest.json`
+  und `corpus/baseline.json`.
+- **Baseline-Änderung nur über `corpus-run --tier 2 --update-baseline`
+  MIT Begründung im Commit.** Eine Baseline, die man ohne Erklärung
+  nachzieht, misst nichts mehr. Ohne `--tier 2` bricht der Befehl mit
+  Exit 2 ab — eine Baseline mit leeren Quoten würde jede Kennzahl
+  dauerhaft abschalten.
+- `corpus-triage` erzeugt NUR Befunde — nie Code-, Schwellen- oder
+  Baseline-Änderungen.
+
 ## Umgebungen
 
 - Entwicklung aktuell: **MacBook, OpenCV/AVFoundation** — Kamera-Props sind per
