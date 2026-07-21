@@ -240,8 +240,9 @@ fehlende Dateien anlegt — genau die Datei, die `corpus-build` dort entfernt.
 
 ### Ja, mit belegten Zahlen
 
-**Testlauf.** Vollständige Suite: **389 passed, 17 skipped**, keine
-Fehlschläge. Davon 151 Tests in den neun neuen Korpus-Testdateien. Die 17
+**Testlauf.** Vollständige Suite: **400 passed, 17 skipped**, keine
+Fehlschläge (12:06). Davon 151 Tests in den neun neuen Korpus-Testdateien
+plus 4 Marker-Tests in `tests/test_corpus.py`. Die 17
 übersprungenen sind die Hardware-Tests, die eine angeschlossene Kamera
 brauchen (`DOCODETECT_HW_TESTS=1`). `pytest -m corpus_smoke` läuft in 46,6 s.
 
