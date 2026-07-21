@@ -1,27 +1,20 @@
 {
   "version": 1,
-  "generated": "2026-07-21T01:23:52",
+  "generated": "2026-07-21T01:52:35",
   "sessions": {
     "phase-a": {
       "tier": 1,
       "db_verified": 0.0,
       "mm_per_px": 0.0787844289673669,
-      "neu": 0,
+      "neu": 67,
       "n_images": 67
     },
     "phase-b": {
       "tier": 2,
       "db_verified": 1.0,
       "mm_per_px": 0.0787884002216089,
-      "neu": 0,
+      "neu": 62,
       "n_images": 62
-    },
-    "test-2-loeffel": {
-      "tier": 2,
-      "db_verified": 1.0,
-      "mm_per_px": 0.07888578875507374,
-      "neu": 0,
-      "n_images": 14
     }
   },
   "images": [
@@ -63,16 +56,6 @@
       "report_rel": "phase-b/reports/0b695ec4.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 2
-    },
-    {
-      "sha": "0bab5c67af73a6281e6d7a8f221bb15d6501760f92c29b82141f7cb10dbcaf99",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-2",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-2/0bab5c67.png",
-      "report_rel": "test-2-loeffel/reports/0bab5c67.json",
-      "label": "LOEFFEL-2",
-      "verdict": "wrong",
       "tier": 2
     },
     {
@@ -166,16 +149,6 @@
       "tier": 2
     },
     {
-      "sha": "26be3280101907a321d71bf156bea7e4e3ac41cc3d241689cdb93ba332fd4071",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-8",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-8/26be3280.png",
-      "report_rel": "test-2-loeffel/reports/26be3280.json",
-      "label": "LOEFFEL-8",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
       "sha": "2c5be2d6c671f07d11d9bc433d4a4c04b5a89a7a2e5610aca18f81ba786c374e",
       "session": "phase-a",
       "article": "LOEFFEL-10",
@@ -192,16 +165,6 @@
       "image_rel": "phase-b/images/LOEFFEL-4/2c88e15a.png",
       "report_rel": "phase-b/reports/2c88e15a.json",
       "label": "LOEFFEL-4",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
-      "sha": "2fd74d3e1815e252c42cb41ae1442e6936c64381e340e1876e6aa1238c53bfff",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-14",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-14/2fd74d3e.png",
-      "report_rel": "test-2-loeffel/reports/2fd74d3e.json",
-      "label": "LOEFFEL-14",
       "verdict": "correct",
       "tier": 2
     },
@@ -466,16 +429,6 @@
       "tier": 1
     },
     {
-      "sha": "5c14716ea0cad4d6b822e99d5aa890e5f01b2a3108018cce49aa01c0b3e11482",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-6",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-6/5c14716e.png",
-      "report_rel": "test-2-loeffel/reports/5c14716e.json",
-      "label": "LOEFFEL-6",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
       "sha": "5db55defc4d08c886616769ceccc658a5445227507249a5bb8604aecfc15a689",
       "session": "phase-b",
       "article": "LOEFFEL-5",
@@ -504,26 +457,6 @@
       "label": "LOEFFEL-1",
       "verdict": "correct",
       "tier": 2
-    },
-    {
-      "sha": "60b391f74eb2d10fe202db4c86fe241dae64427d079495f32ea6a1492db85a16",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-3",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-3/60b391f7.png",
-      "report_rel": "test-2-loeffel/reports/60b391f7.json",
-      "label": "LOEFFEL-3",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
-      "sha": "60be1d82251bed260bef5922732bc97e9f9aab443e6057096c2f640e0cc14d65",
-      "session": "test-2-loeffel",
-      "article": "_unbewertet",
-      "image_rel": "test-2-loeffel/images/_unbewertet/60be1d82.png",
-      "report_rel": "test-2-loeffel/reports/60be1d82.json",
-      "label": null,
-      "verdict": "wrong",
-      "tier": 1
     },
     {
       "sha": "614d1f2a31f4c0b2b82e1e13cca2a522fae05e9cf31c56b284f4280e9038bff4",
@@ -672,26 +605,6 @@
       "image_rel": "phase-b/images/LOEFFEL-2/7ffd971a.png",
       "report_rel": "phase-b/reports/7ffd971a.json",
       "label": "LOEFFEL-2",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
-      "sha": "80185c1c35a132c074672dcc8d72edb8a3ac228f5e5773223108b0a2daf4ac88",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-1",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-1/80185c1c.png",
-      "report_rel": "test-2-loeffel/reports/80185c1c.json",
-      "label": "LOEFFEL-1",
-      "verdict": "wrong",
-      "tier": 2
-    },
-    {
-      "sha": "8328ac06920de027aed2b3da9f0b264168940262b6725ec52de937a8a7f60475",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-12",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-12/8328ac06.png",
-      "report_rel": "test-2-loeffel/reports/8328ac06.json",
-      "label": "LOEFFEL-12",
       "verdict": "correct",
       "tier": 2
     },
@@ -956,16 +869,6 @@
       "tier": 1
     },
     {
-      "sha": "a4f913046b54d84b0ead661b36a04e3992c19145d6b50e8cca4f0c0bc64a6453",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-9",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-9/a4f91304.png",
-      "report_rel": "test-2-loeffel/reports/a4f91304.json",
-      "label": "LOEFFEL-9",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
       "sha": "a7470f0454cdb956a536a602d479e9b287581349abb42f4ca1dff9b43c560f4c",
       "session": "phase-a",
       "article": "LOEFFEL-4",
@@ -973,16 +876,6 @@
       "report_rel": "phase-a/reports/a7470f04.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 1
-    },
-    {
-      "sha": "a74d618e726039a614d995c7115fbc58d5a861145b3f4ae1174f07cc0fe493fd",
-      "session": "test-2-loeffel",
-      "article": "_unbewertet",
-      "image_rel": "test-2-loeffel/images/_unbewertet/a74d618e.png",
-      "report_rel": "test-2-loeffel/reports/a74d618e.json",
-      "label": null,
-      "verdict": null,
       "tier": 1
     },
     {
@@ -1062,16 +955,6 @@
       "image_rel": "phase-b/images/LOEFFEL-2/b6376f78.png",
       "report_rel": "phase-b/reports/b6376f78.json",
       "label": "LOEFFEL-2",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
-      "sha": "b6873fae4770915aed789f13ba0844bba9dc6b2a7c7cb1d6f21e0d272b74f417",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-14",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-14/b6873fae.png",
-      "report_rel": "test-2-loeffel/reports/b6873fae.json",
-      "label": "LOEFFEL-14",
       "verdict": "correct",
       "tier": 2
     },
@@ -1163,16 +1046,6 @@
       "report_rel": "phase-a/reports/c3261c8e.json",
       "label": "LOEFFEL-1",
       "verdict": "correct",
-      "tier": 1
-    },
-    {
-      "sha": "ca1ca6cfdcff69a9989853a9006891e8d5e1426aa7b836fdab07ef6f30df405b",
-      "session": "test-2-loeffel",
-      "article": "_unbewertet",
-      "image_rel": "test-2-loeffel/images/_unbewertet/ca1ca6cf.png",
-      "report_rel": "test-2-loeffel/reports/ca1ca6cf.json",
-      "label": null,
-      "verdict": null,
       "tier": 1
     },
     {
@@ -1366,16 +1239,6 @@
       "tier": 1
     },
     {
-      "sha": "eeeeb50e51c14feccd80b990b75e9bb4bd61a12a89b7e1178e039a5c7ba1567e",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-7",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-7/eeeeb50e.png",
-      "report_rel": "test-2-loeffel/reports/eeeeb50e.json",
-      "label": "LOEFFEL-7",
-      "verdict": "wrong",
-      "tier": 2
-    },
-    {
       "sha": "f649d598d13a8ccf384f6016c11c5705142aa7c61e03394d6f31d2bebbc8f61b",
       "session": "phase-b",
       "article": "LOEFFEL-14",
@@ -1392,16 +1255,6 @@
       "image_rel": "phase-b/images/LOEFFEL-6/f8abf277.png",
       "report_rel": "phase-b/reports/f8abf277.json",
       "label": "LOEFFEL-6",
-      "verdict": "correct",
-      "tier": 2
-    },
-    {
-      "sha": "f93ce10a62860c679fe25790f49cd51017d842bbe90eb0a134b3edb06c968689",
-      "session": "test-2-loeffel",
-      "article": "LOEFFEL-7",
-      "image_rel": "test-2-loeffel/images/LOEFFEL-7/f93ce10a.png",
-      "report_rel": "test-2-loeffel/reports/f93ce10a.json",
-      "label": "LOEFFEL-7",
       "verdict": "correct",
       "tier": 2
     },

@@ -22,9 +22,19 @@ from .manifest import ImageEntry, Manifest, corpus_root, sha256_file
 _P = project_root()
 
 # (Session, Report-Ordner, Bild-Suchordner). Reihenfolge = Aufnahme-Reihenfolge.
+#
+# AUSGESCHLOSSEN, jeweils weil der Session-Zustand nicht mehr rekonstruierbar
+# ist — ein Buendel, das man nicht einfrieren kann, taugt nicht als Golden:
+#   test_2_loeffel  (14:52-15:31): Der Hintergrund der Session existiert nicht
+#       mehr. calibration/background.png stammt von 15:45, also von NACH der
+#       Session; background-alt.png aus den Backups wurde geprueft und liefert
+#       dasselbe Ergebnis. Im Erstlauf fielen dort Farb-, Form- UND
+#       Pixelgroessen durch — ein echter Segmentierungsunterschied, keine
+#       blosse mm-Skalierung.
+#   erster_test_loeffel: nur 3 bewertete Reports, gemischt 1080p/4K, alte
+#       sigma_floors.
+#   smoke-v2-uiqt: synthetisch (mm_per_px 0,2), Bilder nicht auffindbar.
 SOURCES = [
-    ("test-2-loeffel", str(_P / "reports/analysis/test_2_loeffel/reports"),
-     str(_P / "data/captures")),
     ("phase-a", str(_P / "reports/analysis/test_n_60_loeffel/reports"),
      str(_P / "data/captures")),
     ("phase-b", str(_P / "data/captures"), str(_P / "data/captures")),
@@ -34,11 +44,6 @@ SOURCES = [
 # Referenz-Abgleich der Bestandsaufnahme (Spec 1.2) und wird beim Build
 # erneut verifiziert — sie wird hier NICHT geglaubt, nur vorgeschlagen.
 BUNDLE_QUELLEN = {
-    "test-2-loeffel": {
-        "background": str(_P / "calibration/background.png"),
-        "calibration": str(_P / "calibration/calibration.json"),
-        "db": str(_P / "backups/2026-07-20-neue-position/doco_detect.sqlite3"),
-    },
     "phase-a": {
         "background": str(_P / "calibration/background.png"),
         "calibration": str(_P / "calibration/calibration.json"),
