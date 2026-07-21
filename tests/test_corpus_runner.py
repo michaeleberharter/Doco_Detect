@@ -35,7 +35,7 @@ def test_code_fingerprint_is_stable_within_a_run():
 def test_config_fingerprint_reacts_to_a_threshold_change():
     a = {"matching": {"max_z_accept": 3.5}, "features": {}, "geometry": {}}
     b = {"matching": {"max_z_accept": 3.4}, "features": {}, "geometry": {}}
-    assert config_fingerprint(a) != config_fingerprint(b)
+    assert config_fingerprint(a, tier=2) != config_fingerprint(b, tier=2)
 
 
 def test_config_fingerprint_ignores_irrelevant_sections():
@@ -43,7 +43,53 @@ def test_config_fingerprint_ignores_irrelevant_sections():
          "camera": {"index": 0}}
     b = {"matching": {"max_z_accept": 3.5}, "features": {}, "geometry": {},
          "camera": {"index": 1}}
-    assert config_fingerprint(a) == config_fingerprint(b)
+    assert config_fingerprint(a, tier=2) == config_fingerprint(b, tier=2)
+
+
+# ---------- Tier-gerechte Fingerprints ----------
+# Tier 1 (measure_shot: segment()+extract()) ruft matcher.py nie auf -
+# ein reiner matching-Wert (z.B. ein sigma_floor) darf den Tier-1-Cache
+# NICHT invalidieren, sonst rechnet --changed-only nach jeder Schwellen-
+# Aenderung 129 Bilder unnoetig neu. Tier 2 (Pipeline.identify()) durchlaeuft
+# zusaetzlich match() und muss auf jede matching-Aenderung reagieren - siehe
+# README "Welche Config repliziert Tier 2?".
+
+def test_matching_aenderung_invalidiert_nur_tier2_cache():
+    a = {"matching": {"sigma_floors": {"diameter_mm": 1.5}}, "features": {},
+        "geometry": {}}
+    b = {"matching": {"sigma_floors": {"diameter_mm": 2.0}}, "features": {},
+        "geometry": {}}
+    assert config_fingerprint(a, tier=1) == config_fingerprint(b, tier=1)
+    assert config_fingerprint(a, tier=2) != config_fingerprint(b, tier=2)
+
+
+def test_features_aenderung_invalidiert_beide_tiers():
+    a = {"matching": {}, "features": {"ring_zones": {"center_max": 0.60}},
+        "geometry": {}}
+    b = {"matching": {}, "features": {"ring_zones": {"center_max": 0.65}},
+        "geometry": {}}
+    assert config_fingerprint(a, tier=1) != config_fingerprint(b, tier=1)
+    assert config_fingerprint(a, tier=2) != config_fingerprint(b, tier=2)
+
+
+def test_geometry_aenderung_invalidiert_keinen_cache():
+    """geometry.camera_height_mm wird nur einmalig beim Kalibrieren gelesen
+    (calibration.calibrate_from_image) und landet in calibration.json -
+    load_calibration() liest beim Replay NIE die Live-Config, sondern das
+    eingefrorene Buendel (bereits ueber bundle_fingerprint() erfasst)."""
+    a = {"matching": {}, "features": {}, "geometry": {"camera_height_mm": 300.0}}
+    b = {"matching": {}, "features": {}, "geometry": {"camera_height_mm": 250.0}}
+    assert config_fingerprint(a, tier=1) == config_fingerprint(b, tier=1)
+    assert config_fingerprint(a, tier=2) == config_fingerprint(b, tier=2)
+
+
+def test_reine_paths_aenderung_invalidiert_keinen_cache():
+    a = {"matching": {}, "features": {}, "geometry": {},
+        "paths": {"corpus_dir": "../a"}}
+    b = {"matching": {}, "features": {}, "geometry": {},
+        "paths": {"corpus_dir": "../b"}}
+    assert config_fingerprint(a, tier=1) == config_fingerprint(b, tier=1)
+    assert config_fingerprint(a, tier=2) == config_fingerprint(b, tier=2)
 
 
 def test_auswahl_is_deterministic_and_sorted():

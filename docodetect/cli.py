@@ -406,6 +406,36 @@ def cmd_analyze(args, cfg):
         publish_run(cfg, out)
 
 
+def cmd_analyze_floors(args, cfg):
+    """sigma_floors aus einer Messreihe (Artikel N-fach neu aufgelegt)."""
+    from .floor_analysis import (analyze_floors, format_diameter_summary,
+                                 format_outliers, format_table,
+                                 format_warnings, format_yaml_block)
+    src = Path(args.reports_dir) if args.reports_dir else resolve(
+        cfg.get("paths", {}).get("captures_dir", "data/captures"))
+    report = analyze_floors(src, label=args.label, since=args.since,
+                            until=args.until, limit=args.limit)
+    print(f"[analyze-floors] {report.n_reports} Reports nach Filter "
+          f"({report.n_usable} mit measured-Block) aus {src}")
+    if report.n_usable == 0:
+        print("[analyze-floors] keine auswertbaren Reports - Filter prüfen.")
+        return
+    print()
+    print(format_table(report))
+    print()
+    print(format_yaml_block(report))
+    d = format_diameter_summary(report)
+    if d:
+        print()
+        print(d)
+    for w in format_warnings(report):
+        print(f"[analyze-floors] WARNUNG: {w}")
+    o = format_outliers(report)
+    if o:
+        print()
+        print(o)
+
+
 def cmd_corpus_build(args, cfg):
     """Regressions-Korpus aus Captures, archivierten Reports und Backups bauen."""
     from .corpus.build import build_corpus
@@ -650,6 +680,23 @@ def main(argv=None):
                         "zusätzlich ins versionierte Archiv kopieren "
                         "(analysis.publish_dir, Default reports/archive)")
 
+    p = sub.add_parser("analyze-floors", help="matching.sigma_floors aus "
+                       "einer Messreihe bestimmen (Artikel N-fach neu "
+                       "aufgelegt) statt von Hand")
+    p.add_argument("reports_dir", nargs="?", default=None,
+                   help="Ordner mit Report-JSONs (Default: paths.captures_dir)")
+    p.add_argument("--label", default=None,
+                   help="nur Reports mit diesem Label (wahrer Artikel, "
+                        "z.B. per UI-Bewertung gesetzt)")
+    p.add_argument("--since", default=None,
+                   help="nur Reports ab diesem Zeitstempel (ISO, wie im "
+                        "Report-JSON: 2026-07-22T09:00:00)")
+    p.add_argument("--until", default=None,
+                   help="nur Reports bis zu diesem Zeitstempel (ISO)")
+    p.add_argument("--limit", type=int, default=None,
+                   help="nur die letzten N Reports (nach Filter, neueste "
+                        "zuerst) - z.B. die letzten 20 einer Messreihe")
+
     p = sub.add_parser("corpus-build",
                        help="Regressions-Korpus aufbauen/aktualisieren "
                             "(idempotent, dedupliziert per SHA-256)")
@@ -707,6 +754,7 @@ def main(argv=None):
         "make-smoke-testset": cmd_make_smoke_testset,
         "sync-stammdaten": cmd_sync_stammdaten,
         "analyze": cmd_analyze,
+        "analyze-floors": cmd_analyze_floors,
         "corpus-build": cmd_corpus_build,
         "corpus-run": cmd_corpus_run,
         "corpus-diff": cmd_corpus_diff,

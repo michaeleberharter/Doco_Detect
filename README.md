@@ -110,14 +110,27 @@ Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
 ### sigma_floors aus einer echten Messreihe bestimmen
 
 1. Einen Artikel wählen und 15–20× neu in die Box legen (jedes Mal anheben,
-   leicht drehen/verschieben), z. B. per `enroll ART-NR --shots 20`.
-2. Pro Merkmal die Standardabweichung über die Messreihe ablesen: die Skalar-
-   Streuungen stehen nach dem Einlernen in `reference_stats` (`scalar_std`),
-   die Streuung der Farb-/Formdistanzen als `proto_std`; alternativ die
-   `measured`-Blöcke der Report-JSONs unter `data/captures/` auswerten.
-3. Diese Std je Merkmal ist der Floor → in `matching.sigma_floors` eintragen.
-   (Danach ggf. die Test-Referenzen wieder löschen: `delete-article` + neu
-   anlegen, damit die 20 Messreihen-Shots nicht als Referenzen bleiben.)
+   leicht drehen/verschieben). Über `identify` (bzw. UI, ohne den Artikel
+   vorher enrollen zu müssen) landet jede Aufnahme als `MatchReport`-JSON
+   unter `data/captures/`.
+2. Pro Merkmal die Standardabweichung über die Messreihe auswerten:
+   ```bash
+   python -m docodetect.cli analyze-floors --limit 20
+   ```
+   Zeigt Tabelle (n/mean/std/floor/min/max je Merkmal), einen fertigen
+   `sigma_floors:`-YAML-Block zum Copy-Paste, die explizite Ø-Streuung
+   (min/max/Std — hilft z. B. einzuordnen, ob ein beobachtetes Restresiduum
+   im Bereich des reinen Auflage-Rauschens liegt), eine Warnung bei
+   `n < 10` und benennt Ausreißer (`|x−mean| > 3·Std`). Filter: `--label
+   ART-NR` (nur Reports mit diesem Urteil), `--since`/`--until` (ISO-
+   Zeitstempel), `--limit N` (nur die letzten N). Alternative ohne
+   `identify`: `enroll ART-NR --shots 20` und danach `reference_stats`
+   (`scalar_std`/`proto_std`) auswerten — `analyze-floors` deckt nur den
+   `data/captures/`-Weg ab.
+3. Der `floor`-Wert je Merkmal aus Schritt 2 kommt in `matching.sigma_floors`.
+   (Danach ggf. Test-Captures/-Referenzen aufräumen, damit die
+   Messreihen-Shots nicht versehentlich als echte Referenzen/Captures
+   liegen bleiben.)
 
 ### Testphase: Validieren statt Schwellen raten
 
@@ -399,6 +412,44 @@ Der Korpus zieht als Ordner um; alle Manifest-Pfade sind relativ.
 Der erste Lauf auf Windows wird sehr wahrscheinlich DRIFT melden (andere
 OpenCV-Build-Optionen) — das ist der dokumentierte Anwendungsfall für
 `--accept-drift` plus anschliessendes Re-Baselining auf dieser Plattform.
+
+### Welche Config repliziert Tier 2?
+
+**Die AKTUELLE `config/config.yaml`/`config.local.yaml`, nicht ein
+Session-Snapshot.** `docodetect/corpus/bundle.py::bundle_cfg()` kopiert die
+beim Aufruf geladene Live-Config und biegt darin NUR `paths.db_file`,
+`paths.captures_dir`, `calibration.file` und `calibration.background_file`
+auf das eingefrorene Bündel um — `matching` und `features` (also
+`sigma_floors`, `feature_weights`, `diameter_tolerance_mm`, `max_z_accept`,
+`min_llr_margin` usw.) kommen unverändert aus dem Live-Zustand.
+`geometry.camera_height_mm` wird dagegen NIE live gelesen: es fließt nur
+einmalig beim Kalibrieren in `calibration.json` ein, und der Replay lädt
+ausschließlich das eingefrorene Bündel (`load_calibration` liest nie die
+Live-Config). Ein `session.json` führt zwar zur Provenienz ein
+rekonstruiertes `sigma_floors` (siehe `corpus/build.py`,
+`recover_sigma_floors`), das ist aber reine Dokumentation für Menschen —
+der Replay liest es nie zurück.
+
+**Konsequenz:** Ändert sich `matching.sigma_floors` (oder eine andere
+Schwelle) in `config.yaml`, repliziert der NÄCHSTE `corpus-run --tier 2`
+JEDE historische Session mit den NEUEN Werten — nicht mit den Werten, die
+zum Aufnahmezeitpunkt galten. Das erzeugt erwarteten Tier-2-DRIFT/FAIL,
+kein Bug. Ablauf dafür (etabliert 2026-07-21, siehe
+[Ergebnisdokument Vorfilter-Fix](docs/superpowers/reports/2026-07-21-vorfilter-laengliche-artikel-ergebnis.md),
+Abschnitt 6): Lauf ohne `--check` fahren, `corpus-diff` gegen den letzten
+grünen Lauf ziehen, jede Abweichung einzeln prüfen und akzeptieren, dann
+als versioniertes Delta unter `corpus/accepted_deltas/*.json` ablegen
+(`docodetect/corpus/accepted.py`) — die Original-Goldens bleiben dabei
+unverändert. Erst danach `corpus-run --tier 2 --update-baseline`.
+
+**Cache-Fingerprint deckt das ab.** `docodetect/corpus/runner.py::
+config_fingerprint(cfg, tier)` hasht `features` (Tier 1) bzw. `features`
++ `matching` (Tier 2) tier-gerecht in den `--changed-only`-Cache-Schlüssel
+ein (`geometry` bewusst NICHT, siehe oben — es wäre eine Attrappe, kein
+zusätzlicher Schutz). Eine Config-Änderung invalidiert den betroffenen
+Cache-Eintrag also automatisch: der DRIFT/FAIL aus der Konsequenz oben
+erscheint garantiert beim nächsten Lauf, auch unter `--changed-only`, nicht
+erst nach manuellem Löschen von `corpus/.cache/results.json`.
 
 ### Baseline-Regel
 

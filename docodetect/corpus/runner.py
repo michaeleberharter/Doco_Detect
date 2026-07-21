@@ -41,10 +41,21 @@ CODE_DATEIEN = ("segmentation.py", "features.py", "matcher.py", "pipeline.py",
 # Buendel-Bestandteile, die jedes Replay-Ergebnis dieser Session bestimmen.
 BUENDEL_DATEIEN = ("db.sqlite3", "calibration.json", "background.png")
 
-# Config-Teilbaeume, die das Ergebnis beeinflussen. camera/ui/paths sind
-# bewusst NICHT dabei — ein anderer Kamera-Index aendert kein Messergebnis
-# auf gespeicherten Bildern.
-CONFIG_TEILE = ("matching", "features", "geometry")
+# Config-Teilbaeume, die das Ergebnis TATSAECHLICH beeinflussen — tier-
+# gerecht, weil Tier 1 (measure_shot: segment()+extract()) matching.py nie
+# aufruft. camera/ui/paths sind bewusst NICHT dabei — ein anderer Kamera-
+# Index aendert kein Messergebnis auf gespeicherten Bildern.
+#
+# geometry.camera_height_mm ist bewusst NICHT dabei: gelesen wird es nur
+# einmalig beim Kalibrieren (calibration.calibrate_from_image), das
+# Ergebnis landet in calibration.json und wird beim Replay aus dem
+# eingefrorenen Buendel geladen (load_calibration liest NIE die Live-
+# Config). Diese Datei traegt bereits bundle_fingerprint() ueber
+# BUENDEL_DATEIEN — eine zweite Erfassung hier waere Attrappe, keine
+# zusaetzliche Absicherung (verifiziert 2026-07-22: kein Aufruf im
+# Replay-Pfad liest cfg["geometry"]).
+CONFIG_TEILE_TIER1 = ("features",)
+CONFIG_TEILE_TIER2 = ("features", "matching")
 
 DEFAULT_WORKERS = 8   # gemessenes Optimum, 10 bringt nichts (Spec 5.1)
 
@@ -75,8 +86,9 @@ def code_fingerprint() -> str:
     return h.hexdigest()
 
 
-def config_fingerprint(cfg: dict) -> str:
-    teil = {k: cfg.get(k, {}) for k in CONFIG_TEILE}
+def config_fingerprint(cfg: dict, tier: int) -> str:
+    teile = CONFIG_TEILE_TIER2 if tier == 2 else CONFIG_TEILE_TIER1
+    teil = {k: cfg.get(k, {}) for k in teile}
     return hashlib.sha256(
         json.dumps(teil, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -354,7 +366,7 @@ def run_corpus(cfg: dict, *, sessions=None, articles=None, tier: int = 1,
             "aussehen.")
 
     run_id = run_id or time.strftime("%Y%m%d-%H%M%S")
-    code_fp, cfg_fp = code_fingerprint(), config_fingerprint(cfg)
+    code_fp, cfg_fp = code_fingerprint(), config_fingerprint(cfg, tier)
 
     # Buendel-Fingerprint je Session, einmal berechnet.
     bundle_fps = {s: bundle_fingerprint(root, s)
