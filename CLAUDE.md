@@ -33,11 +33,22 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 - Echte `doco_detect.sqlite3`, `data/reference/` und `calibration/` NIE aus
   Tests oder Ad-hoc-Skripten anfassen; Tests nur gegen Temp-DBs/Temp-Verzeichnisse.
 - Destruktives immer als Verschieben nach `backups/<datum>-<zweck>/`
-  (gitignored), nie löschen.
+  (gitignored), nie löschen. Fallbeispiel für die Kosten: beim Rig-Umbau am
+  2026-07-20 wurde der alte Capture-Bestand gelöscht statt verschoben —
+  damit sind die 15 Fixtures von `test_real_captures.py` unwiederbringlich
+  weg und der Segmentierungs-Backstop seither tot (Details und Auflösung:
+  README, „Tests und Hardware").
 - `tests/conftest.py` blockt echte Kamerazugriffe (autouse); Hardware-Tests
   tragen Marker `hardware`, laufen nur mit `DOCODETECT_HW_TESTS=1`. Kein Code
   darf am Fixture vorbei `cv2.VideoCapture` öffnen.
 - `tests/test_real_captures.py` (Goldens) läuft rein auf gespeicherten Bildern.
+  **Derzeit skippt er vollständig — die 15 Fixtures fehlen.** Fehlende
+  Captures lösen `pytest.skip` aus, nicht `fail`: die Suite ist grün, ohne
+  die Segmentierung geprüft zu haben. Für Clone/CI/zweiten Rechner galt das
+  IMMER (`data/captures/` ist seit `4588fdc` gitignored, nie war ein Capture
+  versioniert); auf dieser Maschine seit dem 2026-07-20. Auflösung A+ am
+  2026-07-23: Goldens neu, Fixtures versioniert unter
+  `tests/fixtures/golden_captures/`, Skip→Fail im selben Commit.
 - Nach jedem Paket kompletter Testlauf; `git commit`/`push` erst nach Rückfrage.
 
 ## Regressions-Korpus
@@ -70,9 +81,43 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   oder Matcher; jedes Band-Urteil kommt aus `failures/`/`metrics.json`,
   jede Quote einer Laufseite aus deren `metrics.json`. Abweichungen zur
   Nachrechnung werden als Befund gemeldet, nicht stillschweigend ersetzt.
-- Ein Lauf ohne `metrics.json` ist abgebrochen: keine gültige
-  Vergleichsseite (Klartext-Abbruch), `--run letzte` überspringt ihn.
-  Aussortiertes nach `runs/_invalid/`.
+- Ein Lauf ohne `metrics.json` ist keine gültige Vergleichsseite
+  (Klartext-Abbruch), `--run letzte` überspringt ihn. Aussortiertes nach
+  `runs/_invalid/`. Häufigste Quelle solcher Ordner ist NICHT ein Abbruch,
+  sondern `tests/test_corpus.py::test_corpus_tier2_decisions_reproduce`:
+  es ruft `run_corpus()` direkt auf und erreicht `write_run` nie. Jeder
+  volle Testlauf hinterlässt so ein Verzeichnis.
+
+## Zusammenarbeit
+
+- **Definiert eine Freigabe eine Sequenz mit Melde-Punkten, ist JEDER
+  Melde-Punkt blockierend.** Nach dem Melden wird gestoppt und auf Antwort
+  gewartet — auch wenn das Ergebnis grün ist und der nächste Schritt
+  offensichtlich scheint. Ein Bericht, den der Mensch erst nach der
+  ausgeführten Folgeaktion liest, ist kein Freigabe-Punkt (so geschehen
+  2026-07-22: Suite-Tripel gemeldet und im selben Zug committet UND
+  gemergt). Nachträglich nachreichen heilt das nicht.
+
+## Worktrees
+
+- `config/config.local.yaml` mit absoluten `paths` reicht NICHT, um einen
+  Worktree voll testfähig zu machen. Sie wirkt nur auf Code, der
+  `cfg["paths"][...]` liest. `config.resolve()` löst IMMER gegen
+  `project_root()` auf, und Aufrufer wie
+  `tests/test_real_captures.py::_available()` übergeben Literale
+  (`resolve("data/captures")`) — die Config wird dort komplett umgangen.
+- Deshalb im Worktree zusätzlich symlinken (beide gitignored):
+  `data/captures -> ../../Doco_Detect/data/captures` und
+  `calibration/background.png -> ../../Doco_Detect/calibration/background.png`.
+  Das stellt Gleichstand zum Hauptverzeichnis her — mehr nicht: die 15
+  Segmentierungs-Goldens skippen dort wie hier, weil ihre Fixtures fehlen
+  (siehe offener Punkt in der README).
+- Ein Worktree-Testlauf ist erst dann gleichwertig, wenn seine Skip-Liste
+  die des Hauptverzeichnisses ist — **Zusammensetzung, nicht nur Anzahl**.
+  Beide meldeten am 2026-07-22 „17 skipped", aber aus verschiedenen
+  Gründen (`no captures` vs. `capture … not present`). Gleiche Zahl,
+  verschiedene Ursache: Skip-Gründe immer mit `-rs` ausgeben und
+  vergleichen, nie nur die Passed-Zahl.
 
 ## Umgebungen
 
