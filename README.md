@@ -633,6 +633,21 @@ Artefakte an und erzeugt keine — neue Reviews entstehen nur über die CLI.
 > 2026-07-21 (`20260721-020439`, `-024424`, `-182655`, `-192204`,
 > `-193004`) — vermutlich derselben Herkunft. Sie bleiben vorerst
 > unangetastet.
+>
+> **Das ist ein Muster, kein Einzelfall.** Am Abend des 2026-07-22 erzeugten
+> drei volle Suite-Läufe drei Waisen (`20260722-194748`, `-201215`,
+> `-203652`), jede mit exakt 60 Replay-Reports und ohne `metrics.json`.
+> Der Kern des Problems: **die Korpus-Tests schreiben in den ECHTEN Korpus.**
+> Das verletzt den Grundsatz „Tests nur gegen Temp-Verzeichnisse" (CLAUDE.md)
+> — hier bewusst, weil der Test den realen Harness auf realen Daten fahren
+> soll, aber ohne jede Aufräum-Pflicht. Wer die Suite regelmäßig laufen
+> lässt, sammelt pro Lauf ~1 MB und einen Ordner, der wie ein abgebrochener
+> Lauf aussieht. Denkbare Richtungen, noch nicht entschieden: Lauf-Ausgabe
+> der Tests nach `tmp_path` umleiten; oder die Tests ihren Lauf selbst
+> aufräumen lassen; oder Test-Läufe erkennbar taggen (etwa Präfix
+> `_test-`), damit sie gar nicht erst wie Arbeitsläufe aussehen und von der
+> Auswertung grundsätzlich übergangen werden. **Nur notiert, nicht
+> gefixt** — ein Eingriff in die Korpus-Tests ist eine eigene Entscheidung.
 
 ### Laufzeit (gemessen auf dem MacBook, 10 Kerne, 8 Worker)
 
