@@ -27,3 +27,10 @@ backups/
 
 # Korpus-Laufartefakte (der Korpus selbst liegt ausserhalb des Repos)
 corpus/runs/
+
+# Aufnahmen, die einen konkreten Fehlerfall festhalten und spaeter als
+# Test-Fixture dienen sollen – hier die zwei Reports des 1080p-Vorfalls vom
+# 2026-07-22 (Live-Aufloesung != image_width/height aus calibration.json),
+# Fixture fuer den noch ausstehenden Aufloesungs-Waechter. Nicht versionieren
+# (Bilddaten), aber auch nicht loeschen.
+data/quarantine/
