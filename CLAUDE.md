@@ -64,6 +64,15 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   dauerhaft abschalten.
 - `corpus-triage` erzeugt NUR Befunde — nie Code-, Schwellen- oder
   Baseline-Änderungen.
+- `corpus-report` (`corpus/review.py`) ist eine reine **Konsumentenschicht**:
+  liest Goldens, `runs/<id>/`, `accepted_deltas/`, `baseline.json` und
+  schreibt PNG/CSV/HTML nach `reports/corpus/`. Sie rechnet NIE Pipeline
+  oder Matcher; jedes Band-Urteil kommt aus `failures/`/`metrics.json`,
+  jede Quote einer Laufseite aus deren `metrics.json`. Abweichungen zur
+  Nachrechnung werden als Befund gemeldet, nicht stillschweigend ersetzt.
+- Ein Lauf ohne `metrics.json` ist abgebrochen: keine gültige
+  Vergleichsseite (Klartext-Abbruch), `--run letzte` überspringt ihn.
+  Aussortiertes nach `runs/_invalid/`.
 
 ## Umgebungen
 

@@ -504,6 +504,92 @@ Fehlerraten (`false_accept_rate`) prüft `--check` gegen die Wilson-
 einer vorhandenen Kennzahl ihre Grenze, ist das ein Fehler und keine
 Erlaubnis.
 
+### Auswertung: `corpus-report`
+
+Die Zahlen eines Laufs sichtbar machen, ohne irgendetwas neu zu rechnen.
+`corpus-report` (`docodetect/corpus/review.py`) ist eine reine
+Konsumentenschicht: sie liest Goldens, `runs/<id>/replay/`, `failures/`,
+`metrics.json`, `corpus/accepted_deltas/` und `corpus/baseline.json` und
+legt PNG + CSV + `index.html` unter `reports/corpus/<review-id>/` ab.
+
+```bash
+python -m docodetect.cli corpus-report --run letzte        # Goldens vs. Lauf
+python -m docodetect.cli corpus-report --run 20260722-floors-final
+python -m docodetect.cli corpus-report --compare RUN_A RUN_B   # Lauf vs. Lauf
+python -m docodetect.cli corpus-run --tier 2 --report      # Review nach dem Lauf
+```
+
+Vier Ansichten: **Drift-Review** (Tabelle je Bild mit Entscheidung/Top-1/
+Margin/max|z| alt→neu, treibendem Merkmal und Delta-Status, dazu die
+Scatter gegen die Gate-Linien und die Entscheidungsmatrix),
+**Baseline-Verlauf** (Quoten je Commit von `corpus/baseline.json`, direkt
+aus der Git-Historie), **Verteilungen** (Margin und max|z| als Histogramme,
+getrennt korrekt vs. falsch — die Ansicht für jede Schwellen-Diskussion)
+und **Konfusionsmatrix + Quoten mit Wilson-CI**. Bei einem Tier-1-Lauf mit
+Befunden kommt „Tier-1-Drift je Merkmal" aus den `failures/`-Diffs dazu
+(erster Anwendungsfall: Plattform-Drift Mac↔Windows).
+
+Die Drift-Review führt **neue Fehlbuchungen** getrennt: Bilder, die der
+neue Stand mit falschem Artikel akzeptiert, ohne dass die alte Seite so
+gebucht hätte (`neue_fehlbuchungen.csv`). Das ist bewusst **nicht** dieselbe
+Menge wie die Rang-1-Wechsel — war Rang 1 schon vorher falsch und kippt nur
+die Entscheidung auf `accept`, entsteht eine Fehlbuchung, ohne dass sich
+Rang 1 bewegt. Genau so lag `46f9b1b3` bei `hu_log`-Floor 0.069; die
+Richtungsbilanz allein zeigte dort 1 statt 2 (Abnahme 2026-07-22).
+
+**Kein Urteil entsteht hier.** Jedes PASS/DRIFT/FAIL stammt aus
+`failures/` bzw. dessen Abwesenheit, jede Quote einer Laufseite aus deren
+`metrics.json`. Zusätzlich rechnet die Schicht `report.tier2_quotas` — die
+Funktion, die auch der Runner benutzt — über die Replay-Reports und hält
+sie dagegen; weicht etwas ab, steht das als **Konsistenz-Befund** im
+Bericht, und angezeigt wird weiterhin der Wert aus `metrics.json`, weil das
+die Zahl ist, die `--check` bewertet hat.
+
+Zwei Kennzahlen sehen ähnlich aus und sind es nicht: `accuracy_top1` ist
+über den Korpus verdict-eingefroren (jedes Bild trägt ein menschliches
+Urteil) und bewegt sich durch keine Matcher-Änderung; `roh_top1_gleich_label`
+ist der rohe Label-Vergleich und als Zusatz gekennzeichnet. Für eine
+Schwellen-Diskussion zählt die rohe Größe.
+
+Ein Lauf **ohne `metrics.json`** ist abgebrochen und gilt als
+unvollständig: `corpus-report` lehnt ihn als Vergleichsseite mit Klartext
+ab (Exit 1), und `--run letzte` überspringt ihn. Der Runner schreibt
+`metrics.json` zuletzt — fehlt sie, ist der Replay-Stand ein Torso, und
+die fehlenden Bilder sähen in jeder Ansicht wie „nicht betroffen" aus
+statt wie „nie gefahren". Aussortierte Läufe gehören nach
+`runs/_invalid/`; Ordner mit führendem Unterstrich übergeht die
+Auswertung grundsätzlich.
+
+`reports/` ist Arbeitsordner und gitignored. `--publish` kopiert eine
+Review zusätzlich nach `reports/archive/corpus-<review-id>/` (Präfix, damit
+sie nie mit einem `analyze`-Lauf gleichen Namens kollidiert) und
+überschreibt dabei nie.
+
+Die Streamlit-Seite **Korpus** (`pages/2_Korpus.py`) zeigt dieselben
+Artefakte an und erzeugt keine — neue Reviews entstehen nur über die CLI.
+
+> **Offener Punkt — Hygiene von `runs/`.** Jeder Tier-2-Lauf legt rund 60
+> Reports (~1 MB) unter `runs/<id>/replay/` ab; nach einem Arbeitstag mit
+> Iterationen stehen dort schnell 30+ Läufe. Aufgeräumt wird derzeit
+> **nichts automatisch**, und das ist Absicht: alte Läufe sind die
+> Datengrundlage jedes `--compare` und damit aktuell wertvoll (die
+> `hu_log`-Iteration vom 2026-07-22 ließ sich nur deshalb rekonstruieren).
+> Eine Aufräum-Strategie — etwa „behalte Baseline-Läufe, benannte Läufe und
+> die letzten N, verwirf den Rest" — steht noch aus.
+>
+> Dazu gehört ein zweiter, verwandter Befund (2026-07-22): **jeder volle
+> Testlauf hinterlässt selbst ein solches Verzeichnis.**
+> `tests/test_corpus.py::test_corpus_tier2_decisions_reproduce` ruft
+> `run_corpus()` direkt auf — das schreibt die 60 Replay-Reports, ruft aber
+> nie `report.write_run`, also entsteht nie eine `metrics.json`. Das
+> Ergebnis ist ein zeitgestempelter Ordner, der wie ein abgebrochener Lauf
+> aussieht, obwohl der Test sauber durchlief. `corpus-report` lehnt ihn
+> korrekt ab; verwechselt wird er trotzdem leicht. Kandidaten für ein
+> künftiges Aufräumen sind daher auch die fünf unvollständigen Läufe vom
+> 2026-07-21 (`20260721-020439`, `-024424`, `-182655`, `-192204`,
+> `-193004`) — vermutlich derselben Herkunft. Sie bleiben vorerst
+> unangetastet.
+
 ### Laufzeit (gemessen auf dem MacBook, 10 Kerne, 8 Worker)
 
 | Lauf | Dauer |

@@ -150,7 +150,7 @@ def render_contribution_chart(report) -> None:
     st.subheader("Gewichtete Log-Beiträge — welches Merkmal trägt die Entscheidung?")
     fig = px.bar(pd.DataFrame(data), x="Merkmal", y="gewichteter Log-Beitrag",
                  color="Artikel", barmode="group")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig)
     st.caption("Weniger negativ = besser. Ein einzelner stark negativer Balken "
                "zeigt das Merkmal, das den Kandidaten disqualifiziert.")
 
@@ -164,8 +164,7 @@ def render_discriminance(report) -> None:
         dn = pd.DataFrame({"Merkmal": list(report.fisher_d_norm),
                            "D_norm": list(report.fisher_d_norm.values())})
         st.plotly_chart(px.bar(dn, x="Merkmal", y="D_norm",
-                               title="normierte Fisher-Diskriminanz D_f"),
-                        width="stretch")
+                               title="normierte Fisher-Diskriminanz D_f"))
     if report.w_global and report.w_eff:
         feats = report.feature_names or list(report.w_global)
         fig = go.Figure()
@@ -175,7 +174,7 @@ def render_discriminance(report) -> None:
                     y=[report.w_eff.get(f, 0.0) for f in feats])
         fig.update_layout(barmode="group", title=f"Gewichte vor/nach Adaption "
                                                  f"(α = {report.alpha})")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig)
 
 
 def render_top1_vs_top2(report) -> None:
@@ -354,22 +353,21 @@ with tab_batch:
                        "muss – Details: Report im Einzel-Report-Tab öffnen.")
         st.plotly_chart(px.pie(names=list(s.decision_counts),
                                values=list(s.decision_counts.values()),
-                               title="Entscheidungsverteilung"), width="stretch")
+                               title="Entscheidungsverteilung"))
         if s.posteriors_correct or s.posteriors_wrong:
             df = pd.DataFrame(
                 [{"Posterior": p, "Ergebnis": "korrekt"} for p in s.posteriors_correct]
                 + [{"Posterior": p, "Ergebnis": "falsch"} for p in s.posteriors_wrong])
             st.plotly_chart(px.histogram(df, x="Posterior", color="Ergebnis",
                                          barmode="overlay", nbins=20,
-                                         title="Posterior-Verteilung korrekt vs. falsch"),
-                            width="stretch")
+                                         title="Posterior-Verteilung korrekt vs. falsch"))
         if s.per_class:
             labels = sorted(s.per_class)
             preds = sorted({p for row in s.per_class.values() for p in row})
             z = [[s.per_class[t].get(p, 0) for p in preds] for t in labels]
             st.plotly_chart(px.imshow(z, x=preds, y=labels, text_auto=True,
                                       labels={"x": "Vorhersage", "y": "Wahrheit"},
-                                      title="Verwechslungsmatrix"), width="stretch")
+                                      title="Verwechslungsmatrix"))
         if s.confusion:
             st.subheader("Verwechslungspaare (nur Fehler)")
             st.dataframe(pd.DataFrame(s.confusion,

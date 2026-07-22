@@ -261,3 +261,61 @@ def test_tier2_warnt_bei_unvollstaendigen_quoten(monkeypatch, tmp_path,
     assert e.value.code == 1, "unvollstaendige Tier-2-Quoten meldeten OK"
     ausgabe = capsys.readouterr().out
     assert "unvollstaendig" in ausgabe.lower()
+
+
+# ---- corpus-report ------------------------------------------------------
+
+def test_corpus_report_is_registered():
+    with pytest.raises(SystemExit) as e:
+        cli.main(["corpus-report", "--help"])
+    assert e.value.code == 0
+
+
+def test_corpus_report_meldet_abgebrochenen_lauf_als_klartext(monkeypatch,
+                                                              tmp_path,
+                                                              capsys):
+    """Ein Lauf ohne metrics.json ist keine gueltige Seite. Der Nutzer soll
+    das als Satz lesen, nicht als Traceback — und der Exit-Code muss von 0
+    verschieden sein, damit ein Skript es merkt."""
+    from docodetect.config import load_config as _echtes_load_config
+
+    korpus = tmp_path / "korpus"
+    (korpus / "runs" / "abgebrochen" / "replay").mkdir(parents=True)
+
+    def _test_config(path=None):
+        cfg = _echtes_load_config(path)
+        cfg.setdefault("paths", {})["corpus_dir"] = str(korpus)
+        return cfg
+
+    monkeypatch.setattr(cli, "load_config", _test_config)
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["corpus-report", "--run", "abgebrochen"])
+    assert e.value.code != 0
+    meldung = str(e.value.code)
+    assert "[corpus-report]" in meldung
+    assert "unvollstaendig" in meldung and "metrics.json" in meldung
+
+
+def test_report_flag_erzeugt_ohne_abweichung_keine_review(monkeypatch,
+                                                          tmp_path, capsys):
+    """Ein durchweg gruener Lauf braucht keine Drift-Review — sonst waechst
+    reports/corpus/ mit jedem Lauf um einen Ordner ohne Inhalt."""
+    _isoliere_korpus(monkeypatch, tmp_path,
+                     lambda cfg, **kw: _run_dict([_lauf("pass"),
+                                                  _lauf("pass")]))
+    cli.main(["corpus-run", "--run-id", "test-gruen", "--report"])
+    ausgabe = capsys.readouterr().out
+    assert "keine Abweichung" in ausgabe
+
+
+def test_report_flag_ist_kein_gate(monkeypatch, tmp_path, capsys):
+    """Die Review ist eine Zugabe: schlaegt sie fehl, darf sie den
+    Exit-Code von --check nicht anfassen."""
+    _isoliere_korpus(monkeypatch, tmp_path,
+                     lambda cfg, **kw: _run_dict([_lauf("fail")]))
+    # Kein Replay, keine Goldens -> run_review kommt nicht durch.
+    with pytest.raises(SystemExit) as e:
+        cli.main(["corpus-run", "--check", "--run-id", "test-rot", "--report"])
+    assert e.value.code == 1, "Exit-Code kam nicht mehr aus --check"
+    assert "uebersprungen" in capsys.readouterr().out
