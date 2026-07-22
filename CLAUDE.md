@@ -41,14 +41,21 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 - `tests/conftest.py` blockt echte Kamerazugriffe (autouse); Hardware-Tests
   tragen Marker `hardware`, laufen nur mit `DOCODETECT_HW_TESTS=1`. Kein Code
   darf am Fixture vorbei `cv2.VideoCapture` öffnen.
-- `tests/test_real_captures.py` (Goldens) läuft rein auf gespeicherten Bildern.
-  **Derzeit skippt er vollständig — die 15 Fixtures fehlen.** Fehlende
-  Captures lösen `pytest.skip` aus, nicht `fail`: die Suite ist grün, ohne
-  die Segmentierung geprüft zu haben. Für Clone/CI/zweiten Rechner galt das
-  IMMER (`data/captures/` ist seit `4588fdc` gitignored, nie war ein Capture
-  versioniert); auf dieser Maschine seit dem 2026-07-20. Auflösung A+ am
-  2026-07-23: Goldens neu, Fixtures versioniert unter
-  `tests/fixtures/golden_captures/`, Skip→Fail im selben Commit.
+- `tests/test_real_captures.py` (Goldens) liest AUSSCHLIESSLICH aus dem
+  versionierten Satz `tests/fixtures/golden_captures/` (Szenen +
+  zugehöriger Hintergrund + `goldens.json`) — nie mehr aus `data/captures/`.
+  **Fehlt der Satz, schlägt der Test fehl; er skippt nicht.** Ein fehlender
+  Backstop ist ein Befund, kein Umstand. Der Wächter
+  `test_golden_fixtures_vollstaendig` ist bewusst NICHT parametrisiert:
+  eine Parametrisierung über ein leeres Manifest sammelt null Tests ein
+  („got empty parameter set" = SKIP) und verschwindet lautlos.
+- `PFLICHT_SZENEN` in derselben Datei ist die verbindliche Szenenliste.
+  Eine Szene aufzugeben ist erlaubt, aber nur als bewusste Code-Änderung
+  mit Begründung im Commit — nicht als Nebeneffekt eines Hardware-Tags.
+- Neue Goldens nur über `scripts/adopt_goldens.py`, und nur nach
+  Sichtabnahme jeder Maske (`--dry-run --overlay-dir …` zuerst). Ein
+  unbesehen übernommenes Golden zementiert genau den Fehler, den es messen
+  soll.
 - Nach jedem Paket kompletter Testlauf; `git commit`/`push` erst nach Rückfrage.
 
 ## Regressions-Korpus
@@ -103,15 +110,17 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 - `config/config.local.yaml` mit absoluten `paths` reicht NICHT, um einen
   Worktree voll testfähig zu machen. Sie wirkt nur auf Code, der
   `cfg["paths"][...]` liest. `config.resolve()` löst IMMER gegen
-  `project_root()` auf, und Aufrufer wie
-  `tests/test_real_captures.py::_available()` übergeben Literale
-  (`resolve("data/captures")`) — die Config wird dort komplett umgangen.
+  `project_root()` auf — Aufrufer, die Literale übergeben, umgehen die
+  Config komplett.
 - Deshalb im Worktree zusätzlich symlinken (beide gitignored):
   `data/captures -> ../../Doco_Detect/data/captures` und
   `calibration/background.png -> ../../Doco_Detect/calibration/background.png`.
-  Das stellt Gleichstand zum Hauptverzeichnis her — mehr nicht: die 15
-  Segmentierungs-Goldens skippen dort wie hier, weil ihre Fixtures fehlen
-  (siehe offener Punkt in der README).
+  Das stellt Gleichstand zum Hauptverzeichnis her — mehr nicht.
+  **Für `test_real_captures.py` ist das seit dem Fixture-Umbau nicht mehr
+  nötig:** der Test liest nur noch aus `tests/fixtures/golden_captures/`,
+  und das ist versioniert, also im Worktree ohnehin vorhanden. Genau darin
+  liegt der Gewinn — ein Worktree ist für den Segmentierungs-Backstop jetzt
+  ohne Sonderbehandlung gleichwertig.
 - Ein Worktree-Testlauf ist erst dann gleichwertig, wenn seine Skip-Liste
   die des Hauptverzeichnisses ist — **Zusammensetzung, nicht nur Anzahl**.
   Beide meldeten am 2026-07-22 „17 skipped", aber aus verschiedenen

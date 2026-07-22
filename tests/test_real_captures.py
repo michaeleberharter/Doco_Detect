@@ -1,18 +1,40 @@
-"""Regression suite on REAL captures from the photo box (data/captures/).
+"""Segmentierungs-Backstop auf ECHTEN Aufnahmen aus der Fotobox.
 
-Synthetic mock-ups cannot reproduce the reflection structure of polished
-steel – these tests pin the segmentation quality on the user's actual
-cutlery photos. Golden areas were established on 2026-07-16 (self-calibrating
-engine, no config, illumination-scaled edge thresholds, no texture seeds)
-after visual inspection of overlays: bowls complete, fork-tine slots open,
-mirror necks bridged, no glow fringe, contours tight. Measured against a
-fresh era-2 empty capture; cross-reference variation is ~2%, well inside
-AREA_TOL. Skipped when captures, background or scipy are not available.
+Synthetische Attrappen reproduzieren die Reflexionsstruktur von poliertem
+Stahl nicht — diese Tests nageln die Segmentierungsqualitaet auf echten
+Besteck-Fotos fest. Sie sind der EINZIGE korpus-unabhaengige Nachweis, dass
+`segmentation.py` noch tut, was es soll: der Regressions-Korpus liegt
+ausserhalb des Repos, ein Clone hat ihn nicht.
 
-Regenerate goldens after INTENDED behavior changes:
-    python -m pytest tests/test_real_captures.py -q  # failures print actuals
+## Warum die Fixtures im Repo liegen
+
+Bis 2026-07-22 lasen diese Tests aus `data/captures/` — einem Verzeichnis,
+das seit dem ersten Commit gitignored ist. Fuer jeden Clone, jede CI und
+jeden Dritten war der Backstop damit von Anfang an tot: die Tests skippten
+sich still weg und die Suite blieb gruen. Auf dieser Maschine starb die
+Abdeckung endgueltig am 2026-07-20, als ein Rig-Umbau den alten Bestand
+loeschte; die Aufnahmen sind unwiederbringlich.
+
+Deshalb liegen die Goldens jetzt VERSIONIERT unter
+`tests/fixtures/golden_captures/` — Szenen, Hintergrund und Manifest
+zusammen. Der Hintergrund gehoert zwingend dazu: eine Aufnahme ist nur
+vergleichbar, solange sie zur Beleuchtung ihres Hintergrunds passt
+(„Era"). Versionierte Aufnahmen gegen einen maschinenlokalen Hintergrund
+zu pruefen haette die Bruchstelle nur verschoben.
+
+## Warum FAIL und nicht SKIP
+
+Ein fehlender Backstop ist ein Befund, kein Umstand. Fehlen die Fixtures,
+schlaegt `test_golden_fixtures_vollstaendig` laut fehl statt zu skippen.
+Dieser Test ist bewusst NICHT parametrisiert: eine Parametrisierung ueber
+ein leeres Manifest sammelt null Tests ein und verschwindet lautlos — genau
+der Fehlermodus, der hier lange unbemerkt blieb.
+
+Fixtures aufnehmen/erneuern: siehe `docs/2026-07-23-golden-backstop.md`,
+Kurzfassung `python scripts/adopt_goldens.py --help`.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -22,103 +44,166 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from docodetect.config import resolve  # noqa: E402
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "golden_captures"
+MANIFEST = FIXTURE_DIR / "goldens.json"
+SCENES_DIR = FIXTURE_DIR / "scenes"
+BACKGROUND = FIXTURE_DIR / "background.png"
 
-# capture id -> mask area established after visual approval. IMPORTANT: a
-# capture is only comparable while calibration/background.png matches its
-# lighting era – re-lighting the box invalidates old captures (they are
-# auto-skipped via the floor-compatibility gate below; archive them and
-# record fresh goldens). Era 2 (dimmer lighting) started 2026-07-15 02:25;
-# era-1 captures live in data/captures/archive_relight1/.
-GOLDEN_AREAS = {
-    "1784075122341": 45883,   # teaspoon
-    "1784147898502": 45162,   # teaspoon diagonal
-    "1784147942106": 71714,   # fork flat, pointing left
-    "1784147956715": 73664,   # fork VERTICAL (mirror neck – bridge case)
-    "1784148001298": 71501,   # fork flat, pointing right
-    "1784148023691": 80974,   # serving spoon
-    "1784152895463": 80019,   # serving spoon flat
-    "1784152909645": 74597,   # fork diagonal (mirror heel – seit dem
-                              # Transparent-Annex 2026-07-16 groesstenteils
-                              # gefuellt: die Stufe erfasst auch Spiegelkeile
-                              # mit eigener Umriss-Struktur)
-    "1784152917062": 71666,   # fork flat
-    "1784152931460": 45566,   # teaspoon bent
-    "1784152943049": 73790,   # fork diagonal
-    "1784152961451": 25238,   # small dim teaspoon (glow-fringe case)
-    "1784224022152": 313824,  # TRANSPARENT glass mug incl. handle (annex case)
-    "1784224012371": 313360,  # same mug, second shot
-}
-AREA_TOL = 0.08            # masks may drift this much before we call it regression
-MIN_STEEL_COVERAGE = 0.93  # strong-evidence pixels the mask must cover
-STRONG_DIFF = 30           # era-2 "surely steel" gray diff (goldens are era-scoped)
+AREA_TOL = 0.08            # zulaessige Masken-Drift, darueber = Regression
+MIN_STEEL_COVERAGE = 0.93  # Anteil der Stark-Evidenz-Pixel, den die Maske deckt
+STRONG_DIFF = 30           # „sicher Objekt"-Grauwertabstand (era-gebunden)
+ERA_MEDIAN_MAX = 6         # Median-|diff| Boden gegen Hintergrund
+
+# Die Szenen, die der Backstop abdecken MUSS. Bewusst hier und nicht nur im
+# Manifest: waere die Liste allein das Manifest, machte eine Uebernahme von
+# 3 statt 15 Szenen die Suite gruen. Eine Szene zu streichen ist damit eine
+# bewusste, reviewbare Code-Aenderung — kein Nebeneffekt eines Hardware-Tags.
+# Zusammensetzung: die harten Faelle des alten Bestands (Spiegelhals,
+# Spiegelferse, Glow-Fringe, transparent) plus die Leerbox-Probe.
+PFLICHT_SZENEN = (
+    "01-teeloeffel-flach",
+    "02-teeloeffel-diagonal",
+    "03-teeloeffel-gebogen",
+    "04-teeloeffel-klein-dunkel",      # Glow-Fringe-Fall
+    "05-gabel-flach-links",
+    "06-gabel-flach-rechts",
+    "07-gabel-vertikal",               # Spiegelhals, Brueckenfall
+    "08-gabel-diagonal-spiegelferse",
+    "09-gabel-diagonal",
+    "10-gabel-flach",
+    "11-servierloeffel",
+    "12-servierloeffel-flach",
+    "13-glastasse-transparent",        # Transparent-Annex
+    "14-glastasse-transparent-2",
+    "15-leere-box",                    # muss SegmentationError werfen
+)
 
 
-def _available():
-    if not resolve("data/captures").exists():
-        return "no captures"
-    if not resolve("calibration/background.png").exists():
-        return "no background"
+def _manifest() -> dict:
+    """Manifest lesen; leeres dict, wenn (noch) keins da ist. Fehlt es,
+    meldet das der Vollstaendigkeits-Test — nicht jeder einzelne Szenentest."""
+    if not MANIFEST.is_file():
+        return {}
     try:
-        import scipy  # noqa: F401
-    except ImportError:
-        return "scipy missing"
-    return None
+        return json.loads(MANIFEST.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
 
 
-@pytest.mark.parametrize("capture_id", sorted(GOLDEN_AREAS))
-def test_real_capture_segmentation(capture_id):
-    reason = _available()
-    if reason:
-        pytest.skip(reason)
-    path = resolve(f"data/captures/{capture_id}.png")
-    if not path.exists():
-        pytest.skip(f"capture {capture_id} not present")
+def _szenen() -> dict:
+    return _manifest().get("scenes", {})
 
-    from docodetect.segmentation import segment
 
-    bg = cv2.imread(str(resolve("calibration/background.png")))
-    img = cv2.imread(str(path))
+_UEBERNAHME = ("Aufnehmen und uebernehmen: docs/2026-07-23-golden-backstop.md "
+               "(python scripts/adopt_goldens.py --help)")
 
-    # era gate: the capture's floor must match the CURRENT background –
-    # after re-lighting the box, old captures are meaningless (not wrong)
+
+def test_golden_fixtures_vollstaendig():
+    """Der Backstop selbst. Faellt aus, sobald der Fixture-Satz fehlt,
+    unvollstaendig ist oder Dateien vermissen laesst.
+
+    NICHT parametrisiert: dieser Test muss auch dann existieren, wenn es
+    keine einzige Szene gibt."""
+    if not FIXTURE_DIR.is_dir():
+        pytest.fail(
+            f"Segmentierungs-Backstop ist tot: {FIXTURE_DIR} fehlt "
+            f"vollstaendig. Ohne diese Fixtures prueft NICHTS im Repo die "
+            f"Segmentierung auf echten Aufnahmen (der Korpus liegt "
+            f"ausserhalb und fehlt jedem Clone). {_UEBERNAHME}")
+    if not MANIFEST.is_file():
+        pytest.fail(f"Fixture-Manifest fehlt: {MANIFEST}. {_UEBERNAHME}")
+    if not BACKGROUND.is_file():
+        pytest.fail(
+            f"Fixture-Hintergrund fehlt: {BACKGROUND}. Die Szenen sind ohne "
+            f"ihren Hintergrund nicht auswertbar — beide gehoeren zusammen "
+            f"versioniert. {_UEBERNAHME}")
+
+    szenen = _szenen()
+    fehlend = [s for s in PFLICHT_SZENEN if s not in szenen]
+    assert not fehlend, (
+        f"{len(fehlend)} von {len(PFLICHT_SZENEN)} Pflicht-Szenen fehlen im "
+        f"Manifest: {', '.join(fehlend)}. Eine Szene bewusst aufzugeben ist "
+        f"erlaubt — dann aber PFLICHT_SZENEN in dieser Datei aendern, mit "
+        f"Begruendung im Commit. {_UEBERNAHME}")
+
+    ohne_datei = [s for s in szenen if not (SCENES_DIR / f"{s}.png").is_file()]
+    assert not ohne_datei, (
+        f"Im Manifest gelistet, aber keine Bilddatei unter {SCENES_DIR}: "
+        f"{', '.join(sorted(ohne_datei))}")
+
+    ohne_golden = [s for s, m in szenen.items()
+                   if m.get("kind", "segment") == "segment"
+                   and not isinstance(m.get("area_px"), (int, float))]
+    assert not ohne_golden, (
+        f"Szenen ohne numerisches area_px im Manifest: "
+        f"{', '.join(sorted(ohne_golden))}")
+
+
+def test_scipy_vorhanden():
+    """scipy steht in requirements.txt (maximum_flow fuer den Graph-Cut).
+    Fehlt es, ist die Umgebung kaputt — kein Grund zu skippen."""
+    import scipy  # noqa: F401
+
+
+def _lade(scene_id: str):
+    bg = cv2.imread(str(BACKGROUND))
+    img = cv2.imread(str(SCENES_DIR / f"{scene_id}.png"))
+    assert bg is not None, f"Hintergrund nicht lesbar: {BACKGROUND}"
+    assert img is not None, f"Szene nicht lesbar: {scene_id}"
+    return img, bg
+
+
+def _era_pruefen(scene_id: str, img, bg):
+    """Boden der Szene gegen den mitgelieferten Hintergrund.
+
+    Frueher ein SKIP („anderes Beleuchtungs-Setup"), weil der Hintergrund
+    maschinenlokal war und wechseln konnte. Jetzt liegen beide im selben
+    versionierten Satz — eine Abweichung ist damit ein defekter Fixture-Satz
+    und keine Umgebungsfrage."""
     cue = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (3, 3), 0)
     bgc = cv2.GaussianBlur(cv2.cvtColor(bg, cv2.COLOR_BGR2GRAY), (3, 3), 0)
-    if float(np.median(cv2.absdiff(cue, bgc))) > 6:
-        pytest.skip(f"{capture_id}: anderes Beleuchtungs-Setup als der "
-                    "aktuelle Hintergrund – Golden nicht vergleichbar")
+    median = float(np.median(cv2.absdiff(cue, bgc)))
+    assert median <= ERA_MEDIAN_MAX, (
+        f"{scene_id}: Boden weicht vom mitgelieferten Hintergrund ab "
+        f"(Median {median:.1f} > {ERA_MEDIAN_MAX}). Szene und background.png "
+        f"stammen aus verschiedenen Beleuchtungs-Eras — der Fixture-Satz ist "
+        f"inkonsistent, nicht die Segmentierung.")
+    return cue, bgc
 
+
+@pytest.mark.parametrize("scene_id", sorted(
+    s for s, m in _szenen().items() if m.get("kind", "segment") == "segment"))
+def test_real_capture_segmentation(scene_id):
+    from docodetect.segmentation import segment
+
+    img, bg = _lade(scene_id)
+    cue, bgc = _era_pruefen(scene_id, img, bg)
     s = segment(img, bg)
 
-    # 1. area close to the visually approved golden
-    golden = GOLDEN_AREAS[capture_id]
+    # 1. Flaeche nahe am sichtabgenommenen Golden
+    golden = _szenen()[scene_id]["area_px"]
     assert abs(s.area_px - golden) / golden <= AREA_TOL, (
-        f"{capture_id}: area {s.area_px:.0f} vs golden {golden} "
+        f"{scene_id}: Flaeche {s.area_px:.0f} gegen Golden {golden} "
         f"({(s.area_px - golden) / golden:+.1%})")
 
-    # 2. no steel lost: the mask covers (nearly) all strong-evidence pixels
+    # 2. kein Material verloren: Maske deckt (fast) alle Stark-Evidenz-Pixel
     strong = cv2.absdiff(cue, bgc) >= STRONG_DIFF
     coverage = float((strong & (s.mask > 0)).sum()) / max(1, int(strong.sum()))
     assert coverage >= MIN_STEEL_COVERAGE, (
-        f"{capture_id}: steel coverage {coverage:.3f} – object material lost")
+        f"{scene_id}: Material-Abdeckung {coverage:.3f} – Objektmaterial verloren")
 
-    # 3. sane result object
+    # 3. plausibles Ergebnisobjekt
     assert not s.touches_border
     assert cv2.contourArea(s.contour) > 0
 
 
-def test_background_duplicate_raises():
-    """A capture that IS the background (empty box) must raise, not measure."""
-    reason = _available()
-    if reason:
-        pytest.skip(reason)
-    path = resolve("data/captures/1784152866853.png")
-    if not path.exists():
-        pytest.skip("capture not present")
-    from docodetect.segmentation import segment, SegmentationError
-    bg = cv2.imread(str(resolve("calibration/background.png")))
-    img = cv2.imread(str(path))
-    if float(np.median(cv2.absdiff(img, bg))) > 6:
-        pytest.skip("anderes Beleuchtungs-Setup")
+@pytest.mark.parametrize("scene_id", sorted(
+    s for s, m in _szenen().items() if m.get("kind") == "raises"))
+def test_leere_box_wirft(scene_id):
+    """Eine Aufnahme, die IST der Hintergrund (leere Box), muss werfen statt
+    zu messen."""
+    from docodetect.segmentation import SegmentationError, segment
+
+    img, bg = _lade(scene_id)
     with pytest.raises(SegmentationError):
         segment(img, bg)
