@@ -5,10 +5,14 @@ __pycache__/
 *.pyc
 calibration/*.json
 calibration/*.png
-data/captures/
-data/reference/
-data/demo/
-data/testset-smoke/
+# Ohne Schraegstrich: matcht Verzeichnis UND Symlink. In einem Worktree
+# zeigen diese Pfade per Symlink auf die echten Daten des Hauptverzeichnisses
+# (siehe CLAUDE.md, Abschnitt Worktrees) — mit Schraegstrich waere der
+# Symlink untracked und stuende dauerhaft in `git status`.
+data/captures
+data/reference
+data/demo
+data/testset-smoke
 # reports/ ist Arbeitsordner (ignoriert); reports/archive/ ist das
 # VERSIONIERTE Auswertungs-Archiv (analyze --publish). Die Muster-Kombination
 # ist Pflicht: Git steigt in komplett ignorierte Ordner nicht ab, erst

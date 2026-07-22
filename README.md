@@ -250,6 +250,50 @@ python -m pytest tests/ -v                              # ohne Hardware
 DOCODETECT_HW_TESTS=1 python -m pytest tests/ -v -m hardware -s   # mit Kamera
 ```
 
+> **Offener Punkt — der Segmentierungs-Backstop ist tot (Stand 2026-07-22).**
+> `tests/test_real_captures.py` prüft die Segmentierung auf echten Aufnahmen
+> gegen visuell abgenommene Flächen (`GOLDEN_AREAS`). **Alle 15 Fixtures
+> fehlen**, der Test skippt vollständig — mit grüner Suite, weil ein
+> fehlendes Capture ein `pytest.skip` auslöst, keinen Fehler.
+>
+> Zwei getrennte Ursachen, die man nicht verwechseln darf:
+>
+> 1. **Für Dritte gab es diese Abdeckung nie.** `data/captures/` ist seit dem
+>    allerersten Commit (`4588fdc`) gitignored; es wurde nie ein Capture
+>    versioniert. In einem frischen Clone, in CI oder auf einem zweiten
+>    Rechner skippte der Test immer schon — und ohne lokalen Korpus (der
+>    ebenfalls außerhalb des Repos liegt) ist die Messpfad-Abdeckung dort
+>    **null**, bei grüner Suite.
+> 2. **Auf dieser Maschine starb sie am 2026-07-20.** Beim Rig-Umbau
+>    („neue Position") wurde der alte Capture-Bestand gelöscht statt nach
+>    `backups/` verschoben. Die Fixtures sind unwiederbringlich: nicht in
+>    `data/captures/`, nicht in den vier `backups/`-Ordnern, nicht im
+>    Korpus, nicht in `data/quarantine/`, nicht im Papierkorb.
+>
+> | | Zeitpunkt |
+> |---|---|
+> | Golden-Captures (Ära 2), etabliert 2026-07-16 | 2026-07-15 00:25 – 2026-07-16 17:47 |
+> | **Lücke** | **2026-07-16 17:47 – 2026-07-20 11:51** |
+> | ältestes erhaltenes Capture (`backups/2026-07-20-vor-ab-test`) | 2026-07-20 11:51 |
+> | ältestes in `data/captures/` | 2026-07-20 13:15 |
+>
+> Der Testcode selbst ist seit `3a02232` unverändert — es ist ein reines
+> Datenproblem. Auf dieser Maschine bleibt die Segmentierung über
+> Korpus-Tier-1 (129 echte Aufnahmen) abgedeckt; der korpus-**unabhängige**
+> Backstop fehlt.
+>
+> **Geplante Auflösung (A+), Hardware-Block am 2026-07-23:** Goldens neu
+> aufnehmen mit bewusstem Fokus auf die harten Fälle (Löffel mit
+> Spiegel-Laffe, Gabel horizontal *und* vertikal mit Spiegel-Hals, Messer,
+> Teller, ein Randberührungs-Fall), jede Maske einzeln sichtabnehmen,
+> `GOLDEN_AREAS` neu setzen — und die Fixtures **versioniert** unter
+> `tests/fixtures/golden_captures/` ablegen statt in gitignorierten
+> Arbeitsordnern. Damit wird die Abdeckung erstmals clone-vollständig.
+> Im selben Commit wird die Skip-Semantik auf **fail** umgestellt: fehlende
+> Fixtures dürfen keine grüne Suite mehr erzeugen. Zusätzlich fällt der
+> Phantom-Pfad `data/captures/archive_relight1/` aus dem Docstring, den es
+> nie gab.
+
 ## Workflow
 
 ```bash
