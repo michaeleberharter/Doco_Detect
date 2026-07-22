@@ -498,6 +498,26 @@ def cmd_corpus_run(args, cfg):
           + (f" ({run['bilder_pro_s']} Bilder/s)" if run["bilder_pro_s"] else ""))
     print(f"[corpus-run] Bericht: {out / 'summary.md'}")
 
+    # --report: nach einem Lauf MIT Abweichungen die Drift-Review erzeugen.
+    # Bewusst nur dann - ein durchweg gruener Lauf braucht keine Review, und
+    # ein automatisch erzeugter Ordner je Lauf laesst reports/corpus/
+    # unnoetig zuwachsen (siehe Hygiene-Notiz in docs/architektur.md).
+    if getattr(args, "report", False):
+        abweichend = sum(1 for r in run["results"] if r["band"] != "pass")
+        if not abweichend:
+            print("[corpus-run] --report: keine Abweichung, keine "
+                  "Drift-Review erzeugt.")
+        else:
+            from .corpus.review import run_review
+            try:
+                ziel = run_review(cfg, run=run_id)
+                print(f"[corpus-run] Drift-Review ({abweichend} abweichende "
+                      f"Bilder): {ziel / 'index.html'}")
+            except (RuntimeError, FileNotFoundError) as exc:
+                # Die Review ist eine Zugabe, kein Gate: sie darf den
+                # Exit-Code von --check nie beeinflussen.
+                print(f"[corpus-run] --report uebersprungen: {exc}")
+
     if args.update_baseline:
         # Verweigern statt mergen. save_baseline() schreibt ERSETZEND, und
         # --tier hat Default 1 — quotas bleibt dort leer. Ein durchgelassener
@@ -571,6 +591,26 @@ def cmd_corpus_diff(args, cfg):
     from .corpus.diff import diff_runs, format_diff
     from .corpus.manifest import corpus_root
     print(format_diff(diff_runs(corpus_root(cfg), args.run_a, args.run_b)))
+
+
+def cmd_corpus_report(args, cfg):
+    """Drift-Review und Kennzahlen-Ansichten ueber fertige Laeufe.
+
+    Rechnet NICHTS neu: liest Goldens, Replay-Reports, failures/, metrics.json
+    und corpus/baseline.json und legt PNG/CSV/HTML unter reports/corpus/ ab.
+    """
+    from .corpus.review import publish_review, run_review
+    try:
+        out = run_review(cfg, run=args.run,
+                         compare=tuple(args.compare) if args.compare else None)
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        # Bedienfehler (Lauf abgebrochen, Lauf-ID falsch, Seiten ohne
+        # gemeinsame Bilder) als Klartext, nicht als Traceback.
+        sys.exit(f"[corpus-report] {exc}")
+    print(f"[corpus-report] Artefakte unter {out}")
+    print(f"[corpus-report] Uebersicht: {out / 'index.html'}")
+    if args.publish:
+        publish_review(cfg, out)
 
 
 def cmd_corpus_triage(args, cfg):
@@ -726,10 +766,26 @@ def main(argv=None):
     p.add_argument("--update-baseline", action="store_true",
                    help="Baseline aus diesem Lauf neu schreiben "
                         "(Begruendung im Commit ist Pflicht)")
+    p.add_argument("--report", action="store_true",
+                   help="nach einem Lauf MIT Abweichungen die Drift-Review "
+                        "erzeugen (reports/corpus/<run-id>/index.html)")
 
     p = sub.add_parser("corpus-diff", help="zwei Korpus-Laeufe vergleichen")
     p.add_argument("run_a")
     p.add_argument("run_b")
+
+    p = sub.add_parser("corpus-report",
+                       help="Drift-Review + Kennzahlen-Ansichten aus fertigen "
+                            "Laeufen (PNG/CSV/HTML, rechnet nichts neu)")
+    p.add_argument("--run", default=None,
+                   help="Goldens gegen diesen Lauf (Default/'letzte': der "
+                        "zuletzt geschriebene Tier-2-Lauf)")
+    p.add_argument("--compare", nargs=2, metavar=("RUN_A", "RUN_B"),
+                   default=None,
+                   help="statt gegen die Goldens: Lauf gegen Lauf")
+    p.add_argument("--publish", action="store_true",
+                   help="Artefakte zusaetzlich ins versionierte Archiv "
+                        "kopieren (analysis.publish_dir, Praefix 'corpus-')")
 
     p = sub.add_parser("corpus-triage",
                        help="Failures eines Laufs clustern (nur Befunde)")
@@ -759,6 +815,7 @@ def main(argv=None):
         "corpus-build": cmd_corpus_build,
         "corpus-run": cmd_corpus_run,
         "corpus-diff": cmd_corpus_diff,
+        "corpus-report": cmd_corpus_report,
         "corpus-triage": cmd_corpus_triage,
     }[args.cmd](args, cfg)
 
