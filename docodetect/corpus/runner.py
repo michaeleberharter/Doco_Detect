@@ -57,7 +57,42 @@ BUENDEL_DATEIEN = ("db.sqlite3", "calibration.json", "background.png")
 CONFIG_TEILE_TIER1 = ("features",)
 CONFIG_TEILE_TIER2 = ("features", "matching")
 
+# Alles, was je in einen config_fingerprint eingeht. Steht einer dieser
+# Abschnitte in der unversionierten config.local.yaml, rechnet der Korpus
+# gegen Werte, die kein anderer Rechner und kein Reviewer je zu sehen
+# bekommt: die Baseline beschreibt dann einen Zustand, den das Repo nicht
+# kennt, und jeder Vergleich gegen sie ist wertlos. Genau so entstand die
+# Tier-2-Baseline vom 2026-07-21 (auf lokalen sigma_floors) — deshalb der
+# harte Abbruch statt einer Warnung.
+FINGERPRINT_ABSCHNITTE = tuple(sorted(set(CONFIG_TEILE_TIER1)
+                                      | set(CONFIG_TEILE_TIER2)))
+
 DEFAULT_WORKERS = 8   # gemessenes Optimum, 10 bringt nichts (Spec 5.1)
+
+
+def pruefe_lokale_overrides(config_path=None) -> None:
+    """Abbruch, wenn die lokale Config einen fingerprinteten Abschnitt
+    ueberschreibt.
+
+    Bewusst tier-unabhaengig: `matching` beeinflusst zwar nur Tier 2, aber
+    ein Tier-1-Lauf auf einem so konfigurierten Rechner ist trotzdem kein
+    verwertbares Gate — der Rechner wuerde beim naechsten Tier-2-Lauf still
+    eine unversionierte Baseline erzeugen. Die Pruefung greift frueh, damit
+    der Fehler VOR dem Rechnen sichtbar wird, nicht in der Baseline danach.
+    """
+    from ..config import LOCAL_CONFIG_NAME, local_override
+    local = local_override(config_path)
+    verboten = [k for k in FINGERPRINT_ABSCHNITTE if k in local]
+    if not verboten:
+        return
+    raise RuntimeError(
+        f"{LOCAL_CONFIG_NAME} ueberschreibt fingerprintete Abschnitte: "
+        f"{', '.join(verboten)}. Der Korpus wuerde gegen unversionierte "
+        f"Werte rechnen und eine Baseline erzeugen, die niemand "
+        f"nachvollziehen kann. Diese Abschnitte gehoeren nach "
+        f"config/config.yaml (auch rig-spezifisch gemessene sigma_floors); "
+        f"in {LOCAL_CONFIG_NAME} bleibt nur Maschinen-Spezifisches wie "
+        f"camera.index.")
 
 
 def code_fingerprint() -> str:
@@ -342,7 +377,9 @@ def _cache_key(sha: str, tier: int, code_fp: str, cfg_fp: str,
 
 def run_corpus(cfg: dict, *, sessions=None, articles=None, tier: int = 1,
                subset=None, workers: int = DEFAULT_WORKERS,
-               changed_only: bool = False, run_id: str | None = None) -> dict:
+               changed_only: bool = False, run_id: str | None = None,
+               config_path=None) -> dict:
+    pruefe_lokale_overrides(config_path)
     root = corpus_root(cfg)
     if not root.exists():
         raise RuntimeError(

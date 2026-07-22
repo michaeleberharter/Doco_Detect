@@ -127,10 +127,38 @@ Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
    `identify`: `enroll ART-NR --shots 20` und danach `reference_stats`
    (`scalar_std`/`proto_std`) auswerten — `analyze-floors` deckt nur den
    `data/captures/`-Weg ab.
-3. Der `floor`-Wert je Merkmal aus Schritt 2 kommt in `matching.sigma_floors`.
+3. Der `floor`-Wert je Merkmal aus Schritt 2 kommt in `matching.sigma_floors`
+   — in `config/config.yaml`, **nicht** in `config.local.yaml` (siehe unten).
    (Danach ggf. Test-Captures/-Referenzen aufräumen, damit die
    Messreihen-Shots nicht versehentlich als echte Referenzen/Captures
    liegen bleiben.)
+
+**Die Floors gehören versioniert in `config/config.yaml` — auch wenn sie
+rig-spezifisch gemessen sind.** Das ist bewusst kein Widerspruch: die Floors
+sind zwar am Rig gemessen, aber der Regressions-Korpus rechnet gegen sie und
+die Tier-2-Baseline hält ihren `config_fingerprint` fest. Stünden sie in der
+unversionierten `config.local.yaml`, verglichen `corpus-run --check` und die
+Baseline gegen Werte, die kein anderer Rechner und kein Reviewer je zu sehen
+bekommt — die Kennzahl misst dann nichts mehr. Genau so entstand die
+Tier-2-Baseline vom 2026-07-21. `corpus-run` bricht deshalb ab, sobald eine
+`config.local.yaml` einen fingerprinteten Abschnitt (`matching`, `features`)
+überschreibt; in die lokale Datei gehört nur Maschinen-Spezifisches wie
+`camera.index`. Wechselt das Rig (Mac → Windows-Box), wird neu gemessen und
+der Wert in `config.yaml` ersetzt — nicht lokal überlagert.
+
+**Eine Messreihe misst nur einen Tag.** `analyze-floors` erfasst die
+Streuung *einer* Auflage-Serie an *einem* Rig an *einem* Tag. Merkmale mit
+zusätzlicher Streuung über Sessions hinweg (Beleuchtung, Kamera-Profil,
+Neu-Enrollment) brauchen mehr Boden, als eine Serie zeigt. Konkret am
+2026-07-22: `hu_log` maß 0.069, über die Korpus-Sessions läuft die
+hu-Distanz eines Artikels zu seiner *eigenen* Referenz aber bis 1.37
+(Median 0.18) — mit 0.069 hätte das z-Gate historisch korrekte Auflagen
+verworfen (z bis 13.9) und zwei Fehlbuchungen erzeugt. Der Wert steht
+darum auf 0.38, dem kleinsten Floor, bei dem kein korrekter Korpus-Fall am
+Gate scheitert. Prüfregel: **nach jeder Floor-Änderung `corpus-run --tier 2
+--check`** und die neuen REJECTs korrekter Artikel auf ihr treibendes
+Merkmal ansehen — ein Merkmal, das dort allein z > 3.5 erzeugt, hat einen
+zu engen Floor und wird angehoben, nicht wegbaseliniert.
 
 ### Testphase: Validieren statt Schwellen raten
 
@@ -192,6 +220,16 @@ interne FaceTime-Kamera und die UGREEN meist auf 1.
 camera:
   index: 1
 ```
+
+**Was hier NICHT hingehört:** `matching` und `features`. Beide gehen in den
+`config_fingerprint` des Regressions-Korpus ein; lokal überschrieben würde
+die Tier-2-Baseline gegen unversionierte Werte gerechnet. `corpus-run`
+bricht darum mit einer Fehlermeldung ab, wenn es einen dieser Abschnitte in
+der lokalen Datei findet. Auch rig-spezifisch gemessene `sigma_floors`
+gehören nach `config/config.yaml` (siehe „sigma_floors aus einer echten
+Messreihe bestimmen"). `geometry.camera_height_mm` bleibt dagegen zulässig:
+der Wert wird nur beim Kalibrieren gelesen, das Replay lädt die eingefrorene
+`calibration.json` aus dem Bündel.
 
 Passenden Index ermitteln:
 

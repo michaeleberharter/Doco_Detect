@@ -53,16 +53,30 @@ matching:
                               # Fläche geht NICHT ins Scoring - korreliert voll mit Ø)
   # --- Stufe 1b: statistisches Scoring (Formeln: siehe README "Scoring") ---
   # Mess-Rauschboden pro Merkmal: sigma_eff = sqrt(sigma_enroll^2 + sigma_floor^2).
-  # Startwerte geschätzt - aus echten Messreihen justieren: denselben Artikel
-  # 15-20x neu auflegen, die Standardabweichung je Merkmal ist der Floor
+  # GEMESSEN 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors`
+  # (RMS), Mac-Rig. Keine Schätzwerte mehr - wer die Werte ändert, misst neu
   # (siehe README, Abschnitt "Scoring").
+  # Die Floors sind rig-spezifisch, gehören aber TROTZDEM hierher und nicht
+  # nach config.local.yaml: eine Baseline, die gegen unversionierte Werte
+  # gerechnet wurde, misst nichts (corpus-run bricht darum ab, wenn eine
+  # lokale Config `matching` oder `features` überschreibt).
   sigma_floors:
-    diameter_mm: 1.5          # mm
-    circularity: 0.02
-    solidity: 0.015
-    delta_e: 3.0              # Delta-E CIE76, gilt für Zentrum- UND Rand-Zone
-    hist_bhattacharyya: 0.05  # gilt für beide Zonen-Histogramme
-    hu_log: 0.15              # mittlere |Differenz| der log-Hu-Momente
+    diameter_mm: 1.63         # mm
+    circularity: 0.0063
+    solidity: 0.0043
+    delta_e: 3.40             # Delta-E CIE76, gilt für Zentrum- UND Rand-Zone
+    hist_bhattacharyya: 0.146 # gilt für beide Zonen-Histogramme
+    # hu_log NICHT auf dem Messwert 0.069: die Messreihe erfasst nur die
+    # Streuung EINER Auflage-Serie an EINEM Tag. Über die Sessions des
+    # Regressions-Korpus erreicht die hu-Distanz eines Artikels zu seiner
+    # EIGENEN Referenz bis 1.13 (Median 0.18, p95 1.10) - mit 0.069 hätte
+    # das z-Gate historisch KORREKTE Auflagen verworfen (z bis 13.9,
+    # LOEFFEL-7/8/10). 0.38 ist der kleinste Wert, bei dem KEIN korrekter
+    # Korpus-Fall am z-Gate scheitert - bindend a8d8c8d7/LOEFFEL-3
+    # (hu-Distanz 1.3677, sigma_enroll 0.1132 -> Floor >= 0.3740 für
+    # z <= max_z_accept); dort liegt z dann bei 3.44. Neu messen heisst
+    # hier: über mehrere Sessions messen, nicht über eine Serie.
+    hu_log: 0.38              # mittlere |Differenz| der log-Hu-Momente
   # Globale Merkmalsgewichte (werden normiert; nur das Verhältnis zählt).
   # Ø ist bewusst schwer - er ist das verlässlichste Merkmal in der Box.
   feature_weights:

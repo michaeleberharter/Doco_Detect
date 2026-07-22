@@ -10,6 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import docodetect.config
 from docodetect.corpus import runner
 from docodetect.corpus.bundle import bundle_cfg
 from docodetect.corpus.compare import FAIL, PASS
@@ -341,6 +342,10 @@ def _prep(monkeypatch, tmp_path, entries, stub=_stub_run_one):
     monkeypatch.setattr(runner.Manifest, "load", staticmethod(lambda: m))
     monkeypatch.setattr(runner, "ProcessPoolExecutor", _FakeExecutor)
     monkeypatch.setattr(runner, "run_one", stub)
+    # Der Waechter liest sonst die ECHTE config.local.yaml dieses Rechners —
+    # dann haengen saemtliche Orchestrierungs-Tests an einer unversionierten
+    # Datei. Er hat eigene Tests weiter unten.
+    monkeypatch.setattr(docodetect.config, "local_override", lambda p=None: {})
 
 
 # --- I2: Cache mergen statt ueberschreiben --------------------------------
@@ -446,6 +451,68 @@ def test_tier2_ohne_buendel_db_ist_fail_und_legt_nichts_an(tmp_path):
 def test_zentroid_wird_aus_pipeline_importiert():
     from docodetect.pipeline import _centroid_px
     assert runner._centroid_px is _centroid_px
+
+
+# --- Waechter: keine fingerprinteten Abschnitte in der lokalen Config -----
+# Hintergrund: die Tier-2-Baseline vom 2026-07-21 wurde gegen sigma_floors
+# aus einer unversionierten config.local.yaml gerechnet. Der Vergleich lief
+# damit gegen Werte, die im Repo nirgends stehen.
+
+def _lokale_config(tmp_path, text: str) -> Path:
+    """Legt config.local.yaml neben eine (nicht benoetigte) config.yaml und
+    gibt den Pfad der Haupt-Config zurueck — genau das, was der Waechter
+    als config_path bekommt."""
+    (tmp_path / "config.local.yaml").write_text(text, encoding="utf-8")
+    return tmp_path / "config.yaml"
+
+
+def test_waechter_laesst_maschinen_spezifisches_durch(tmp_path):
+    haupt = _lokale_config(tmp_path, "camera:\n  index: 1\n"
+                                     "geometry:\n  camera_height_mm: 412.0\n")
+    runner.pruefe_lokale_overrides(haupt)      # wirft nicht
+
+
+def test_waechter_ohne_lokale_config(tmp_path):
+    runner.pruefe_lokale_overrides(tmp_path / "config.yaml")   # wirft nicht
+
+
+@pytest.mark.parametrize("abschnitt", ["matching", "features"])
+def test_waechter_bricht_bei_fingerprintetem_abschnitt_ab(tmp_path, abschnitt):
+    haupt = _lokale_config(
+        tmp_path, f"camera:\n  index: 1\n{abschnitt}:\n"
+                  f"  sigma_floors:\n    hu_log: 0.35\n")
+    with pytest.raises(RuntimeError) as exc:
+        runner.pruefe_lokale_overrides(haupt)
+    assert abschnitt in str(exc.value)
+    assert "config.yaml" in str(exc.value), "Meldung nennt den richtigen Ort nicht"
+
+
+def test_waechter_deckt_alle_fingerprint_abschnitte_ab():
+    """Kommt spaeter ein Abschnitt in CONFIG_TEILE_* dazu, muss ihn der
+    Waechter automatisch mitnehmen — sonst entsteht genau dieselbe Luecke
+    an anderer Stelle neu."""
+    assert set(runner.FINGERPRINT_ABSCHNITTE) == (
+        set(runner.CONFIG_TEILE_TIER1) | set(runner.CONFIG_TEILE_TIER2))
+
+
+def test_waechter_greift_vor_dem_rechnen(tmp_path, monkeypatch):
+    """Der Abbruch muss VOR dem ersten Bild kommen: ein Lauf, der erst
+    rechnet und dann meckert, schreibt bereits Cache-Eintraege gegen die
+    unversionierten Werte."""
+    gerechnet = []
+
+    def stub(entry_dict, tier, run_id):
+        gerechnet.append(entry_dict["sha"])
+        return _stub_run_one(entry_dict, tier, run_id)
+
+    _prep(monkeypatch, tmp_path, [_e("da" * 32, tier=1)], stub)
+    # _prep neutralisiert den Waechter - hier wird er absichtlich zurueckgeholt.
+    monkeypatch.setattr(docodetect.config, "local_override",
+                        lambda p=None: {"matching": {"sigma_floors": {}}})
+    with pytest.raises(RuntimeError, match="matching"):
+        run_corpus({}, tier=1, workers=1)
+    assert gerechnet == [], "Waechter hat erst nach dem Rechnen gegriffen"
+    assert not runner._cache_path(tmp_path).exists(), "Cache trotz Abbruch geschrieben"
 
 
 # --- M5: NaN im Cache-JSON ------------------------------------------------

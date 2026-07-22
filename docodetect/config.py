@@ -37,6 +37,23 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
+def local_override(path: str | Path | None = None) -> dict:
+    """Die unversionierte `config.local.yaml` als dict; leer, wenn keine da ist.
+
+    `load_config` legt sie per Deep-Merge über die Haupt-Config, danach ist
+    dem Ergebnis nicht mehr anzusehen, welcher Wert von wo kam. Wer genau das
+    wissen muss – der Korpus-Wächter in `corpus/runner.py` –, fragt hier."""
+    cfg_path = Path(path) if path else DEFAULT_CONFIG_PATH
+    local_path = cfg_path.with_name(LOCAL_CONFIG_NAME)
+    if not local_path.exists():
+        return {}
+    with open(local_path, "r", encoding="utf-8") as fh:
+        local = yaml.safe_load(fh) or {}
+    if not isinstance(local, dict):
+        raise ValueError(f"{local_path} muss ein YAML-Mapping enthalten.")
+    return local
+
+
 def load_config(path: str | Path | None = None) -> dict:
     """Load YAML config and run basic sanity checks.
 
@@ -52,16 +69,11 @@ def load_config(path: str | Path | None = None) -> dict:
     with open(cfg_path, "r", encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh)
 
-    local_path = cfg_path.with_name(LOCAL_CONFIG_NAME)
-    if local_path.exists():
-        with open(local_path, "r", encoding="utf-8") as fh:
-            local = yaml.safe_load(fh) or {}
-        if not isinstance(local, dict):
-            raise ValueError(f"{local_path} muss ein YAML-Mapping enthalten.")
+    local = local_override(cfg_path)
+    if local:
         cfg = _deep_merge(cfg, local)
-        if local:
-            print(f"[config] lokale Überschreibung aktiv ({local_path.name}): "
-                  f"{', '.join(sorted(local))}")
+        print(f"[config] lokale Überschreibung aktiv ({LOCAL_CONFIG_NAME}): "
+              f"{', '.join(sorted(local))}")
 
     for section in _REQUIRED_SECTIONS:
         if section not in cfg:

@@ -6,10 +6,16 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 ## Architektur-Invarianten
 
 - Zweistufige Pipeline, **kein Modelltraining**. Alle Maße in mm.
-- Alle Parameter zentral in `config/config.yaml`. Maschinen-/Rig-Spezifisches
-  (`camera.index`, gemessene `sigma_floors`, `geometry.camera_height_mm` des
-  Rigs) gehört NUR in `config/config.local.yaml` (Deep-Merge, gitignored) —
-  nie in die geteilte `config.yaml`.
+- Alle Parameter zentral in `config/config.yaml`. Maschinen-Spezifisches
+  (`camera.index`, `geometry.camera_height_mm` des Rigs) gehört NUR in
+  `config/config.local.yaml` (Deep-Merge, gitignored) — nie in die geteilte
+  `config.yaml`.
+- **`matching` und `features` NIE in `config.local.yaml`** — auch nicht
+  rig-spezifisch gemessene `sigma_floors`. Beide Abschnitte gehen in den
+  `config_fingerprint` des Korpus; lokal überschrieben rechnet die
+  Tier-2-Baseline gegen unversionierte Werte und misst nichts mehr (so
+  geschehen am 2026-07-21). `corpus-run` bricht deshalb ab, wenn es sie
+  dort findet (`corpus/runner.py::pruefe_lokale_overrides`).
 - Ausnahme by design: `segmentation.py` hat **keine** Config-Keys, sie
   selbstkalibriert auf dem Bildpaar. Keine Segmentierungs-Knöpfe hinzufügen.
 - UI-Schichten (Streamlit `app.py`, `docodetect/ui_qt`) und CLI-Helfer rufen

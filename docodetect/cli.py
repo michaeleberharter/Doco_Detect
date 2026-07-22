@@ -464,7 +464,8 @@ def cmd_corpus_run(args, cfg):
     run = corpus_runner.run_corpus(
         cfg, sessions=args.session, articles=args.article, tier=args.tier,
         subset=args.subset, workers=args.workers,
-        changed_only=args.changed_only, run_id=run_id)
+        changed_only=args.changed_only, run_id=run_id,
+        config_path=args.config)
     # run_corpus setzt den run_id, falls keiner uebergeben wurde
     run_id = run.get("run_id", run_id)
 

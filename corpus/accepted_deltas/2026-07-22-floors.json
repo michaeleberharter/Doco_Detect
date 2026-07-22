@@ -1,0 +1,1001 @@
+{
+ "version": 1,
+ "generated": "2026-07-22T14:30:00",
+ "fix_commit": null,
+ "results_doc": null,
+ "messreihe": "Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig",
+ "beschreibung": "60 phase-b-Tier-2-Bilder, deren Matcher-Ausgabe sich durch die Umstellung von matching.sigma_floors auf die gemessenen Werte gegenueber dem Original-Golden aendert. Floors: diameter_mm 1.5->1.63, circularity 0.02->0.0063, solidity 0.015->0.0043, delta_e 3.0->3.40, hist_bhattacharyya 0.05->0.146, hu_log 0.15->0.38. Fuenf der sechs Floors kommen unveraendert aus analyze-floors (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig). hu_log NICHT: der Messwert 0.069 erfasst nur die Streuung EINER Auflage-Serie an EINEM Tag, waehrend die hu-Distanz eines Artikels zu seiner EIGENEN Referenz ueber die Korpus-Sessions bis 1.3677 laeuft (Median 0.179, p95 1.136). Mit 0.069 verwarf das z-Gate vier historisch KORREKTE Auflagen (LOEFFEL-7/8/10, z bis 13.9) und erzeugte zwei NEUE Fehlbuchungen (46f9b1b3 LOEFFEL-14->LOEFFEL-11, daeefc7e LOEFFEL-15->LOEFFEL-9). 0.38 ist der kleinste Wert, bei dem kein korrekter Korpus-Fall am z-Gate scheitert (bindend a8d8c8d7/LOEFFEL-3: hu-Distanz 1.3677, sigma_enroll 0.1132 -> Floor >= 0.3740; dort dann z=3.44). Ergebnis nach der Korrektur: KEINE neue Fehlbuchung (false_accept_rate 0/27 gegen 0/24 der Baseline), KEIN neuer Reject, zwei neue Auto-Accepts (957a3f77 LOEFFEL-12, a8cf4d7a LOEFFEL-5) - beide einzeln gegen das wahre Label geprueft und korrekt. accuracy_top1 46/60 unveraendert, accuracy_top3 56/60 -> 59/60, auto_accept_rate 24/60 -> 27/60.",
+ "images": {
+  "03034e84": {
+   "kategorie": "c",
+   "label": "LOEFFEL-14",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-11, Top-1 LOEFFEL-11 != Label LOEFFEL-14) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.2195 -> 0.2546 und max|z| 1.0629 -> 2.3579 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-11",
+     "LOEFFEL-14",
+     "LOEFFEL-13"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.2546,
+    "max_z_winner": 2.3579
+   }
+  },
+  "0b695ec4": {
+   "kategorie": "c",
+   "label": "LOEFFEL-4",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-4, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> 5.0767 und max|z| 2.0027 -> 1.9331 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-4",
+     "LOEFFEL-5"
+    ],
+    "gate_passed": true,
+    "llr_margin": 5.0767,
+    "max_z_winner": 1.9331
+   }
+  },
+  "0cb8f3c1": {
+   "kategorie": "c",
+   "label": "LOEFFEL-15",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-15, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin 2.3474 -> 2.6163 und max|z| 1.377 -> 1.316 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-15",
+     "LOEFFEL-9"
+    ],
+    "gate_passed": true,
+    "llr_margin": 2.6163,
+    "max_z_winner": 1.316
+   }
+  },
+  "0d539289": {
+   "kategorie": "c",
+   "label": "LOEFFEL-3",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-3, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.1748 -> 1.4446 und max|z| 0.8 -> 0.798 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.4446,
+    "max_z_winner": 0.798
+   }
+  },
+  "1ea08720": {
+   "kategorie": "c",
+   "label": "LOEFFEL-8",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-8, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 2.3701 -> 2.1861 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-8"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 2.1861
+   }
+  },
+  "2316b3e0": {
+   "kategorie": "c",
+   "label": "LOEFFEL-7",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-7, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 1.5182 -> 1.3633 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-7"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 1.3633
+   }
+  },
+  "2c88e15a": {
+   "kategorie": "c",
+   "label": "LOEFFEL-4",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-4, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin 5.8807 -> 3.4599 und max|z| 0.8855 -> 0.8997 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-4",
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 3.4599,
+    "max_z_winner": 0.8997
+   }
+  },
+  "33b888ab": {
+   "kategorie": "c",
+   "label": "LOEFFEL-8",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-8, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 1.7683 -> 1.6954 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-8"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 1.6954
+   }
+  },
+  "340fea39": {
+   "kategorie": "c",
+   "label": "LOEFFEL-12",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-12, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin 2.5519 -> 14.8415 und max|z| 1.9616 -> 1.7495 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-12",
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2"
+    ],
+    "gate_passed": true,
+    "llr_margin": 14.8415,
+    "max_z_winner": 1.7495
+   }
+  },
+  "3869c80d": {
+   "kategorie": "c",
+   "label": "LOEFFEL-11",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-11, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.087 -> 1.2749 und max|z| 1.1367 -> 1.1541 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-11",
+     "LOEFFEL-13",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.2749,
+    "max_z_winner": 1.1541
+   }
+  },
+  "39cb6e0c": {
+   "kategorie": "c",
+   "label": "LOEFFEL-13",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-13, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.2146 -> 1.3712 und max|z| 2.1252 -> 2.0481 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-13",
+     "LOEFFEL-11",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.3712,
+    "max_z_winner": 2.0481
+   }
+  },
+  "3aae112e": {
+   "kategorie": "c",
+   "label": "LOEFFEL-15",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-15, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin 4.3497 -> 5.4739 und max|z| 1.1141 -> 1.1287 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-15",
+     "LOEFFEL-13"
+    ],
+    "gate_passed": true,
+    "llr_margin": 5.4739,
+    "max_z_winner": 1.1287
+   }
+  },
+  "41a471ce": {
+   "kategorie": "c",
+   "label": "LOEFFEL-12",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-12, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin 2.3587 -> 14.4102 und max|z| 1.39 -> 1.3429 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-12",
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2"
+    ],
+    "gate_passed": true,
+    "llr_margin": 14.4102,
+    "max_z_winner": 1.3429
+   }
+  },
+  "4276dbde": {
+   "kategorie": "c",
+   "label": "LOEFFEL-4",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-4, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> 4.8953 und max|z| 1.4359 -> 1.3649 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-4",
+     "LOEFFEL-5"
+    ],
+    "gate_passed": true,
+    "llr_margin": 4.8953,
+    "max_z_winner": 1.3649
+   }
+  },
+  "4587d1a8": {
+   "kategorie": "c",
+   "label": "LOEFFEL-3",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-4, Top-1 LOEFFEL-4 != Label LOEFFEL-3) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.4378 -> 1.8366 und max|z| 1.4821 -> 1.5059 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-4",
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-5",
+     "LOEFFEL-6",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.8366,
+    "max_z_winner": 1.5059
+   }
+  },
+  "46f9b1b3": {
+   "kategorie": "b",
+   "label": "LOEFFEL-14",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-11 -> LOEFFEL-14 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.4097 -> 0.062, max|z| 1.7081 -> 3.1014.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-14",
+     "LOEFFEL-11",
+     "LOEFFEL-13"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.062,
+    "max_z_winner": 3.1014
+   }
+  },
+  "49ba9d3f": {
+   "kategorie": "c",
+   "label": "LOEFFEL-9",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-9, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 0.5967 -> 0.7032 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-9"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 0.7032
+   }
+  },
+  "4ee58415": {
+   "kategorie": "c",
+   "label": "LOEFFEL-2",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-2, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.1993 -> 0.9304 und max|z| 1.1392 -> 1.0708 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-2",
+     "LOEFFEL-5",
+     "LOEFFEL-6",
+     "LOEFFEL-1",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.9304,
+    "max_z_winner": 1.0708
+   }
+  },
+  "4f08405b": {
+   "kategorie": "b",
+   "label": "LOEFFEL-1",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-5 -> LOEFFEL-1 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.659 -> 0.9338, max|z| 3.0603 -> 1.5677.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-1",
+     "LOEFFEL-5",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.9338,
+    "max_z_winner": 1.5677
+   }
+  },
+  "5118f824": {
+   "kategorie": "c",
+   "label": "LOEFFEL-10",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-10, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 0.6055 -> 0.6152 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-10"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 0.6152
+   }
+  },
+  "53a17205": {
+   "kategorie": "b",
+   "label": "LOEFFEL-11",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-13 -> LOEFFEL-11 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.0509 -> 0.5885, max|z| 1.1658 -> 0.8141.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-11",
+     "LOEFFEL-13",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.5885,
+    "max_z_winner": 0.8141
+   }
+  },
+  "57e075d6": {
+   "kategorie": "c",
+   "label": "LOEFFEL-13",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-13, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.1908 -> 1.5734 und max|z| 1.0553 -> 0.975 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-13",
+     "LOEFFEL-11",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.5734,
+    "max_z_winner": 0.975
+   }
+  },
+  "57ea3daa": {
+   "kategorie": "c",
+   "label": "LOEFFEL-9",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-9, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 0.9769 -> 0.997 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-9"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 0.997
+   }
+  },
+  "5db55def": {
+   "kategorie": "c",
+   "label": "LOEFFEL-5",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-5, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 1.2276 -> 1.2053 und max|z| 0.7552 -> 0.7702 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.2053,
+    "max_z_winner": 0.7702
+   }
+  },
+  "5e952338": {
+   "kategorie": "c",
+   "label": "LOEFFEL-1",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-1, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.2955 -> 0.8601 und max|z| 1.039 -> 1.0048 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-1",
+     "LOEFFEL-5",
+     "LOEFFEL-6",
+     "LOEFFEL-2",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.8601,
+    "max_z_winner": 1.0048
+   }
+  },
+  "69287856": {
+   "kategorie": "c",
+   "label": "LOEFFEL-12",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-12, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin 2.1038 -> 12.8127 und max|z| 1.3481 -> 1.3702 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-12",
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2"
+    ],
+    "gate_passed": true,
+    "llr_margin": 12.8127,
+    "max_z_winner": 1.3702
+   }
+  },
+  "70984ff0": {
+   "kategorie": "c",
+   "label": "LOEFFEL-7",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-7, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 2.2417 -> 2.0399 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-7"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 2.0399
+   }
+  },
+  "7d253afe": {
+   "kategorie": "c",
+   "label": "LOEFFEL-1",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-1, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.5487 -> 1.1935 und max|z| 0.8834 -> 0.8888 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.1935,
+    "max_z_winner": 0.8888
+   }
+  },
+  "7ffd971a": {
+   "kategorie": "c",
+   "label": "LOEFFEL-2",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-2, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.3279 -> 0.9979 und max|z| 1.1064 -> 1.0852 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-2",
+     "LOEFFEL-5",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.9979,
+    "max_z_winner": 1.0852
+   }
+  },
+  "8bf4b322": {
+   "kategorie": "c",
+   "label": "LOEFFEL-11",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-11, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.0061 -> 1.0478 und max|z| 2.3037 -> 2.3318 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-11",
+     "LOEFFEL-13",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.0478,
+    "max_z_winner": 2.3318
+   }
+  },
+  "8dc74a45": {
+   "kategorie": "c",
+   "label": "LOEFFEL-7",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-7, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 2.4986 -> 2.4303 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-7"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 2.4303
+   }
+  },
+  "937b7df1": {
+   "kategorie": "c",
+   "label": "LOEFFEL-15",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-15, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> 3.2261 und max|z| 1.1757 -> 1.1911 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-15",
+     "LOEFFEL-11",
+     "LOEFFEL-13"
+    ],
+    "gate_passed": true,
+    "llr_margin": 3.2261,
+    "max_z_winner": 1.1911
+   }
+  },
+  "9482d13a": {
+   "kategorie": "c",
+   "label": "LOEFFEL-8",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-8, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 2.2597 -> 2.0843 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-8"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 2.0843
+   }
+  },
+  "957a3f77": {
+   "kategorie": "a",
+   "label": "LOEFFEL-12",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Entscheidung ambiguous -> accept (Top-1 LOEFFEL-12 -> LOEFFEL-12, Top-1 == wahres Label). LLR-Margin 0.5547 -> 14.1076, max|z| 2.4374 -> 2.3548. Einzeln gegen das wahre Label geprueft.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-12",
+     "LOEFFEL-3",
+     "LOEFFEL-4",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2"
+    ],
+    "gate_passed": true,
+    "llr_margin": 14.1076,
+    "max_z_winner": 2.3548
+   }
+  },
+  "99718c24": {
+   "kategorie": "c",
+   "label": "LOEFFEL-6",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-6, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.0323 -> 0.1985 und max|z| 1.2258 -> 1.2524 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-6",
+     "LOEFFEL-1",
+     "LOEFFEL-2",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.1985,
+    "max_z_winner": 1.2524
+   }
+  },
+  "99dfc89c": {
+   "kategorie": "c",
+   "label": "LOEFFEL-3",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-3, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.2709 -> 0.7438 und max|z| 0.8943 -> 1.5381 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.7438,
+    "max_z_winner": 1.5381
+   }
+  },
+  "9b1d4eb7": {
+   "kategorie": "c",
+   "label": "LOEFFEL-13",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-13, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.1158 -> 0.8514 und max|z| 1.9059 -> 1.8368 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-13",
+     "LOEFFEL-11",
+     "LOEFFEL-15",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.8514,
+    "max_z_winner": 1.8368
+   }
+  },
+  "a2883cb7": {
+   "kategorie": "b",
+   "label": "LOEFFEL-1",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-5 -> LOEFFEL-1 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.4626 -> 0.4904, max|z| 2.1783 -> 1.1884.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-1",
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.4904,
+    "max_z_winner": 1.1884
+   }
+  },
+  "a8cf4d7a": {
+   "kategorie": "a",
+   "label": "LOEFFEL-5",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Entscheidung ambiguous -> accept (Top-1 LOEFFEL-4 -> LOEFFEL-5, Top-1 == wahres Label). LLR-Margin 0.0411 -> 2.1414, max|z| 2.2739 -> 1.5158. Einzeln gegen das wahre Label geprueft.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-5",
+     "LOEFFEL-4",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 2.1414,
+    "max_z_winner": 1.5158
+   }
+  },
+  "a8d29a32": {
+   "kategorie": "c",
+   "label": "LOEFFEL-10",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-10, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 3.0827 -> 3.0336 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-10"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 3.0336
+   }
+  },
+  "a8d8c8d7": {
+   "kategorie": "b",
+   "label": "LOEFFEL-3",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-1 -> LOEFFEL-3 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.0794 -> 0.7997, max|z| 1.6571 -> 3.4494.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-3",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.7997,
+    "max_z_winner": 3.4494
+   }
+  },
+  "b22df805": {
+   "kategorie": "b",
+   "label": "LOEFFEL-5",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-4 -> LOEFFEL-5 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.3221 -> 1.0394, max|z| 1.9238 -> 1.5208.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-5",
+     "LOEFFEL-4",
+     "LOEFFEL-2",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.0394,
+    "max_z_winner": 1.5208
+   }
+  },
+  "b26a6160": {
+   "kategorie": "c",
+   "label": "LOEFFEL-2",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-5, Top-1 LOEFFEL-5 != Label LOEFFEL-2) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.0831 -> 1.2827 und max|z| 1.4822 -> 1.4997 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-4",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.2827,
+    "max_z_winner": 1.4997
+   }
+  },
+  "b6376f78": {
+   "kategorie": "c",
+   "label": "LOEFFEL-2",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-2, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.3628 -> 0.4577 und max|z| 0.6796 -> 0.6243 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-2",
+     "LOEFFEL-5",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.4577,
+    "max_z_winner": 0.6243
+   }
+  },
+  "ba700e35": {
+   "kategorie": "c",
+   "label": "LOEFFEL-8",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-8, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 0.7146 -> 0.6557 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-8"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 0.6557
+   }
+  },
+  "bd5ab3ac": {
+   "kategorie": "c",
+   "label": "LOEFFEL-10",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-10, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 1.7605 -> 1.7833 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-10"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 1.7833
+   }
+  },
+  "bef4cba8": {
+   "kategorie": "c",
+   "label": "LOEFFEL-7",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-7, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 3.2121 -> 2.9619 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-7"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 2.9619
+   }
+  },
+  "cc1f627e": {
+   "kategorie": "c",
+   "label": "LOEFFEL-6",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-5, Top-1 LOEFFEL-5 != Label LOEFFEL-6) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.7423 -> 0.2474 und max|z| 2.2236 -> 2.5027 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-5",
+     "LOEFFEL-1",
+     "LOEFFEL-2",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.2474,
+    "max_z_winner": 2.5027
+   }
+  },
+  "d4add3c8": {
+   "kategorie": "c",
+   "label": "LOEFFEL-10",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-10, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 0.9386 -> 0.9508 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-10"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 0.9508
+   }
+  },
+  "d78cbe71": {
+   "kategorie": "c",
+   "label": "LOEFFEL-4",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-4, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 2.7164 -> 2.5821 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-4"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 2.5821
+   }
+  },
+  "d7fe79aa": {
+   "kategorie": "c",
+   "label": "LOEFFEL-5",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-5, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.7237 -> 0.6393 und max|z| 0.9303 -> 0.9488 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-5",
+     "LOEFFEL-2",
+     "LOEFFEL-1",
+     "LOEFFEL-6",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.6393,
+    "max_z_winner": 0.9488
+   }
+  },
+  "d9dba8dc": {
+   "kategorie": "c",
+   "label": "LOEFFEL-9",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-9, Top-1 == wahres Label) und Entscheidung (accept) unveraendert; nur LLR-Margin None -> None und max|z| 1.1937 -> 1.2178 verschoben.",
+   "expected": {
+    "decision": "accept",
+    "candidates": [
+     "LOEFFEL-9"
+    ],
+    "gate_passed": true,
+    "llr_margin": null,
+    "max_z_winner": 1.2178
+   }
+  },
+  "daeefc7e": {
+   "kategorie": "c",
+   "label": "LOEFFEL-15",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-15, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 1.782 -> 1.5542 und max|z| 3.1111 -> 2.9209 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-15",
+     "LOEFFEL-9"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.5542,
+    "max_z_winner": 2.9209
+   }
+  },
+  "dbb5f4ea": {
+   "kategorie": "c",
+   "label": "LOEFFEL-9",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-9, Top-1 == wahres Label) und Entscheidung (reject) unveraendert; nur LLR-Margin None -> None und max|z| 3.735 -> 3.812 verschoben.",
+   "expected": {
+    "decision": "reject",
+    "candidates": [
+     "LOEFFEL-9"
+    ],
+    "gate_passed": false,
+    "llr_margin": null,
+    "max_z_winner": 3.812
+   }
+  },
+  "e24cb7e5": {
+   "kategorie": "b",
+   "label": "LOEFFEL-6",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-1 -> LOEFFEL-6 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.1734 -> 0.0067, max|z| 1.111 -> 1.2042.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-6",
+     "LOEFFEL-1",
+     "LOEFFEL-2",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.0067,
+    "max_z_winner": 1.2042
+   }
+  },
+  "e51bafab": {
+   "kategorie": "c",
+   "label": "LOEFFEL-13",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-13, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.156 -> 0.5344 und max|z| 1.9627 -> 1.9893 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-13",
+     "LOEFFEL-11",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.5344,
+    "max_z_winner": 1.9893
+   }
+  },
+  "f649d598": {
+   "kategorie": "b",
+   "label": "LOEFFEL-14",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Top-1 LOEFFEL-11 -> LOEFFEL-14 (Top-1 == wahres Label), Entscheidung bleibt ambiguous. LLR-Margin 0.3849 -> 0.249, max|z| 1.697 -> 3.1101.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-14",
+     "LOEFFEL-11",
+     "LOEFFEL-13"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.249,
+    "max_z_winner": 3.1101
+   }
+  },
+  "f8abf277": {
+   "kategorie": "c",
+   "label": "LOEFFEL-6",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-6, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.0907 -> 0.098 und max|z| 1.0633 -> 1.0566 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-6",
+     "LOEFFEL-1",
+     "LOEFFEL-2",
+     "LOEFFEL-3",
+     "LOEFFEL-12"
+    ],
+    "gate_passed": true,
+    "llr_margin": 0.098,
+    "max_z_winner": 1.0566
+   }
+  },
+  "fd6e8e2b": {
+   "kategorie": "c",
+   "label": "LOEFFEL-14",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-14, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.2689 -> 1.3097 und max|z| 2.5317 -> 2.5779 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-14",
+     "LOEFFEL-11",
+     "LOEFFEL-13"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.3097,
+    "max_z_winner": 2.5779
+   }
+  },
+  "fe838ddb": {
+   "kategorie": "c",
+   "label": "LOEFFEL-11",
+   "reason": "sigma_floors auf gemessene Werte umgestellt (Messreihe 2026-07-22, LOEFFEL-14, 18 Identify-Auflagen, `analyze-floors` (RMS), Mac-Rig); hu_log datenbegruendet auf 0.38 statt des Messwerts 0.069 (siehe beschreibung). Jeder Floor geht als sigma_eff = sqrt(sigma_enroll^2 + floor^2) in JEDES z und damit in jeden Score ein - die Verschiebung betrifft deshalb alle Bilder gleichzeitig. Sieger (LOEFFEL-11, Top-1 == wahres Label) und Entscheidung (ambiguous) unveraendert; nur LLR-Margin 0.155 -> 1.2754 und max|z| 1.0724 -> 1.0855 verschoben.",
+   "expected": {
+    "decision": "ambiguous",
+    "candidates": [
+     "LOEFFEL-11",
+     "LOEFFEL-13",
+     "LOEFFEL-14"
+    ],
+    "gate_passed": true,
+    "llr_margin": 1.2754,
+    "max_z_winner": 1.0855
+   }
+  }
+ }
+}
