@@ -710,9 +710,14 @@ def _quota_rows(side: Side, alt: Side | None = None) -> tuple:
                 f"{gegen['k']}/{gegen['n']} — die Artefakte zeigen den Wert "
                 f"aus metrics.json.")
 
-    # Rohe Top-1-Quote als ZUSATZ, klar als solche gekennzeichnet:
-    # accuracy_top1 ist ueber den Korpus verdict-eingefroren und bewegt sich
-    # durch keine Matcher-Aenderung (Ergebnisdokument 2026-07-22, 5.3).
+    # Rohe Top-1-Quote, unabhaengig nachgerechnet. Seit dem Semantikwechsel
+    # vom 2026-07-23 rechnet accuracy_top1 selbst roh gegen das Label — diese
+    # Zeile MUSS also mit ihr uebereinstimmen, solange die Laufseite aus der
+    # neuen Aera stammt. Weicht sie ab, kommt die metrics.json der Laufseite
+    # aus der verdict-Aera; die Zeile ist dann der Umrechnungsschluessel und
+    # macht den Unterschied sichtbar, statt zwei Aeren stumm zu mischen.
+    # Sie rechnet zusaetzlich ueber die Labels der REFERENZSEITE und ueber-
+    # lebt damit Replay-Reports, die selbst kein Label tragen.
     if alt is not None or not side.is_run:
         wahrheit = alt or side
         k = n = 0
@@ -728,8 +733,9 @@ def _quota_rows(side: Side, alt: Side | None = None) -> tuple:
             from .report import wilson
             p, lo, hi = wilson(k, n)
             zeilen.append(["roh_top1_gleich_label", side.name, k, n, p, lo, hi,
-                           "gerechnet: top1 == label (KEINE Runner-Kennzahl, "
-                           "Zusatz zu verdict-eingefrorenem accuracy_top1)"])
+                           "gerechnet: top1 == label (KEINE Runner-Kennzahl; "
+                           "muss accuracy_top1 entsprechen — Abweichung = "
+                           "metrics.json aus der verdict-Aera)"])
     return zeilen, befunde
 
 
@@ -1014,6 +1020,33 @@ def _schreibe_html(out, cfg, review_id, alt, neu, rows, zus, verlauf,
         "dessen <code>metrics.json</code>. Nichts davon wird hier "
         "nachgerechnet.</div>",
     ]
+    # Umgebungs-Fingerprint beider Seiten. Bei einem Plattformwechsel ist die
+    # erste Frage nach jedem DRIFT "Code oder Bibliothek?" — hier steht die
+    # Antwort, statt nachtraeglich rekonstruiert werden zu muessen.
+    def _env_text(side):
+        e = (side.metrics or {}).get("env") or {}
+        if not e:
+            return None
+        return (f"{side.name}: Python {e.get('python', '?')} · "
+                f"numpy {e.get('numpy', '?')} · cv2 {e.get('cv2', '?')} · "
+                f"scipy {e.get('scipy', '?')} · {e.get('platform', '?')}")
+
+    env_zeilen = [t for t in (_env_text(alt), _env_text(neu)) if t]
+    if env_zeilen:
+        env_alt = (alt.metrics or {}).get("env") or {}
+        env_neu = (neu.metrics or {}).get("env") or {}
+        gleich = (not env_alt or not env_neu
+                  or all(env_alt.get(k) == env_neu.get(k)
+                         for k in ("python", "numpy", "cv2", "scipy", "platform")))
+        kopf.append(
+            "<div class='note'><b>Umgebung:</b><ul>"
+            + "".join(f"<li>{escape(t)}</li>" for t in env_zeilen)
+            + "</ul>"
+            + ("" if gleich else
+               "<b>Die Seiten liefen auf verschiedenen Umgebungen</b> — DRIFT "
+               "ist hier nicht ohne Weiteres code-verursacht.")
+            + "</div>")
+
     if befunde:
         kopf.append("<div class='note'><b>Konsistenz-Befund:</b><ul>"
                     + "".join(f"<li>{escape(b)}</li>" for b in befunde)

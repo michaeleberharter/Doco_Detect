@@ -37,7 +37,35 @@ _P = project_root()
 SOURCES = [
     ("phase-a", str(_P / "reports/analysis/test_n_60_loeffel/reports"),
      str(_P / "data/captures")),
-    ("phase-b", str(_P / "data/captures"), str(_P / "data/captures")),
+    # phase-b ist GESCHLOSSEN. Der Eintrag zeigte auf data/captures — den
+    # Ordner, in den jede neue Identifikation schreibt. Solange dort nichts
+    # lag, fiel das nicht auf; sobald wieder bewertet wird, haette der
+    # naechste Build die frischen Reports stillschweigend in phase-b
+    # aufgenommen und ihnen dessen eingefrorenes Buendel vom 20.07.
+    # untergeschoben (anderer Hintergrund, andere DB). Die Session-Metadaten
+    # bleiben erhalten: Manifest.sessions wird gemergt, nicht ersetzt.
+    # Neues Material bekommt eine neue Session mit eigenem Snapshot.
+    #   ("phase-b", str(_P / "data/captures"), str(_P / "data/captures")),
+    # 2026-07-23 aufgenommen (Schritt 7). Quelle ist ein archivierter
+    # analyze-Lauf, damit der Bestand reproduzierbar bleibt: data/captures
+    # wird von jedem `analyze --archive` geleert, ein Verweis dorthin waere
+    # nach dem naechsten Lauf ins Leere gelaufen.
+    #
+    # phase-c1 (LOEFFEL-14-Messreihe, 18 Bilder) ist HERAUSGENOMMEN und liegt
+    # in backups/2026-07-23-phase-c1-nicht-korpusfaehig/. Sie fiel im Tier-1-
+    # Lauf 18/18 durch: ihr Hintergrund vom 22.07. existiert nicht mehr
+    # (capture-background hat ihn am 23.07. ueberschrieben). Der Eintrag darf
+    # NICHT zurueck — sonst baut jeder Lauf die verworfene Session neu und
+    # der naechste --check rot. Details: Ergebnisdokument, Abschnitt 3.2.
+    # phase-c2 liest aus cross-mac-final/reports (44 bewertete Cross-Tests:
+    # die 23 aus cross_test_2 PLUS die 21 der Verdichtung vom 2026-07-23,
+    # 18:19-18:28). Der Nachtrag ist dieselbe Session — kein Enrollment und
+    # keine Aera-Grenze zwischen 17:20 und 18:28 (letztes Enrollment 17:07,
+    # Buendel-Snapshot 17:52), db_match_ratio 100 % gegen die Buendel-DB. Der
+    # Superset-Ordner ist die einzige Provenienz-Quelle; die 23 werden beim
+    # Rebuild als Dublette uebersprungen, nur die 21 kommen neu hinzu.
+    ("phase-c2", str(_P / "reports/analysis/cross-mac-final/reports"),
+     str(_P / "data/captures")),
 ]
 
 # Buendel-Quellen je Session. Die DB-Zuordnung stammt aus dem exakten
@@ -50,6 +78,49 @@ BUNDLE_QUELLEN = {
         "db": None,      # kein passender Snapshot -> Tier-1-only
     },
     "phase-b": {
+        "background": str(_P / "calibration/background.png"),
+        "calibration": str(_P / "calibration/calibration.json"),
+        "db": str(_P / "doco_detect.sqlite3"),
+    },
+    # --- 2026-07-23 (Schritt 7) ------------------------------------------
+    # phase-c1: Messreihe LOEFFEL-14 vom 2026-07-22, 18 bewertete Reports.
+    # BEWUSST Tier-1-only, obwohl der DB-Abgleich 100 % ergibt (geprueft am
+    # 2026-07-23). Der Grund liegt nicht in der DB, sondern in der Config:
+    # die Entscheidungen dieser Reihe entstanden unter den DAMALS lokalen
+    # sigma_floors, die erst spaeter am 2026-07-22 versioniert in
+    # config.yaml wanderten. Als Tier-2-Goldens produzierten sie auf jedem
+    # kuenftigen Lauf Delta-Laerm gegen eine Entscheidungsbasis, die es so
+    # nie wieder gibt. Ihr Wert ist die MESS-Serie: 18 Auflagen desselben
+    # Loeffels sind der Wiederholbarkeits-Beleg, und der ist reine Tier-1-
+    # Groesse (Segmentierung + Geometrie, entscheidungsfrei).
+    #
+    # ACHTUNG Hintergrund: der Hintergrund DIESER Session existiert nicht
+    # mehr — calibration/background.png wurde am 2026-07-23 um 14:55 fuer
+    # die Golden-Fixtures neu aufgenommen und hat den vom 22.07.
+    # ueberschrieben. Gebuendelt wird darum der heutige. Belegt statt
+    # geraten (Messung 2026-07-23): der Aera-Abgleich der 18 Captures gegen
+    # den heutigen Hintergrund ergibt Median-|diff| 0 (Schranke 6), gegen
+    # den aeltesten verfuegbaren vom 20.07. Median 1; die beiden
+    # Hintergruende unterscheiden sich untereinander um Median 1 / Mittel
+    # 1,06. Die Beleuchtung der Box ist ueber die drei Tage stabil. Den
+    # Beweis fuehrt aber nicht diese Rechnung, sondern der Tier-1-Lauf: er
+    # reproduziert die Messwerte vom 22.07. gegen den heutigen Hintergrund.
+    # Faellt er, ist phase-c1 nicht korpusfaehig.
+    "phase-c1": {
+        "background": str(_P / "calibration/background.png"),
+        "calibration": str(_P / "calibration/calibration.json"),
+        "db": str(_P / "doco_detect.sqlite3"),
+        "tier1_only": True,
+        "tier1_grund": ("bewusst Tier-1-only: Entscheidungen entstanden "
+                        "unter den damals lokalen sigma_floors, als "
+                        "Tier-2-Goldens nur Delta-Laerm; der Wert der "
+                        "Session ist die Mess-Serie"),
+    },
+    # phase-c2: die 23 bewerteten Cross-Tests vom 2026-07-23, voll Tier 2.
+    # Sie liefen bereits gegen die heutige config.yaml und die heutige DB
+    # (nach dem Gabel/Messer-Enrollment) — Entstehungs- und Replay-Zustand
+    # sind identisch, der Replay muss sie darum exakt reproduzieren.
+    "phase-c2": {
         "background": str(_P / "calibration/background.png"),
         "calibration": str(_P / "calibration/calibration.json"),
         "db": str(_P / "doco_detect.sqlite3"),
@@ -80,7 +151,8 @@ def build_corpus(cfg: dict, *, dry_run: bool = False) -> dict:
     manifest = Manifest.load()
     bekannt = manifest.by_sha()
     stat = {"neu": 0, "gesamt": 0, "uebersprungen_dublette": 0,
-            "uebersprungen_ohne_bild": 0, "sessions": {}}
+            "uebersprungen_ohne_bild": 0, "sessions": {},
+            "bundle_konflikt": []}
     eintraege = list(manifest.images)
     gesehen = set(bekannt)
 
@@ -95,10 +167,18 @@ def build_corpus(cfg: dict, *, dry_run: bool = False) -> dict:
         quellen = BUNDLE_QUELLEN.get(session, {})
         bundle_dir = root / session / "bundle"
         db_ziel = bundle_dir / "db.sqlite3"
+        # tier1_only ist eine BEWUSSTE Herabstufung: der DB-Abgleich wird
+        # trotzdem gerechnet und protokolliert, damit die Provenienz nicht
+        # "kein Snapshot verfuegbar" behauptet, wo in Wahrheit "Snapshot
+        # passt, wird aber nicht verwendet" gilt. Die Unterscheidung ist der
+        # ganze Punkt: ein Leser muss erkennen koennen, ob eine Session
+        # Tier 1 ist, weil sie es nicht besser kann, oder weil jemand
+        # entschieden hat.
+        nur_tier1 = bool(quellen.get("tier1_only"))
         verified, has_db = 0.0, False
         if quellen.get("db") and Path(quellen["db"]).exists():
             verified = db_match_ratio(reports, quellen["db"])
-            has_db = verified >= 1.0
+            has_db = verified >= 1.0 and not nur_tier1
 
         mmpp = [v for v in (recover_mm_per_px(r) for r in reports) if v]
         mmpp_median = sorted(mmpp)[len(mmpp) // 2] if mmpp else None
@@ -111,20 +191,48 @@ def build_corpus(cfg: dict, *, dry_run: bool = False) -> dict:
             has_db=has_db, db_verified=round(verified, 4),
             mm_per_px=mmpp_median, sigma_floors=floors,
             tier=2 if has_db else 1,
-            provenance=(f"DB-Abgleich {verified:.0%} gegen {quellen.get('db')}"
-                        if quellen.get("db") else
-                        "kein DB-Snapshot verfuegbar -> Tier-1-only"))
+            provenance=(
+                f"DB-Abgleich {verified:.0%} gegen {quellen.get('db')} — "
+                f"{quellen.get('tier1_grund', 'herabgestuft')}"
+                if nur_tier1 else
+                f"DB-Abgleich {verified:.0%} gegen {quellen.get('db')}"
+                if quellen.get("db") else
+                "kein DB-Snapshot verfuegbar -> Tier-1-only"))
+
+        # Ein gebuendelter Session-Zustand ist EINGEFROREN. Er darf von einem
+        # spaeteren Build nie stillschweigend ersetzt werden: die Quellpfade
+        # in BUNDLE_QUELLEN zeigen auf LEBENDE Dateien
+        # (calibration/background.png wird bei jedem capture-background
+        # ueberschrieben, doco_detect.sqlite3 waechst mit jedem Enrollment).
+        # Ohne diese Schranke tauschte ein Build vom 2026-07-23 den
+        # Hintergrund von phase-a (20.07.) gegen den heutigen — die 67 alten
+        # Tier-1-Bilder laegen dann gegen eine andere Segmentierungs-
+        # Grundlage, und der naechste --check meldete eine Code-Regression,
+        # die keine ist. Genau das war beim Bau von phase-c beinahe passiert.
+        for key, ziel in (("background", "background.png"),
+                          ("calibration", "calibration.json")):
+            q = quellen.get(key)
+            zielpfad = bundle_dir / ziel
+            if not q or not Path(q).exists() or not zielpfad.exists():
+                continue
+            if sha256_file(Path(q)) != sha256_file(zielpfad):
+                stat["bundle_konflikt"].append(
+                    f"{session}/{ziel}: gebuendelt bleibt der bestehende "
+                    f"Stand; die Quelle {q} ist inzwischen eine andere Datei. "
+                    f"Ein bewusster Austausch geht ueber ein Verschieben der "
+                    f"Session nach backups/ und einen Neubau.")
 
         if not dry_run:
             bundle_dir.mkdir(parents=True, exist_ok=True)
             for key, ziel in (("background", "background.png"),
                               ("calibration", "calibration.json")):
                 q = quellen.get(key)
-                if q and Path(q).exists():
+                # exist_ok=False in der Wirkung: nur schreiben, was fehlt.
+                if q and Path(q).exists() and not (bundle_dir / ziel).exists():
                     shutil.copy2(q, bundle_dir / ziel)
-            if has_db:
+            if has_db and not db_ziel.exists():
                 copy_db_readonly(quellen["db"], db_ziel)
-            elif db_ziel.exists():
+            elif not has_db and db_ziel.exists():
                 db_ziel.unlink()
             write_session_json(bundle_dir, sb)
 

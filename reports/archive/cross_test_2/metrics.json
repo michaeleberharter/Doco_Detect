@@ -1,0 +1,82 @@
+{
+  "generated": "2026-07-23T17:49:39",
+  "n_judged": 23,
+  "n_reports": 23,
+  "per_article": {
+    "GABEL-1": {
+      "k": 3,
+      "n": 5,
+      "p": 0.6,
+      "wilson_hi": 0.8824,
+      "wilson_lo": 0.2307
+    },
+    "GABEL-2": {
+      "k": 5,
+      "n": 5,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.5655
+    },
+    "LOEFFEL-14": {
+      "k": 1,
+      "n": 3,
+      "p": 0.3333,
+      "wilson_hi": 0.7923,
+      "wilson_lo": 0.0615
+    },
+    "LOEFFEL-2": {
+      "k": 2,
+      "n": 3,
+      "p": 0.6667,
+      "wilson_hi": 0.9385,
+      "wilson_lo": 0.2077
+    },
+    "LOEFFEL-4": {
+      "k": 2,
+      "n": 3,
+      "p": 0.6667,
+      "wilson_hi": 0.9385,
+      "wilson_lo": 0.2077
+    },
+    "MESSER-1": {
+      "k": 4,
+      "n": 4,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.5101
+    }
+  },
+  "quotas": {
+    "accuracy_top1": {
+      "k": 17,
+      "n": 23,
+      "p": 0.7391,
+      "wilson_hi": 0.8745,
+      "wilson_lo": 0.5353
+    },
+    "accuracy_top3": {
+      "k": 22,
+      "n": 23,
+      "p": 0.9565,
+      "wilson_hi": 0.9923,
+      "wilson_lo": 0.7901
+    },
+    "auto_accept_rate": {
+      "k": 15,
+      "n": 23,
+      "p": 0.6522,
+      "wilson_hi": 0.8119,
+      "wilson_lo": 0.4489
+    },
+    "false_accept_rate": {
+      "k": 0,
+      "n": 15,
+      "p": 0.0,
+      "rule_of_three": "0 Fehler bei n=15 -> Fehlerrate < 20.0% (95%)",
+      "wilson_hi": 0.2039,
+      "wilson_lo": 0.0
+    }
+  },
+  "run_id": "cross_test_2",
+  "source": "/Users/mikeeberharter/Documents/Doco_Detect/data/captures"
+}

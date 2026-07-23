@@ -1,0 +1,6 @@
+margin,timestamp,ground_truth,bedraenger,log_score_top1,log_score_top2,diff_geometry,diff_color,diff_shape,bilddatei
+0.5095,2026-07-23T17:19:23,LOEFFEL-2,LOEFFEL-5,-0.2793,-0.7888,0.3454,-0.0197,0.1838,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784819960130.png
+0.6742,2026-07-23T17:19:12,LOEFFEL-2,LOEFFEL-5,-0.2998,-0.974,0.4853,-0.0191,0.208,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784819949537.png
+2.1155,2026-07-23T17:14:39,GABEL-2,GABEL-1,-0.9811,-3.0966,1.034,0.2894,0.7921,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784819676630.png
+2.1711,2026-07-23T17:20:10,LOEFFEL-4,LOEFFEL-1,-0.3813,-2.5524,1.155,0.1772,0.8389,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784820007651.png
+2.757,2026-07-23T17:14:02,GABEL-2,GABEL-1,-0.3943,-3.1513,-0.2023,0.4477,2.5116,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784819639441.png

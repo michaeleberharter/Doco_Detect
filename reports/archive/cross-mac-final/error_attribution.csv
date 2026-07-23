@@ -1,0 +1,5 @@
+pair,timestamp,geometry_score_falsch,geometry_score_richtig,geometry_differenz,color_score_falsch,color_score_richtig,color_differenz,shape_score_falsch,shape_score_richtig,shape_differenz,verursacher
+LOEFFEL-2 -> LOEFFEL-6,2026-07-23T17:19:35,-0.0555,-0.4397,0.3842,-0.2035,-0.185,-0.0185,-0.4027,-0.0525,-0.3502,geometry
+LOEFFEL-14 -> LOEFFEL-11,2026-07-23T17:18:42,-0.0236,-0.4236,0.4,-0.1634,-0.1878,0.0244,-0.3719,-0.09,-0.2819,geometry
+LOEFFEL-14 -> LOEFFEL-11,2026-07-23T17:18:26,-0.0089,-0.5007,0.4918,-0.2045,-0.2179,0.0134,-0.5374,-0.0342,-0.5032,geometry
+MESSER-5 -> MESSER-7,2026-07-23T18:20:41,-0.0135,-0.0541,0.0406,-0.135,-0.1308,-0.0042,-0.0324,-0.0289,-0.0035,geometry

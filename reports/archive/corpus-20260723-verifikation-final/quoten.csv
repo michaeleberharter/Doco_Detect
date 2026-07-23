@@ -1,0 +1,13 @@
+kennzahl,seite,k,n,p,wilson_lo,wilson_hi,quelle
+accuracy_top1,golden-set,86,104,0.8269,0.7429,0.8876,gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports
+accuracy_top3,golden-set,97,104,0.9327,0.8675,0.967,gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports
+auto_accept_rate,golden-set,43,104,0.4135,0.3235,0.5095,gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports
+false_accept_rate,golden-set,0,43,0.0,0.0,0.082,gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports
+accuracy_top1_verdict,golden-set,83,104,0.7981,0.711,0.864,gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports
+roh_top1_gleich_label,golden-set,86,104,0.8269,0.7429,0.8876,gerechnet: top1 == label (KEINE Runner-Kennzahl; muss accuracy_top1 entsprechen — Abweichung = metrics.json aus der verdict-Aera)
+accuracy_top1,20260723-verifikation-final,95,104,0.9135,0.8437,0.9538,runs/20260723-verifikation-final/metrics.json
+accuracy_top3,20260723-verifikation-final,102,104,0.9808,0.9326,0.9947,runs/20260723-verifikation-final/metrics.json
+auto_accept_rate,20260723-verifikation-final,45,104,0.4327,0.3415,0.5286,runs/20260723-verifikation-final/metrics.json
+false_accept_rate,20260723-verifikation-final,0,45,0.0,0.0,0.0787,runs/20260723-verifikation-final/metrics.json
+accuracy_top1_verdict,20260723-verifikation-final,83,104,0.7981,0.711,0.864,runs/20260723-verifikation-final/metrics.json
+roh_top1_gleich_label,20260723-verifikation-final,95,104,0.9135,0.8437,0.9538,gerechnet: top1 == label (KEINE Runner-Kennzahl; muss accuracy_top1 entsprechen — Abweichung = metrics.json aus der verdict-Aera)

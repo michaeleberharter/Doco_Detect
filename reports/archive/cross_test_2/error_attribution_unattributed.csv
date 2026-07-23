@@ -1,0 +1,4 @@
+fall,timestamp,wahr,top1,entscheidung,n_kandidaten,rang_wahr,gemessen_kreis_mm,top1_korrigiert_mm,top1_nominal_mm,bilddatei
+top1_korrekt,2026-07-23T17:12:14,GABEL-1,GABEL-1,reject,6,1,214.04,214.04,217.87,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784819529849.png
+top1_korrekt,2026-07-23T17:12:33,GABEL-1,GABEL-1,reject,7,1,216.72,216.72,217.87,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784819549318.png
+vorfilter_kill,2026-07-23T17:20:25,LOEFFEL-4,LOEFFEL-1,ambiguous,10,,190.42,190.42,193.25,/Users/mikeeberharter/Documents/Doco_Detect/data/captures/1784820020752.png

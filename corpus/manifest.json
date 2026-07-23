@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "generated": "2026-07-21T01:52:35",
+  "generated": "2026-07-23T20:00:24",
   "sessions": {
     "phase-a": {
       "tier": 1,
       "db_verified": 0.0,
       "mm_per_px": 0.0787844289673669,
-      "neu": 67,
+      "neu": 0,
       "n_images": 67
     },
     "phase-b": {
@@ -15,6 +15,13 @@
       "mm_per_px": 0.0787884002216089,
       "neu": 62,
       "n_images": 62
+    },
+    "phase-c2": {
+      "tier": 2,
+      "db_verified": 1.0,
+      "mm_per_px": 0.07880890199484683,
+      "neu": 21,
+      "n_images": 44
     }
   },
   "images": [
@@ -26,7 +33,19 @@
       "report_rel": "phase-b/reports/03034e84.json",
       "label": "LOEFFEL-14",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "039dec5e52929a4701fbd408986ba52648d77b7d8f1be884c77e22f4c45c55d4",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/039dec5e.png",
+      "report_rel": "phase-c2/reports/039dec5e.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "07ed04d19b4cce2ad8b5d7ce99bdbfb7f1e11dc691960b5113fbd767aa37f470",
@@ -36,7 +55,19 @@
       "report_rel": "phase-a/reports/07ed04d1.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "0adcdc0b848051f85bbd7e78e811b79c35457d748ed1d47460bc981cba61740f",
+      "session": "phase-c2",
+      "article": "LOEFFEL-2",
+      "image_rel": "phase-c2/images/LOEFFEL-2/0adcdc0b.png",
+      "report_rel": "phase-c2/reports/0adcdc0b.json",
+      "label": "LOEFFEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "0af2351114c1226de26b5ae482d2bcbe7bd24ddf18962a1fd409f2ce0523466e",
@@ -46,7 +77,8 @@
       "report_rel": "phase-a/reports/0af23511.json",
       "label": "LOEFFEL-2",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "0b695ec4c9147cf4150b2464781c8518a506760ef86c2dc5605cf2c41af141e2",
@@ -56,7 +88,8 @@
       "report_rel": "phase-b/reports/0b695ec4.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "0cb8f3c17926c2de5e9d24238b7e72c42f61869ceb0cee7c1fa9b39466a093f5",
@@ -66,7 +99,8 @@
       "report_rel": "phase-b/reports/0cb8f3c1.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "0cc8214cfff4cd8e9fbb5e61822a38b905c3f3f205d3fa7c846d2288ceaf0432",
@@ -76,7 +110,8 @@
       "report_rel": "phase-a/reports/0cc8214c.json",
       "label": "LOEFFEL-3",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "0d5392894a484b6629a36961587f6c7fcb1dc274aff3d3907898a6c022e4b6ed",
@@ -86,7 +121,19 @@
       "report_rel": "phase-b/reports/0d539289.json",
       "label": "LOEFFEL-3",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "10560c2f1026298f3b36ab3f6edc7743e919717b68d39e96c7b37344c7c8f3e2",
+      "session": "phase-c2",
+      "article": "MESSER-7",
+      "image_rel": "phase-c2/images/MESSER-7/10560c2f.png",
+      "report_rel": "phase-c2/reports/10560c2f.json",
+      "label": "MESSER-7",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "1103bf3e5ec0d47bd1c8b3df7a20e1c86f98c94dd520631f511efaf33e22a46d",
@@ -96,7 +143,8 @@
       "report_rel": "phase-a/reports/1103bf3e.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "14d45ef1a1fefd8bcc6c5a7c97da1a65e8d06bd9f1caed14e4a68e38a81de9d4",
@@ -106,7 +154,30 @@
       "report_rel": "phase-a/reports/14d45ef1.json",
       "label": "LOEFFEL-1",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "152de077688b3b412aea84720275d1d16afb39564a59491ba3ee5edf8363bdcb",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/152de077.png",
+      "report_rel": "phase-c2/reports/152de077.json",
+      "label": "GABEL-1",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": "Rueckenlage-Waechter: Gabel bewusst auf dem Ruecken aufgelegt (Out-of-Distribution-Pose). REJECT ist das SOLL-Verhalten, kein Fehlschlag — Produktentscheidung 2026-07-23: Rueckenlage ist nicht buchbar."
+    },
+    {
+      "sha": "1a48641b48887a46d7d6013c6fd083b0a1fcb1526d31eebc0b669d52f4815db1",
+      "session": "phase-c2",
+      "article": "MESSER-5",
+      "image_rel": "phase-c2/images/MESSER-5/1a48641b.png",
+      "report_rel": "phase-c2/reports/1a48641b.json",
+      "label": "MESSER-5",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "1a62b26a41cc97f5b5da633be66d8526510ad23ba56a3ee1242fcd8f51198f89",
@@ -116,7 +187,8 @@
       "report_rel": "phase-a/reports/1a62b26a.json",
       "label": "LOEFFEL-2",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "1ea087207b65ff0ad0939e3f4dc0febe6a9526b90fb62a1093795ec210f0cdfc",
@@ -126,7 +198,8 @@
       "report_rel": "phase-b/reports/1ea08720.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "1ef87054cae137749b6e830d41205d2cfac0e94af0108762cbc493605607c023",
@@ -136,7 +209,8 @@
       "report_rel": "phase-a/reports/1ef87054.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "2316b3e089c3c205f8a0bb073c7eb0834e1eaf0558119b26b7c2013e276224b6",
@@ -146,7 +220,19 @@
       "report_rel": "phase-b/reports/2316b3e0.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "262f23387e172d36cad8921021f9f7e952b356de4eb32c4441cddb8115a37df7",
+      "session": "phase-c2",
+      "article": "GABEL-4",
+      "image_rel": "phase-c2/images/GABEL-4/262f2338.png",
+      "report_rel": "phase-c2/reports/262f2338.json",
+      "label": "GABEL-4",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "2c5be2d6c671f07d11d9bc433d4a4c04b5a89a7a2e5610aca18f81ba786c374e",
@@ -156,7 +242,8 @@
       "report_rel": "phase-a/reports/2c5be2d6.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "2c88e15a90f28a28625f2ae5cc84549c43bb501b193301863fdff9892db6ffc8",
@@ -166,7 +253,19 @@
       "report_rel": "phase-b/reports/2c88e15a.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "2e6faa90311a97a6083c83c479c1aff994d4f22122776e4b8559ed0a78ad4860",
+      "session": "phase-c2",
+      "article": "MESSER-6",
+      "image_rel": "phase-c2/images/MESSER-6/2e6faa90.png",
+      "report_rel": "phase-c2/reports/2e6faa90.json",
+      "label": "MESSER-6",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "33559af89a43c0d2f4fa8f048cbad52864149e2afe213240638dfffc200a0ead",
@@ -176,7 +275,8 @@
       "report_rel": "phase-a/reports/33559af8.json",
       "label": "LOEFFEL-7",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "33b888ab08e53072d7098883f25c8821302a727eebf8f8e93702853f4238f764",
@@ -186,7 +286,8 @@
       "report_rel": "phase-b/reports/33b888ab.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "340fea393c642a1886bad375c8b6044049fd39559624a51e1937adaf640fe735",
@@ -196,7 +297,8 @@
       "report_rel": "phase-b/reports/340fea39.json",
       "label": "LOEFFEL-12",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "36237b16f6e215a5b8b5433aac8faf53011da3f69d8a3a34a2f00cca69b41345",
@@ -206,7 +308,8 @@
       "report_rel": "phase-a/reports/36237b16.json",
       "label": "LOEFFEL-6",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "385c95fd9bd2bb051812e16387a6e666222d7dfa639f5daaf782c9fdcf66e67c",
@@ -216,7 +319,8 @@
       "report_rel": "phase-a/reports/385c95fd.json",
       "label": "LOEFFEL-12",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "3869c80d071ec661df5d37a8c7770917119acab4419e4a4b5dd1872f68a8c362",
@@ -226,7 +330,8 @@
       "report_rel": "phase-b/reports/3869c80d.json",
       "label": "LOEFFEL-11",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "39cb6e0c9b1db4ac4601b0ad3b9d842c2c1465e33fa26963afa02655e5aba556",
@@ -236,7 +341,8 @@
       "report_rel": "phase-b/reports/39cb6e0c.json",
       "label": "LOEFFEL-13",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "3aae112ea39cb2a9990a75f850803ca282cf70c895e8a0dc94bae8b727d5dc8c",
@@ -246,7 +352,8 @@
       "report_rel": "phase-b/reports/3aae112e.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "41a471ce5a17ada616a4bab3b8a60ee626cfbba0851c5b60cad2d3453c327519",
@@ -256,7 +363,8 @@
       "report_rel": "phase-b/reports/41a471ce.json",
       "label": "LOEFFEL-12",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "41befda8a46f788ca07cf7e5ffe2a3fb10f1e491789576d1b230ac01c4a2e56a",
@@ -266,7 +374,8 @@
       "report_rel": "phase-a/reports/41befda8.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "4276dbdedeb4ceb706b7c019f9784275c2b0a507e18faab9fbb6a276e732d957",
@@ -276,7 +385,8 @@
       "report_rel": "phase-b/reports/4276dbde.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "4587d1a886b12b206bc94fe7186b4b081e509179b27347f34604656c2b1cbc75",
@@ -286,7 +396,8 @@
       "report_rel": "phase-b/reports/4587d1a8.json",
       "label": "LOEFFEL-3",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "46f9b1b3aeec1268aaaa21633e77257883d49162e934c72a88bafa933e4cbd86",
@@ -296,7 +407,8 @@
       "report_rel": "phase-b/reports/46f9b1b3.json",
       "label": "LOEFFEL-14",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "49ba9d3fc6b47079e03134d12ecf893a69883128996e511ac333ea13abf1cb34",
@@ -306,7 +418,19 @@
       "report_rel": "phase-b/reports/49ba9d3f.json",
       "label": "LOEFFEL-9",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "4dd0d1959cf876f92345ef4be15454bf667c1cbab96af3c2eec5e0319121a35a",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/4dd0d195.png",
+      "report_rel": "phase-c2/reports/4dd0d195.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "4ee584153d6540ecf080ae1442d627cfd62d1a628b489ab8b260176b0152b0a1",
@@ -316,7 +440,8 @@
       "report_rel": "phase-b/reports/4ee58415.json",
       "label": "LOEFFEL-2",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "4f08405bc3fc851637d019a41d5982c00648751fb83f09a555554eea3d415ca7",
@@ -326,7 +451,8 @@
       "report_rel": "phase-b/reports/4f08405b.json",
       "label": "LOEFFEL-1",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "5118f824048c9a7897f91cc000b11dab239926720274b88d8c07f2c1dda80498",
@@ -336,7 +462,8 @@
       "report_rel": "phase-b/reports/5118f824.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "511f6ccd334f7ec56bc96339daaaea63bc5bda42404c8011892502808571a6a2",
@@ -346,7 +473,19 @@
       "report_rel": "phase-a/reports/511f6ccd.json",
       "label": "LOEFFEL-1",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "51695897e3074f90d4e455222e126b6bca73d9ef9860272d3e1f51f2880a98f4",
+      "session": "phase-c2",
+      "article": "LOEFFEL-4",
+      "image_rel": "phase-c2/images/LOEFFEL-4/51695897.png",
+      "report_rel": "phase-c2/reports/51695897.json",
+      "label": "LOEFFEL-4",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "5371642fe5009ee8b67c298bf9b4565ceccbdab17591ee71663f111cc04b82fa",
@@ -356,7 +495,8 @@
       "report_rel": "phase-a/reports/5371642f.json",
       "label": "LOEFFEL-14",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "53a172058116890a7788747f65a4e0846861b29e400490133e95150ad95610f9",
@@ -366,7 +506,8 @@
       "report_rel": "phase-b/reports/53a17205.json",
       "label": "LOEFFEL-11",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "53c0559bc3af0c4baf70a02f3b053e389dc48c4c7950018cbba52a66dc6200b8",
@@ -376,7 +517,8 @@
       "report_rel": "phase-a/reports/53c0559b.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "574470eeae5a154d36e5ae7dd3dd4795cf260f64d87591e1ae6426f5b3c5cdaf",
@@ -386,7 +528,19 @@
       "report_rel": "phase-a/reports/574470ee.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "5747d120f8184dc6b9aa39f110c66edb83c46d1d4e255a42ab4fa6d378c095a5",
+      "session": "phase-c2",
+      "article": "MESSER-7",
+      "image_rel": "phase-c2/images/MESSER-7/5747d120.png",
+      "report_rel": "phase-c2/reports/5747d120.json",
+      "label": "MESSER-7",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "57e075d65bda621126fbd048be53d202609f485262e40a80055e4b4ef4d7946b",
@@ -396,7 +550,8 @@
       "report_rel": "phase-b/reports/57e075d6.json",
       "label": "LOEFFEL-13",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "57ea3daaad832113b766eccbbc2fc0d5bb9832530c469ab901658de1ed63c243",
@@ -406,7 +561,8 @@
       "report_rel": "phase-b/reports/57ea3daa.json",
       "label": "LOEFFEL-9",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "59caa464c53d0b7eae344b7750d0dc2dfe78539cdfe6d814799eb05207197638",
@@ -416,7 +572,30 @@
       "report_rel": "phase-a/reports/59caa464.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "5b64e610cee189538cbce23cf2f1cd4206805b73906d0b8fb718a484715c6744",
+      "session": "phase-c2",
+      "article": "GABEL-3",
+      "image_rel": "phase-c2/images/GABEL-3/5b64e610.png",
+      "report_rel": "phase-c2/reports/5b64e610.json",
+      "label": "GABEL-3",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "5ba3f2dd29d5f24c27d261c4c2bbf380cba100eb39c27b32e0de4c5002cf17fb",
+      "session": "phase-c2",
+      "article": "LOEFFEL-4",
+      "image_rel": "phase-c2/images/LOEFFEL-4/5ba3f2dd.png",
+      "report_rel": "phase-c2/reports/5ba3f2dd.json",
+      "label": "LOEFFEL-4",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "5bed31ea46c2a9eb410f908df0e8f61064df8827a183d321e6981b3dcdc508f2",
@@ -426,7 +605,19 @@
       "report_rel": "phase-a/reports/5bed31ea.json",
       "label": "LOEFFEL-6",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "5bf6b4317315312bbd8c918e6b41b8758ef593018afd6cd6052cbcc26596586b",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/5bf6b431.png",
+      "report_rel": "phase-c2/reports/5bf6b431.json",
+      "label": "GABEL-1",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": "Rueckenlage-Waechter: Gabel bewusst auf dem Ruecken aufgelegt (Out-of-Distribution-Pose). REJECT ist das SOLL-Verhalten, kein Fehlschlag — Produktentscheidung 2026-07-23: Rueckenlage ist nicht buchbar."
     },
     {
       "sha": "5db55defc4d08c886616769ceccc658a5445227507249a5bb8604aecfc15a689",
@@ -436,7 +627,8 @@
       "report_rel": "phase-b/reports/5db55def.json",
       "label": "LOEFFEL-5",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "5e129916a441aaeb4e38508b31ebdc54fef2721e41da827f79f964b956d6ead3",
@@ -446,7 +638,8 @@
       "report_rel": "phase-a/reports/5e129916.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "5e952338ec7dfab12c4146289b197017064796a2822193e6cd11f337aa6ac243",
@@ -456,7 +649,19 @@
       "report_rel": "phase-b/reports/5e952338.json",
       "label": "LOEFFEL-1",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "6039e5d83ea73c01e40254d2f76a477846b32715aec947971f15c5f6470fb612",
+      "session": "phase-c2",
+      "article": "LOEFFEL-2",
+      "image_rel": "phase-c2/images/LOEFFEL-2/6039e5d8.png",
+      "report_rel": "phase-c2/reports/6039e5d8.json",
+      "label": "LOEFFEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "614d1f2a31f4c0b2b82e1e13cca2a522fae05e9cf31c56b284f4280e9038bff4",
@@ -466,7 +671,19 @@
       "report_rel": "phase-a/reports/614d1f2a.json",
       "label": "LOEFFEL-9",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "645eaac11fa5e3265ad08ff36d5432bf4353e7f9b66bbc5759f71c99c90a7a4f",
+      "session": "phase-c2",
+      "article": "LOEFFEL-14",
+      "image_rel": "phase-c2/images/LOEFFEL-14/645eaac1.png",
+      "report_rel": "phase-c2/reports/645eaac1.json",
+      "label": "LOEFFEL-14",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "6517ed6d469721a72267b73a63343542d89142fd0a244bc9fa9b27ce284d4f0e",
@@ -476,7 +693,8 @@
       "report_rel": "phase-a/reports/6517ed6d.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "662ebfcf7e1e4352d651cd93e79ce8b4d9023a73102a20fe206bc0065bf6ff9a",
@@ -486,7 +704,8 @@
       "report_rel": "phase-a/reports/662ebfcf.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "67e28aa32928dec97a8aed2ebcf1c8d4ad5157e23daa8c88068c511539825c8a",
@@ -496,7 +715,8 @@
       "report_rel": "phase-a/reports/67e28aa3.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "6928785695d8edcf7468310d61c7bb882f6b30ad2dd69b7d0793c1e8579b0c13",
@@ -506,7 +726,19 @@
       "report_rel": "phase-b/reports/69287856.json",
       "label": "LOEFFEL-12",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "6aae2d573683799434e5442e9564d40a8d13264bde89b58423d4995205152223",
+      "session": "phase-c2",
+      "article": "MESSER-6",
+      "image_rel": "phase-c2/images/MESSER-6/6aae2d57.png",
+      "report_rel": "phase-c2/reports/6aae2d57.json",
+      "label": "MESSER-6",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "6d20dc305eac806a27db7113377318586f5ab2f73a0a2344cc44b5714cbdc69c",
@@ -516,7 +748,19 @@
       "report_rel": "phase-a/reports/6d20dc30.json",
       "label": "LOEFFEL-10",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "6d6781fffee5c640c21a6e8038a2206a33b7f651f832ae939bfb98f4ecea3302",
+      "session": "phase-c2",
+      "article": "MESSER-2",
+      "image_rel": "phase-c2/images/MESSER-2/6d6781ff.png",
+      "report_rel": "phase-c2/reports/6d6781ff.json",
+      "label": "MESSER-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "6e5228bbc7d0c8451ab1c04bc9bf82519e5711d435f58c09a79772cbe49edb1a",
@@ -526,7 +770,8 @@
       "report_rel": "phase-a/reports/6e5228bb.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "70984ff042564dd31b1a0c5a10f15ce48dfba8eadabf8c34a54bef79e3ba28f4",
@@ -536,7 +781,19 @@
       "report_rel": "phase-b/reports/70984ff0.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "72352211b149e2a2ce3b27e989b918dbe0db10bf0850c1b9ef241157f7fad3be",
+      "session": "phase-c2",
+      "article": "MESSER-11",
+      "image_rel": "phase-c2/images/MESSER-11/72352211.png",
+      "report_rel": "phase-c2/reports/72352211.json",
+      "label": "MESSER-11",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "7291083968b69f0c7e32c7cd890a1b1405b3e60cb38e3e952c6f686b2eb3fce1",
@@ -546,7 +803,30 @@
       "report_rel": "phase-a/reports/72910839.json",
       "label": "LOEFFEL-3",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "73f7ede82e9c758cb8aeecb14cd8cc9d0c49b58ea752cc6768c67060ade5dc97",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/73f7ede8.png",
+      "report_rel": "phase-c2/reports/73f7ede8.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "74cc27512f144a91f67fcb85fee1249c2c8ac10dfa8cec2bb7f1f7e7b5ee029d",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/74cc2751.png",
+      "report_rel": "phase-c2/reports/74cc2751.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "7771de313bfc9a1b785957d16cd537ae6d1f97a8205eed583894cf1f07fd7a34",
@@ -556,7 +836,8 @@
       "report_rel": "phase-a/reports/7771de31.json",
       "label": "LOEFFEL-5",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "78396800105845d6f65479004f0e6b2c706c0f09538b0994b6fd25876aed8406",
@@ -566,7 +847,8 @@
       "report_rel": "phase-a/reports/78396800.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "7bdc636a6003770fbe370785b7e6fb49d0d1fa568d06856c2ed0d74cb52000d9",
@@ -576,7 +858,8 @@
       "report_rel": "phase-a/reports/7bdc636a.json",
       "label": "LOEFFEL-12",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "7d253afe70e1a941dd1bf4f65993663e029123f65d478c66ed57504fdf98dd72",
@@ -586,7 +869,8 @@
       "report_rel": "phase-b/reports/7d253afe.json",
       "label": "LOEFFEL-1",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "7fe1c248f07c45510a95aa0a6fb3d07eeed9d208e9fa0ad36736007fa0b1f99b",
@@ -596,7 +880,8 @@
       "report_rel": "phase-a/reports/7fe1c248.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "7ffd971aa4ac61701f2663e041d1effe6cdc981d33bca47f55abbf2f91b197f3",
@@ -606,7 +891,30 @@
       "report_rel": "phase-b/reports/7ffd971a.json",
       "label": "LOEFFEL-2",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "82cf53e1872132f39bf08d06ffd1b3c6a961dc1a0e2fc5e17c19fa0224e33ce4",
+      "session": "phase-c2",
+      "article": "LOEFFEL-14",
+      "image_rel": "phase-c2/images/LOEFFEL-14/82cf53e1.png",
+      "report_rel": "phase-c2/reports/82cf53e1.json",
+      "label": "LOEFFEL-14",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "8398cfec77a4b4672e65f3430c48dae74254896e0711d4f22c1fdbb50cc31cd4",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/8398cfec.png",
+      "report_rel": "phase-c2/reports/8398cfec.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "83c3fffc86b3d6e2e9a3220c0bb5c60e95d492f1942d7f0460ce36586fa0cc4d",
@@ -616,7 +924,8 @@
       "report_rel": "phase-a/reports/83c3fffc.json",
       "label": "LOEFFEL-11",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "848892851968864987287c7eb7c2138872044fbe366764b6055a2e0dcc15f41c",
@@ -626,7 +935,8 @@
       "report_rel": "phase-a/reports/84889285.json",
       "label": "LOEFFEL-11",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "888aa3e71d87ebde204cd13fefea766788565084b1cae59d5c3dfbe09c4ca13a",
@@ -636,7 +946,8 @@
       "report_rel": "phase-a/reports/888aa3e7.json",
       "label": "LOEFFEL-13",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "88953a27a7b355308f27c883bb59670a27efe13daac5cf6e9c3b7395b5a469ee",
@@ -646,7 +957,8 @@
       "report_rel": "phase-a/reports/88953a27.json",
       "label": "LOEFFEL-12",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "8b9bc3d43e545c997f4e07b0cb1b72a4390080ac41c977af89816c50fad0981c",
@@ -656,7 +968,19 @@
       "report_rel": "phase-a/reports/8b9bc3d4.json",
       "label": "LOEFFEL-13",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "8ba4eb43e6c6f7b95d9d90b46f909c67cb3fbbfecf0be40084b0b4a89f28f5f4",
+      "session": "phase-c2",
+      "article": "GABEL-4",
+      "image_rel": "phase-c2/images/GABEL-4/8ba4eb43.png",
+      "report_rel": "phase-c2/reports/8ba4eb43.json",
+      "label": "GABEL-4",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "8bf4b3220a6a88a6fd83c1c6673ee39b020b5a558dfda921623c971582e23d17",
@@ -666,7 +990,8 @@
       "report_rel": "phase-b/reports/8bf4b322.json",
       "label": "LOEFFEL-11",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "8dc74a45c233eb2c6bca848c0f10715006dfd45e8791b4192230fd59fbd625cc",
@@ -676,7 +1001,8 @@
       "report_rel": "phase-b/reports/8dc74a45.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "8f213b6650a527e71ce2115ad21f303764d6e81eb5c58f11d5843f2d8675436c",
@@ -686,7 +1012,8 @@
       "report_rel": "phase-a/reports/8f213b66.json",
       "label": "LOEFFEL-9",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "8f9486dfedb831a0518ec76c070f37aea953c4e587c83fffe8a8c7a94374789a",
@@ -696,7 +1023,8 @@
       "report_rel": "phase-a/reports/8f9486df.json",
       "label": "LOEFFEL-6",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "90fd0346b66d9ecf5992cab25922621016b6a44fd37da2149733d9b155798256",
@@ -706,7 +1034,8 @@
       "report_rel": "phase-a/reports/90fd0346.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "937b7df169b7431af93e89d89029585c33466d6b07df4323ff8ba1ac905c392a",
@@ -716,7 +1045,8 @@
       "report_rel": "phase-b/reports/937b7df1.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "93bab625f69bf56c46b329b07f634d721f309e7d7637864635acbea9f54eeb42",
@@ -726,7 +1056,8 @@
       "report_rel": "phase-a/reports/93bab625.json",
       "label": "LOEFFEL-5",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "93f4c4f47b38c081c10462cf3ad8fa466ef26a98e897078043691915139b71ef",
@@ -736,7 +1067,8 @@
       "report_rel": "phase-a/reports/93f4c4f4.json",
       "label": "LOEFFEL-6",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "9482d13a8d6fac2dd8ce0872bf8131f98bb015a930982b282e49f5d32d2b4c77",
@@ -746,7 +1078,8 @@
       "report_rel": "phase-b/reports/9482d13a.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "9528f6c589dd34bc17c44613a8411ca43b1f49e8ee1014bb009cf4b53e1116f6",
@@ -756,7 +1089,8 @@
       "report_rel": "phase-a/reports/9528f6c5.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "957a3f770ad214be10b6da1fa12e79dc61b9472d9980887531a1b19157404dae",
@@ -766,7 +1100,8 @@
       "report_rel": "phase-b/reports/957a3f77.json",
       "label": "LOEFFEL-12",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "986eca40642033ab872a68d9097e48eb19bed186355809a0d191309ec2afd80a",
@@ -776,7 +1111,19 @@
       "report_rel": "phase-a/reports/986eca40.json",
       "label": "LOEFFEL-2",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "992845454cdb67b670adef632cb62a64859870779263dcd619277b9968eb8ba8",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/99284545.png",
+      "report_rel": "phase-c2/reports/99284545.json",
+      "label": "GABEL-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "99718c24bda7f00776b9ea53f9c98ddabfd10d62740b02d3df91e85ccc561fbd",
@@ -786,7 +1133,8 @@
       "report_rel": "phase-b/reports/99718c24.json",
       "label": "LOEFFEL-6",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "9998f15519c94680776cc8fcfb9b4202cc466066701805b0c95a35cd18f9d949",
@@ -796,7 +1144,8 @@
       "report_rel": "phase-a/reports/9998f155.json",
       "label": "LOEFFEL-1",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "99dfc89cff7e1dcbdb15e426862e725f8325a0ffb099d91d454d02a408de3011",
@@ -806,7 +1155,8 @@
       "report_rel": "phase-b/reports/99dfc89c.json",
       "label": "LOEFFEL-3",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "9b1d4eb7a60632e9bd2b3ea12e01576573aa37918fdb28b7770c523b44b39c24",
@@ -816,7 +1166,8 @@
       "report_rel": "phase-b/reports/9b1d4eb7.json",
       "label": "LOEFFEL-13",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "9c55e5132b62f2298d091dfafc201b1f7bd0ccde3625e4a45c860d2b17ec87c7",
@@ -826,7 +1177,8 @@
       "report_rel": "phase-a/reports/9c55e513.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "9caa5415a9ea6987fe39918fb239a2df156aac8215c06182dc61325893b2585c",
@@ -836,7 +1188,19 @@
       "report_rel": "phase-a/reports/9caa5415.json",
       "label": "LOEFFEL-13",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "9dd959987713ae82f7b85426fb4f5deb7a45c2af8bf25d8260a5f18674c16e3d",
+      "session": "phase-c2",
+      "article": "MESSER-2",
+      "image_rel": "phase-c2/images/MESSER-2/9dd95998.png",
+      "report_rel": "phase-c2/reports/9dd95998.json",
+      "label": "MESSER-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "9f57a29359c11015f5d3aaf56136a61a1f44311f84fa62f247444ad6aa6d8ba0",
@@ -846,7 +1210,8 @@
       "report_rel": "phase-a/reports/9f57a293.json",
       "label": "LOEFFEL-5",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "a2883cb7f1cef932a6ef5ff1236738ff2b041a16ac7a307f61ad47aee3c41da0",
@@ -856,7 +1221,19 @@
       "report_rel": "phase-b/reports/a2883cb7.json",
       "label": "LOEFFEL-1",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "a28e83c2aab8d737f3f9c2a87da00491717b377ea91fe7eeded9964727b4cd82",
+      "session": "phase-c2",
+      "article": "MESSER-2",
+      "image_rel": "phase-c2/images/MESSER-2/a28e83c2.png",
+      "report_rel": "phase-c2/reports/a28e83c2.json",
+      "label": "MESSER-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "a2e06072fa07c6edd3644d36568e08dd760cb1bb7163db5be9f203a433434efc",
@@ -866,7 +1243,8 @@
       "report_rel": "phase-a/reports/a2e06072.json",
       "label": "LOEFFEL-12",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "a7470f0454cdb956a536a602d479e9b287581349abb42f4ca1dff9b43c560f4c",
@@ -876,7 +1254,8 @@
       "report_rel": "phase-a/reports/a7470f04.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "a8cf4d7a5e4e65c3359248d971be1294b3ae66d1829573717a782f475bfcf654",
@@ -886,7 +1265,8 @@
       "report_rel": "phase-b/reports/a8cf4d7a.json",
       "label": "LOEFFEL-5",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "a8d29a322bd32e9c79fa9ae59f0bc46dd611fc2df3f57d9b65e82f17ca70a455",
@@ -896,7 +1276,8 @@
       "report_rel": "phase-b/reports/a8d29a32.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "a8d8c8d75006638fcf04132d341a8aaf985976c2751ad455d6ab9ea850f2d94a",
@@ -906,7 +1287,19 @@
       "report_rel": "phase-b/reports/a8d8c8d7.json",
       "label": "LOEFFEL-3",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "abad1b06e9f610765edd064d5300e9edce841b7818d6e07c9a5a7996219a0e6f",
+      "session": "phase-c2",
+      "article": "MESSER-7",
+      "image_rel": "phase-c2/images/MESSER-7/abad1b06.png",
+      "report_rel": "phase-c2/reports/abad1b06.json",
+      "label": "MESSER-7",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "af565c0474cf1187f5530bdad5210e853f52b35f00a6a0b827f4fa2f6829828f",
@@ -916,7 +1309,19 @@
       "report_rel": "phase-a/reports/af565c04.json",
       "label": "LOEFFEL-3",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "b03debe5397186909dace54e3f083c38d7d9cd9b47f2d83ecc3107f9f7ae344e",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/b03debe5.png",
+      "report_rel": "phase-c2/reports/b03debe5.json",
+      "label": "GABEL-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "b22df805fbc16fa46289f19df914da98b5ef9fa559ec41d683359448b4f421d1",
@@ -926,7 +1331,8 @@
       "report_rel": "phase-b/reports/b22df805.json",
       "label": "LOEFFEL-5",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "b26a61607d3ab5d98f6b50985b62039dfd2c6dbf0b89c52c45c16c509d8ed9f7",
@@ -936,7 +1342,8 @@
       "report_rel": "phase-b/reports/b26a6160.json",
       "label": "LOEFFEL-2",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "b2962d1181ef494abdc781efcb3912262ea20718ca7edfcc6f4afaf3d8089838",
@@ -946,7 +1353,8 @@
       "report_rel": "phase-a/reports/b2962d11.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "b6376f78b6ff5c88bd5fd3f0484f8ee733fb4ec60253bd5a8f5dc344a8450e66",
@@ -956,7 +1364,8 @@
       "report_rel": "phase-b/reports/b6376f78.json",
       "label": "LOEFFEL-2",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "b7e70099df3217ba5f71b122b3ee49a7138d09ec96b0370a684609f4306fa4c9",
@@ -966,7 +1375,8 @@
       "report_rel": "phase-a/reports/b7e70099.json",
       "label": "LOEFFEL-5",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "ba59455b6f3701dc27a88030526e3bd79d46b93f3f90d0c145dda89f24d276ff",
@@ -976,7 +1386,8 @@
       "report_rel": "phase-a/reports/ba59455b.json",
       "label": "LOEFFEL-14",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "ba700e3594cd55260e26e695ed5a567d31e4d708b6da668f0cf57f03cef915c3",
@@ -986,7 +1397,30 @@
       "report_rel": "phase-b/reports/ba700e35.json",
       "label": "LOEFFEL-8",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "bc90268bafdc6cd931655e1d445c27ede9d799cbc177136579466e06da48b2cf",
+      "session": "phase-c2",
+      "article": "MESSER-11",
+      "image_rel": "phase-c2/images/MESSER-11/bc90268b.png",
+      "report_rel": "phase-c2/reports/bc90268b.json",
+      "label": "MESSER-11",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "bce8de80a7865f1752264341e0612f73f70569197594dfc9eaf6657331dd1878",
+      "session": "phase-c2",
+      "article": "MESSER-11",
+      "image_rel": "phase-c2/images/MESSER-11/bce8de80.png",
+      "report_rel": "phase-c2/reports/bce8de80.json",
+      "label": "MESSER-11",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "bd5ab3ac42ca28e9d806aef97a31f7bee805e813765c83d2fb93478fce7bfe07",
@@ -996,7 +1430,8 @@
       "report_rel": "phase-b/reports/bd5ab3ac.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "be64b6b17bc871c447d5e5947a74b3bfa4859b64073805355a966b65e3d69cfd",
@@ -1006,7 +1441,8 @@
       "report_rel": "phase-a/reports/be64b6b1.json",
       "label": "LOEFFEL-2",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "bef4cba88bc9c1f3d76a228ec70cb344b19766ce850fbcc2dd762bb48e856770",
@@ -1016,7 +1452,30 @@
       "report_rel": "phase-b/reports/bef4cba8.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "c01479ac7621ade0961e459f2909a8a68f662b6605e045a89f9f438af4d0202d",
+      "session": "phase-c2",
+      "article": "GABEL-3",
+      "image_rel": "phase-c2/images/GABEL-3/c01479ac.png",
+      "report_rel": "phase-c2/reports/c01479ac.json",
+      "label": "GABEL-3",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "c0de95880c77d79918ce8841ed3716f811922ae7c7a9dff033caa03d56989fa9",
+      "session": "phase-c2",
+      "article": "GABEL-3",
+      "image_rel": "phase-c2/images/GABEL-3/c0de9588.png",
+      "report_rel": "phase-c2/reports/c0de9588.json",
+      "label": "GABEL-3",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "c1a7802581a01c2c287bbf29c5210eb308210694de7e9cd8c3af165e5e2f510e",
@@ -1026,7 +1485,8 @@
       "report_rel": "phase-a/reports/c1a78025.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "c280b16b032515b7036e00788c89022e14a4f7f9e1a7ea18aebf91987e79ac52",
@@ -1036,7 +1496,8 @@
       "report_rel": "phase-a/reports/c280b16b.json",
       "label": "LOEFFEL-7",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "c3261c8e4bfc6e66d6b4896616518572abd98242fe979bd4cb153b9b92d9397c",
@@ -1046,7 +1507,30 @@
       "report_rel": "phase-a/reports/c3261c8e.json",
       "label": "LOEFFEL-1",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "c844852395f79f87b3e54ea11ab881b33226a1ac9dc19442327556f0be0e2ab1",
+      "session": "phase-c2",
+      "article": "GABEL-4",
+      "image_rel": "phase-c2/images/GABEL-4/c8448523.png",
+      "report_rel": "phase-c2/reports/c8448523.json",
+      "label": "GABEL-4",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "c915e56c13b249fc97c49441c67838f2017f2a76c38af82e39589a7a096cad97",
+      "session": "phase-c2",
+      "article": "LOEFFEL-2",
+      "image_rel": "phase-c2/images/LOEFFEL-2/c915e56c.png",
+      "report_rel": "phase-c2/reports/c915e56c.json",
+      "label": "LOEFFEL-2",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "cc1f627e4f04a568e347dbf4f837af52c6aeb3d710f7b16e0819531eeb102db6",
@@ -1056,7 +1540,19 @@
       "report_rel": "phase-b/reports/cc1f627e.json",
       "label": "LOEFFEL-6",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "cd512c6a21b308c0eeff5efe433b585d6d58450dd7a989535fcb89ac9ad08011",
+      "session": "phase-c2",
+      "article": "MESSER-5",
+      "image_rel": "phase-c2/images/MESSER-5/cd512c6a.png",
+      "report_rel": "phase-c2/reports/cd512c6a.json",
+      "label": "MESSER-5",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "cf36b550050b338e52e98081f5c7470bdd5377b5e3459ddf5290fb880db7377b",
@@ -1066,7 +1562,19 @@
       "report_rel": "phase-a/reports/cf36b550.json",
       "label": "LOEFFEL-15",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "cfe5c4a144d259e88fe5d67ebc1bde00ecbb45724597eb28ab9403b2d4c6833d",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/cfe5c4a1.png",
+      "report_rel": "phase-c2/reports/cfe5c4a1.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "d4add3c858b519e82e0f85055c5da6facf7d599c6582ec412e60d528113a36a3",
@@ -1076,7 +1584,8 @@
       "report_rel": "phase-b/reports/d4add3c8.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "d78cbe7180f0b6d51bde02d5cb6cc2dc46b108791aae9497eb2ca49306d2a34a",
@@ -1086,7 +1595,8 @@
       "report_rel": "phase-b/reports/d78cbe71.json",
       "label": "LOEFFEL-4",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "d7f3f2a1d272888ea3b134f4b05d25ebe6e3b5e31cb5ce523d65bb4fb81223a0",
@@ -1096,7 +1606,8 @@
       "report_rel": "phase-a/reports/d7f3f2a1.json",
       "label": "LOEFFEL-11",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "d7fe79aa5969a7da7025fcca84b7f51e496e4f77b2dd5eec28e3a357a9930331",
@@ -1106,7 +1617,8 @@
       "report_rel": "phase-b/reports/d7fe79aa.json",
       "label": "LOEFFEL-5",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "d9dba8dc92aa2124774a2d99c40a19b688ad319821429fa8fcaf98806ace04d9",
@@ -1116,7 +1628,8 @@
       "report_rel": "phase-b/reports/d9dba8dc.json",
       "label": "LOEFFEL-9",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "daeefc7e11cb2df27f83c82e54fc0d42ebb603b94e2125ac3b9ae4c5c03376bd",
@@ -1126,7 +1639,8 @@
       "report_rel": "phase-b/reports/daeefc7e.json",
       "label": "LOEFFEL-15",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "db5365f8683fa2831f644e5ba464ead765b88f905a5922b5880848a2e0ab3fb0",
@@ -1136,7 +1650,8 @@
       "report_rel": "phase-a/reports/db5365f8.json",
       "label": "LOEFFEL-10",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "dbb5f4ea9de00dc25231e4e5b2e58b355464d8c8e7f406ff2f6baee0ffcc3210",
@@ -1146,7 +1661,8 @@
       "report_rel": "phase-b/reports/dbb5f4ea.json",
       "label": "LOEFFEL-9",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "dd3c68d13ca67b8ca73ea06d037238820c0ac553319d00a20eb7d4aebab9683d",
@@ -1156,7 +1672,30 @@
       "report_rel": "phase-b/reports/dd3c68d1.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "de4d09c32c8eb872509bb30cfe07136f55c9afe6517ab5ae6c8e46206d16080f",
+      "session": "phase-c2",
+      "article": "LOEFFEL-14",
+      "image_rel": "phase-c2/images/LOEFFEL-14/de4d09c3.png",
+      "report_rel": "phase-c2/reports/de4d09c3.json",
+      "label": "LOEFFEL-14",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "dfc036e5b46d8e729a088b36853ceffcbd5b46003a333a9896811dc0ab73c7d9",
+      "session": "phase-c2",
+      "article": "LOEFFEL-4",
+      "image_rel": "phase-c2/images/LOEFFEL-4/dfc036e5.png",
+      "report_rel": "phase-c2/reports/dfc036e5.json",
+      "label": "LOEFFEL-4",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "e0447438abdc157aab2a44041db16d125d6a50a5c5d62bc19c9ef978c0823fa5",
@@ -1166,7 +1705,8 @@
       "report_rel": "phase-a/reports/e0447438.json",
       "label": "LOEFFEL-3",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "e1d502de04341516f93f4a2c32be04433efc240eef52b19746895799c55c516f",
@@ -1176,7 +1716,8 @@
       "report_rel": "phase-a/reports/e1d502de.json",
       "label": "LOEFFEL-9",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "e24cb7e5fb2f0afb12afb9e54dc8ea162280db83ade4210974238b427acd93d5",
@@ -1186,7 +1727,8 @@
       "report_rel": "phase-b/reports/e24cb7e5.json",
       "label": "LOEFFEL-6",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "e3e8a2b6c86b50a48758f1ff3b2ed8afd571d94e40ba4a04fbceb0d63eba9cd0",
@@ -1196,7 +1738,8 @@
       "report_rel": "phase-b/reports/e3e8a2b6.json",
       "label": null,
       "verdict": null,
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "e51bafabbd3ae01a80be67d270c3881289448758af908a598a7b6908df614ac3",
@@ -1206,7 +1749,8 @@
       "report_rel": "phase-b/reports/e51bafab.json",
       "label": "LOEFFEL-13",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "e6a90c13e3cb49d1ebd68d9322f4cfe603e2e7c63a279e1a387318f40c5ab3fe",
@@ -1216,7 +1760,8 @@
       "report_rel": "phase-a/reports/e6a90c13.json",
       "label": "LOEFFEL-11",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "e8873551a1c248d2c11e6693d2ab0b395edead96c669c6470cc4a8325da0b408",
@@ -1226,7 +1771,30 @@
       "report_rel": "phase-a/reports/e8873551.json",
       "label": "LOEFFEL-13",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "e9d3cddbe8cc2b98fb75398193ecade5d25c8685cf45da944bd9688e85f34b83",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/e9d3cddb.png",
+      "report_rel": "phase-c2/reports/e9d3cddb.json",
+      "label": "GABEL-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "eca29dd8e36c12ceec685cbc95916f978949fcc8906ea1ee9b18534065631803",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/eca29dd8.png",
+      "report_rel": "phase-c2/reports/eca29dd8.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "edb35c2f1401c8a6111db51b3a63b61e12e56ebfdb618fe1da464307eb90abb5",
@@ -1236,7 +1804,30 @@
       "report_rel": "phase-a/reports/edb35c2f.json",
       "label": "LOEFFEL-14",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
+    },
+    {
+      "sha": "f10f4a2b19fc9f6f76fa68b0919ed90ad8a382fa260a8a483adf0459852ff4d7",
+      "session": "phase-c2",
+      "article": "MESSER-6",
+      "image_rel": "phase-c2/images/MESSER-6/f10f4a2b.png",
+      "report_rel": "phase-c2/reports/f10f4a2b.json",
+      "label": "MESSER-6",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "f6135d130f36a4ae3d619d87234b5f442dc23f63df49add9f74e926e248e9174",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/f6135d13.png",
+      "report_rel": "phase-c2/reports/f6135d13.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "f649d598d13a8ccf384f6016c11c5705142aa7c61e03394d6f31d2bebbc8f61b",
@@ -1246,7 +1837,19 @@
       "report_rel": "phase-b/reports/f649d598.json",
       "label": "LOEFFEL-14",
       "verdict": "wrong",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "f7d752785e56956cd6fae2961949ea4238e62972787436ef35bf73e4485bfcfc",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/f7d75278.png",
+      "report_rel": "phase-c2/reports/f7d75278.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "f8abf2779c18bab8a83df0cc4ef7e3503903e514b8c59650c5556849b4e65a3f",
@@ -1256,7 +1859,8 @@
       "report_rel": "phase-b/reports/f8abf277.json",
       "label": "LOEFFEL-6",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "fd6e8e2b7b3ba429346e70973cc105739013f807db50393deff75f9d05f15cca",
@@ -1266,7 +1870,8 @@
       "report_rel": "phase-b/reports/fd6e8e2b.json",
       "label": "LOEFFEL-14",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "fdbf44c9c24e007798e9a996ae5eb7eb6dcf84d54471466f96c30e3df4465958",
@@ -1276,7 +1881,8 @@
       "report_rel": "phase-a/reports/fdbf44c9.json",
       "label": "LOEFFEL-9",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "fe4e88797f26db2cd7a4cc33d6e595f0557ffb363e828cbe4848fe33c9fbf5b7",
@@ -1286,7 +1892,8 @@
       "report_rel": "phase-a/reports/fe4e8879.json",
       "label": "LOEFFEL-4",
       "verdict": "wrong",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     },
     {
       "sha": "fe838ddbee73786632d0250509463dae6c981548eed9de78f0f0ae3a008552b5",
@@ -1296,7 +1903,19 @@
       "report_rel": "phase-b/reports/fe838ddb.json",
       "label": "LOEFFEL-11",
       "verdict": "correct",
-      "tier": 2
+      "tier": 2,
+      "notiz": null
+    },
+    {
+      "sha": "ff1f8fde5b7dbc277044865df92ea3ee621c3be430d74f929667f7cfc68d914e",
+      "session": "phase-c2",
+      "article": "MESSER-5",
+      "image_rel": "phase-c2/images/MESSER-5/ff1f8fde.png",
+      "report_rel": "phase-c2/reports/ff1f8fde.json",
+      "label": "MESSER-5",
+      "verdict": "correct",
+      "tier": 2,
+      "notiz": null
     },
     {
       "sha": "ffb9d6b72ad7271aa1b24a9eb2e772baf3b7ba6388200a6753bdf820ab7542cb",
@@ -1306,7 +1925,8 @@
       "report_rel": "phase-a/reports/ffb9d6b7.json",
       "label": "LOEFFEL-14",
       "verdict": "correct",
-      "tier": 1
+      "tier": 1,
+      "notiz": null
     }
   ]
 }

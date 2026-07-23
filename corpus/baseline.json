@@ -1,43 +1,51 @@
 {
-  "generated": "2026-07-22T14:22:07",
-  "run_id": "20260722-floors-baseline",
+  "generated": "2026-07-23T20:03:33",
+  "run_id": "20260723-baseline-final",
   "tier": 2,
-  "n": 60,
+  "n": 104,
+  "quoten_semantik": "top1-roh-gegen-label/2026-07-23",
   "quotas": {
     "accuracy_top1": {
-      "k": 46,
-      "n": 60,
-      "p": 0.7667,
-      "wilson_lo": 0.6456,
-      "wilson_hi": 0.8556
+      "k": 95,
+      "n": 104,
+      "p": 0.9135,
+      "wilson_lo": 0.8437,
+      "wilson_hi": 0.9538
     },
     "accuracy_top3": {
-      "k": 59,
-      "n": 60,
-      "p": 0.9833,
-      "wilson_lo": 0.9114,
-      "wilson_hi": 0.9971
+      "k": 102,
+      "n": 104,
+      "p": 0.9808,
+      "wilson_lo": 0.9326,
+      "wilson_hi": 0.9947
     },
     "auto_accept_rate": {
-      "k": 27,
-      "n": 60,
-      "p": 0.45,
-      "wilson_lo": 0.3309,
-      "wilson_hi": 0.5751
+      "k": 45,
+      "n": 104,
+      "p": 0.4327,
+      "wilson_lo": 0.3415,
+      "wilson_hi": 0.5286
     },
     "false_accept_rate": {
       "k": 0,
-      "n": 27,
+      "n": 45,
       "p": 0.0,
       "wilson_lo": 0.0,
-      "wilson_hi": 0.1246
+      "wilson_hi": 0.0787
+    },
+    "accuracy_top1_verdict": {
+      "k": 83,
+      "n": 104,
+      "p": 0.7981,
+      "wilson_lo": 0.711,
+      "wilson_hi": 0.864
     },
     "decisions": {
-      "ambiguous": 32,
-      "accept": 27,
-      "reject": 1
+      "ambiguous": 56,
+      "accept": 45,
+      "reject": 3
     }
   },
-  "code_fingerprint": "30eb3ee6baaef7299574410b6fe4af64017a411f25105d40e8f8ac206dcf7d6a",
+  "code_fingerprint": "96ee8586a03d9addcac695300704d3b7ac01a0a26ba590f5370b4335ed1fd0cd",
   "config_fingerprint": "df1a1190c03adbbd105ec213b4c041811bb9e485f246ee48b7e1a604edaac920"
 }

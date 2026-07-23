@@ -608,11 +608,22 @@ sie dagegen; weicht etwas ab, steht das als **Konsistenz-Befund** im
 Bericht, und angezeigt wird weiterhin der Wert aus `metrics.json`, weil das
 die Zahl ist, die `--check` bewertet hat.
 
-Zwei Kennzahlen sehen ähnlich aus und sind es nicht: `accuracy_top1` ist
-über den Korpus verdict-eingefroren (jedes Bild trägt ein menschliches
-Urteil) und bewegt sich durch keine Matcher-Änderung; `roh_top1_gleich_label`
-ist der rohe Label-Vergleich und als Zusatz gekennzeichnet. Für eine
-Schwellen-Diskussion zählt die rohe Größe.
+**Semantikwechsel 2026-07-23.** `accuracy_top1` und `accuracy_top3` rechnen
+seither **roh gegen das Label** (Rang 1 bzw. Rang 1–3 == `label`), über
+dieselbe Grundmenge aller gelabelten Reports. Vorher führte `accuracy_top1`
+über `judgement()` das menschliche `verdict`, und ein verdict ist am Tag der
+Aufnahme eingefroren: es bleibt „falsch", auch wenn eine spätere
+Matcher-Änderung den Artikel korrekt auf Rang 1 hebt — als Regressions-Gate
+war die Kennzahl damit blind. Die alte Zählung läuft als
+`accuracy_top1_verdict` weiter, ist aber **nicht Gate-relevant**
+(`report.NUR_INFO`); sie schlägt die Brücke zu den `analyze`-Zahlen, die
+weiter über `judgement()` aggregieren. Jede geschriebene `baseline.json`
+trägt die Marke `quoten_semantik`; fehlt sie oder weicht sie ab, meldet
+`--check` das im Klartext, weil die top1-Schranken dann eine andere Größe
+beschreiben. Die Zusatzzeile `roh_top1_gleich_label` in `corpus-report`
+bleibt als unabhängige Nachrechnung bestehen und muss `accuracy_top1`
+treffen — tut sie es nicht, stammt die `metrics.json` der Laufseite aus der
+verdict-Ära.
 
 Ein Lauf **ohne `metrics.json`** ist abgebrochen und gilt als
 unvollständig: `corpus-report` lehnt ihn als Vergleichsseite mit Klartext
@@ -703,7 +714,23 @@ data/reference/    Eingelernte Referenzfotos pro Artikel
 
 ## Nächste Schritte (offen)
 
-- [ ] FOV-Test mit größtem Teller → ggf. Kamerahöhe/Box anpassen
+> **Der laufende Arbeitsplan steht in
+> [docs/arbeitsplan-2026-07-24.md](docs/arbeitsplan-2026-07-24.md)** (Blöcke 1–5).
+> Die früher hier notierten Kleinkram-Punkte (Session-Artefakte
+> archivieren statt überschreiben; Ära-Kennzahl `era_median` ersetzen)
+> sind dorthin umgezogen — Block 4. Der stammdaten.py-Fix samt
+> `sync-stammdaten --apply` ist Block 1, Punkt 2.
+
+- [x] FOV-Test mit größtem Teller (2026-07-23) — **Ergebnis negativ.** Nur ein
+      einziger Teller passt im 16:9-Modus vollständig ins Bild, und so knapp,
+      dass Betriebs-Auflagen regelmäßig randberühren würden. Auf diesem Rig
+      wird deshalb **kein Teller eingelernt**; die DB ist besteck-only
+      (Löffel, Gabeln, Messer). Begründung:
+      `docs/2026-07-22-testtag-mac.md`, Abschnitt „Befund FOV".
+- [ ] **Teller-Geometrie entscheiden — P1, gehört zum Windows-Setup:** Kamera
+      höher montieren / 4:3-Modus / Weitwinkel. Erst danach die Teller
+      einlernen, und zwar gegen die finale Geometrie. Solange blockiert
+      dieser Punkt **alle** Teller-Artikel.
 - [ ] Echte Artikelliste aus DO&CO-Datenbank exportieren (Mapping auf CSV-Schema)
 - [ ] Beleuchtung finalisieren (diffus, konstant — Voraussetzung für Farbmerkmale)
 - [ ] sigma_floors aus 15–20er-Messreihe bestimmen (siehe „Testphase" im
