@@ -49,6 +49,14 @@ class ImageEntry:
     label: str | None
     verdict: str | None
     tier: int             # hoechste Stufe, die dieses Bild fahren kann (1 oder 2)
+    # Freitext-Kennzeichnung fuer Bilder, die eine ABSICHT tragen, welche
+    # aus Label und Verdict nicht hervorgeht. Erster Anwendungsfall
+    # (2026-07-23): die Rueckenlagen-Wachter — bewusst falsch herum
+    # aufgelegte Besteckteile, deren REJECT das Soll-Verhalten IST. Ohne
+    # diese Notiz liest ein spaeterer Betrachter sie als Fehlschlaege und
+    # "repariert" womoeglich das Gate, das hier gerade richtig arbeitet.
+    # Optional mit Default: alte Manifeste laden unveraendert weiter.
+    notiz: str | None = None
 
 
 @dataclass

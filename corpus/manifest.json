@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "generated": "2026-07-21T01:52:35",
+  "generated": "2026-07-23T17:52:30",
   "sessions": {
     "phase-a": {
       "tier": 1,
       "db_verified": 0.0,
       "mm_per_px": 0.0787844289673669,
-      "neu": 67,
+      "neu": 0,
       "n_images": 67
     },
     "phase-b": {
@@ -15,6 +15,13 @@
       "mm_per_px": 0.0787884002216089,
       "neu": 62,
       "n_images": 62
+    },
+    "phase-c2": {
+      "tier": 2,
+      "db_verified": 1.0,
+      "mm_per_px": 0.07881177282440177,
+      "neu": 23,
+      "n_images": 23
     }
   },
   "images": [
@@ -29,6 +36,16 @@
       "tier": 2
     },
     {
+      "sha": "039dec5e52929a4701fbd408986ba52648d77b7d8f1be884c77e22f4c45c55d4",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/039dec5e.png",
+      "report_rel": "phase-c2/reports/039dec5e.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "07ed04d19b4cce2ad8b5d7ce99bdbfb7f1e11dc691960b5113fbd767aa37f470",
       "session": "phase-a",
       "article": "LOEFFEL-10",
@@ -37,6 +54,16 @@
       "label": "LOEFFEL-10",
       "verdict": "correct",
       "tier": 1
+    },
+    {
+      "sha": "0adcdc0b848051f85bbd7e78e811b79c35457d748ed1d47460bc981cba61740f",
+      "session": "phase-c2",
+      "article": "LOEFFEL-2",
+      "image_rel": "phase-c2/images/LOEFFEL-2/0adcdc0b.png",
+      "report_rel": "phase-c2/reports/0adcdc0b.json",
+      "label": "LOEFFEL-2",
+      "verdict": "correct",
+      "tier": 2
     },
     {
       "sha": "0af2351114c1226de26b5ae482d2bcbe7bd24ddf18962a1fd409f2ce0523466e",
@@ -107,6 +134,17 @@
       "label": "LOEFFEL-1",
       "verdict": "correct",
       "tier": 1
+    },
+    {
+      "sha": "152de077688b3b412aea84720275d1d16afb39564a59491ba3ee5edf8363bdcb",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/152de077.png",
+      "report_rel": "phase-c2/reports/152de077.json",
+      "label": "GABEL-1",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": "Rueckenlage-Waechter: Gabel bewusst auf dem Ruecken aufgelegt (Out-of-Distribution-Pose). REJECT ist das SOLL-Verhalten, kein Fehlschlag — Produktentscheidung 2026-07-23: Rueckenlage ist nicht buchbar."
     },
     {
       "sha": "1a62b26a41cc97f5b5da633be66d8526510ad23ba56a3ee1242fcd8f51198f89",
@@ -309,6 +347,16 @@
       "tier": 2
     },
     {
+      "sha": "4dd0d1959cf876f92345ef4be15454bf667c1cbab96af3c2eec5e0319121a35a",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/4dd0d195.png",
+      "report_rel": "phase-c2/reports/4dd0d195.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "4ee584153d6540ecf080ae1442d627cfd62d1a628b489ab8b260176b0152b0a1",
       "session": "phase-b",
       "article": "LOEFFEL-2",
@@ -347,6 +395,16 @@
       "label": "LOEFFEL-1",
       "verdict": "correct",
       "tier": 1
+    },
+    {
+      "sha": "51695897e3074f90d4e455222e126b6bca73d9ef9860272d3e1f51f2880a98f4",
+      "session": "phase-c2",
+      "article": "LOEFFEL-4",
+      "image_rel": "phase-c2/images/LOEFFEL-4/51695897.png",
+      "report_rel": "phase-c2/reports/51695897.json",
+      "label": "LOEFFEL-4",
+      "verdict": "wrong",
+      "tier": 2
     },
     {
       "sha": "5371642fe5009ee8b67c298bf9b4565ceccbdab17591ee71663f111cc04b82fa",
@@ -419,6 +477,16 @@
       "tier": 1
     },
     {
+      "sha": "5ba3f2dd29d5f24c27d261c4c2bbf380cba100eb39c27b32e0de4c5002cf17fb",
+      "session": "phase-c2",
+      "article": "LOEFFEL-4",
+      "image_rel": "phase-c2/images/LOEFFEL-4/5ba3f2dd.png",
+      "report_rel": "phase-c2/reports/5ba3f2dd.json",
+      "label": "LOEFFEL-4",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "5bed31ea46c2a9eb410f908df0e8f61064df8827a183d321e6981b3dcdc508f2",
       "session": "phase-a",
       "article": "LOEFFEL-6",
@@ -427,6 +495,17 @@
       "label": "LOEFFEL-6",
       "verdict": "wrong",
       "tier": 1
+    },
+    {
+      "sha": "5bf6b4317315312bbd8c918e6b41b8758ef593018afd6cd6052cbcc26596586b",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/5bf6b431.png",
+      "report_rel": "phase-c2/reports/5bf6b431.json",
+      "label": "GABEL-1",
+      "verdict": "wrong",
+      "tier": 2,
+      "notiz": "Rueckenlage-Waechter: Gabel bewusst auf dem Ruecken aufgelegt (Out-of-Distribution-Pose). REJECT ist das SOLL-Verhalten, kein Fehlschlag — Produktentscheidung 2026-07-23: Rueckenlage ist nicht buchbar."
     },
     {
       "sha": "5db55defc4d08c886616769ceccc658a5445227507249a5bb8604aecfc15a689",
@@ -459,6 +538,16 @@
       "tier": 2
     },
     {
+      "sha": "6039e5d83ea73c01e40254d2f76a477846b32715aec947971f15c5f6470fb612",
+      "session": "phase-c2",
+      "article": "LOEFFEL-2",
+      "image_rel": "phase-c2/images/LOEFFEL-2/6039e5d8.png",
+      "report_rel": "phase-c2/reports/6039e5d8.json",
+      "label": "LOEFFEL-2",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "614d1f2a31f4c0b2b82e1e13cca2a522fae05e9cf31c56b284f4280e9038bff4",
       "session": "phase-a",
       "article": "LOEFFEL-9",
@@ -467,6 +556,16 @@
       "label": "LOEFFEL-9",
       "verdict": "wrong",
       "tier": 1
+    },
+    {
+      "sha": "645eaac11fa5e3265ad08ff36d5432bf4353e7f9b66bbc5759f71c99c90a7a4f",
+      "session": "phase-c2",
+      "article": "LOEFFEL-14",
+      "image_rel": "phase-c2/images/LOEFFEL-14/645eaac1.png",
+      "report_rel": "phase-c2/reports/645eaac1.json",
+      "label": "LOEFFEL-14",
+      "verdict": "correct",
+      "tier": 2
     },
     {
       "sha": "6517ed6d469721a72267b73a63343542d89142fd0a244bc9fa9b27ce284d4f0e",
@@ -549,6 +648,26 @@
       "tier": 1
     },
     {
+      "sha": "73f7ede82e9c758cb8aeecb14cd8cc9d0c49b58ea752cc6768c67060ade5dc97",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/73f7ede8.png",
+      "report_rel": "phase-c2/reports/73f7ede8.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
+      "sha": "74cc27512f144a91f67fcb85fee1249c2c8ac10dfa8cec2bb7f1f7e7b5ee029d",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/74cc2751.png",
+      "report_rel": "phase-c2/reports/74cc2751.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "7771de313bfc9a1b785957d16cd537ae6d1f97a8205eed583894cf1f07fd7a34",
       "session": "phase-a",
       "article": "LOEFFEL-5",
@@ -605,6 +724,26 @@
       "image_rel": "phase-b/images/LOEFFEL-2/7ffd971a.png",
       "report_rel": "phase-b/reports/7ffd971a.json",
       "label": "LOEFFEL-2",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
+      "sha": "82cf53e1872132f39bf08d06ffd1b3c6a961dc1a0e2fc5e17c19fa0224e33ce4",
+      "session": "phase-c2",
+      "article": "LOEFFEL-14",
+      "image_rel": "phase-c2/images/LOEFFEL-14/82cf53e1.png",
+      "report_rel": "phase-c2/reports/82cf53e1.json",
+      "label": "LOEFFEL-14",
+      "verdict": "wrong",
+      "tier": 2
+    },
+    {
+      "sha": "8398cfec77a4b4672e65f3430c48dae74254896e0711d4f22c1fdbb50cc31cd4",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/8398cfec.png",
+      "report_rel": "phase-c2/reports/8398cfec.json",
+      "label": "GABEL-2",
       "verdict": "correct",
       "tier": 2
     },
@@ -779,6 +918,16 @@
       "tier": 1
     },
     {
+      "sha": "992845454cdb67b670adef632cb62a64859870779263dcd619277b9968eb8ba8",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/99284545.png",
+      "report_rel": "phase-c2/reports/99284545.json",
+      "label": "GABEL-1",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "99718c24bda7f00776b9ea53f9c98ddabfd10d62740b02d3df91e85ccc561fbd",
       "session": "phase-b",
       "article": "LOEFFEL-6",
@@ -919,6 +1068,16 @@
       "tier": 1
     },
     {
+      "sha": "b03debe5397186909dace54e3f083c38d7d9cd9b47f2d83ecc3107f9f7ae344e",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/b03debe5.png",
+      "report_rel": "phase-c2/reports/b03debe5.json",
+      "label": "GABEL-1",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "b22df805fbc16fa46289f19df914da98b5ef9fa559ec41d683359448b4f421d1",
       "session": "phase-b",
       "article": "LOEFFEL-5",
@@ -1049,6 +1208,16 @@
       "tier": 1
     },
     {
+      "sha": "c915e56c13b249fc97c49441c67838f2017f2a76c38af82e39589a7a096cad97",
+      "session": "phase-c2",
+      "article": "LOEFFEL-2",
+      "image_rel": "phase-c2/images/LOEFFEL-2/c915e56c.png",
+      "report_rel": "phase-c2/reports/c915e56c.json",
+      "label": "LOEFFEL-2",
+      "verdict": "wrong",
+      "tier": 2
+    },
+    {
       "sha": "cc1f627e4f04a568e347dbf4f837af52c6aeb3d710f7b16e0819531eeb102db6",
       "session": "phase-b",
       "article": "LOEFFEL-6",
@@ -1067,6 +1236,16 @@
       "label": "LOEFFEL-15",
       "verdict": "wrong",
       "tier": 1
+    },
+    {
+      "sha": "cfe5c4a144d259e88fe5d67ebc1bde00ecbb45724597eb28ab9403b2d4c6833d",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/cfe5c4a1.png",
+      "report_rel": "phase-c2/reports/cfe5c4a1.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2
     },
     {
       "sha": "d4add3c858b519e82e0f85055c5da6facf7d599c6582ec412e60d528113a36a3",
@@ -1159,6 +1338,26 @@
       "tier": 1
     },
     {
+      "sha": "de4d09c32c8eb872509bb30cfe07136f55c9afe6517ab5ae6c8e46206d16080f",
+      "session": "phase-c2",
+      "article": "LOEFFEL-14",
+      "image_rel": "phase-c2/images/LOEFFEL-14/de4d09c3.png",
+      "report_rel": "phase-c2/reports/de4d09c3.json",
+      "label": "LOEFFEL-14",
+      "verdict": "wrong",
+      "tier": 2
+    },
+    {
+      "sha": "dfc036e5b46d8e729a088b36853ceffcbd5b46003a333a9896811dc0ab73c7d9",
+      "session": "phase-c2",
+      "article": "LOEFFEL-4",
+      "image_rel": "phase-c2/images/LOEFFEL-4/dfc036e5.png",
+      "report_rel": "phase-c2/reports/dfc036e5.json",
+      "label": "LOEFFEL-4",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "e0447438abdc157aab2a44041db16d125d6a50a5c5d62bc19c9ef978c0823fa5",
       "session": "phase-a",
       "article": "LOEFFEL-3",
@@ -1229,6 +1428,26 @@
       "tier": 1
     },
     {
+      "sha": "e9d3cddbe8cc2b98fb75398193ecade5d25c8685cf45da944bd9688e85f34b83",
+      "session": "phase-c2",
+      "article": "GABEL-1",
+      "image_rel": "phase-c2/images/GABEL-1/e9d3cddb.png",
+      "report_rel": "phase-c2/reports/e9d3cddb.json",
+      "label": "GABEL-1",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
+      "sha": "eca29dd8e36c12ceec685cbc95916f978949fcc8906ea1ee9b18534065631803",
+      "session": "phase-c2",
+      "article": "GABEL-2",
+      "image_rel": "phase-c2/images/GABEL-2/eca29dd8.png",
+      "report_rel": "phase-c2/reports/eca29dd8.json",
+      "label": "GABEL-2",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "edb35c2f1401c8a6111db51b3a63b61e12e56ebfdb618fe1da464307eb90abb5",
       "session": "phase-a",
       "article": "LOEFFEL-14",
@@ -1239,6 +1458,16 @@
       "tier": 1
     },
     {
+      "sha": "f6135d130f36a4ae3d619d87234b5f442dc23f63df49add9f74e926e248e9174",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/f6135d13.png",
+      "report_rel": "phase-c2/reports/f6135d13.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
+      "tier": 2
+    },
+    {
       "sha": "f649d598d13a8ccf384f6016c11c5705142aa7c61e03394d6f31d2bebbc8f61b",
       "session": "phase-b",
       "article": "LOEFFEL-14",
@@ -1246,6 +1475,16 @@
       "report_rel": "phase-b/reports/f649d598.json",
       "label": "LOEFFEL-14",
       "verdict": "wrong",
+      "tier": 2
+    },
+    {
+      "sha": "f7d752785e56956cd6fae2961949ea4238e62972787436ef35bf73e4485bfcfc",
+      "session": "phase-c2",
+      "article": "MESSER-1",
+      "image_rel": "phase-c2/images/MESSER-1/f7d75278.png",
+      "report_rel": "phase-c2/reports/f7d75278.json",
+      "label": "MESSER-1",
+      "verdict": "correct",
       "tier": 2
     },
     {
