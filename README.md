@@ -250,11 +250,23 @@ python -m pytest tests/ -v                              # ohne Hardware
 DOCODETECT_HW_TESTS=1 python -m pytest tests/ -v -m hardware -s   # mit Kamera
 ```
 
-> **Offener Punkt — der Segmentierungs-Backstop ist tot (Stand 2026-07-22).**
-> `tests/test_real_captures.py` prüft die Segmentierung auf echten Aufnahmen
-> gegen visuell abgenommene Flächen (`GOLDEN_AREAS`). **Alle 15 Fixtures
-> fehlen**, der Test skippt vollständig — mit grüner Suite, weil ein
-> fehlendes Capture ein `pytest.skip` auslöst, keinen Fehler.
+> **Segmentierungs-Backstop — Mechanik steht, Fixtures fehlen noch
+> (Stand 2026-07-22 abends).** `tests/test_real_captures.py` prüft die
+> Segmentierung auf echten Aufnahmen gegen visuell abgenommene Flächen.
+> Der Test liest seit dem Umbau ausschließlich aus dem **versionierten**
+> Satz `tests/fixtures/golden_captures/` (Szenen + zugehöriger Hintergrund
+> + `goldens.json`) und **schlägt fehl**, wenn dieser Satz fehlt oder
+> unvollständig ist — kein `skip` mehr. Aufgenommen wird am 2026-07-23:
+> Ablauf und Szenen-Checkliste in
+> [docs/2026-07-23-golden-backstop.md](2026-07-23-golden-backstop.md).
+>
+> Warum der Wächter-Test `test_golden_fixtures_vollstaendig` unparametrisiert
+> ist: eine Parametrisierung über ein leeres Manifest sammelt **null** Tests
+> ein und meldet `got empty parameter set` als SKIP — der Backstop wäre
+> wieder lautlos tot. Nur ein Test, der unabhängig von den Daten existiert,
+> kann ihr Fehlen anzeigen.
+>
+> Historie des Verlusts (unverändert, weil sie die Kosten belegt):
 >
 > Zwei getrennte Ursachen, die man nicht verwechseln darf:
 >
@@ -282,17 +294,24 @@ DOCODETECT_HW_TESTS=1 python -m pytest tests/ -v -m hardware -s   # mit Kamera
 > Korpus-Tier-1 (129 echte Aufnahmen) abgedeckt; der korpus-**unabhängige**
 > Backstop fehlt.
 >
-> **Geplante Auflösung (A+), Hardware-Block am 2026-07-23:** Goldens neu
-> aufnehmen mit bewusstem Fokus auf die harten Fälle (Löffel mit
-> Spiegel-Laffe, Gabel horizontal *und* vertikal mit Spiegel-Hals, Messer,
-> Teller, ein Randberührungs-Fall), jede Maske einzeln sichtabnehmen,
-> `GOLDEN_AREAS` neu setzen — und die Fixtures **versioniert** unter
-> `tests/fixtures/golden_captures/` ablegen statt in gitignorierten
-> Arbeitsordnern. Damit wird die Abdeckung erstmals clone-vollständig.
-> Im selben Commit wird die Skip-Semantik auf **fail** umgestellt: fehlende
-> Fixtures dürfen keine grüne Suite mehr erzeugen. Zusätzlich fällt der
-> Phantom-Pfad `data/captures/archive_relight1/` aus dem Docstring, den es
-> nie gab.
+> **Stand der Auflösung (A+):**
+>
+> - **Teil A — erledigt (Branch `feature/golden-backstop`).** Test auf den
+>   versionierten Fixture-Satz umgebaut, Skip→Fail, Übernahme-Helfer
+>   `scripts/adopt_goldens.py` samt Tests, Doku. Der Phantom-Pfad
+>   `data/captures/archive_relight1/` ist aus dem Docstring verschwunden,
+>   den es nie gab.
+> - **Teil B — offen, Hardware-Block 2026-07-23.** 15 Szenen aufnehmen
+>   (Checkliste im Tagesdokument), jede Maske einzeln sichtabnehmen,
+>   übernehmen. Erst damit ist die Abdeckung clone-vollständig.
+>
+> Der Hintergrund wird **mitversioniert**. Eine Aufnahme ist nur
+> vergleichbar, solange sie zur Beleuchtung ihres Hintergrunds passt; ein
+> versionierter Szenensatz gegen ein maschinenlokales `background.png` hätte
+> dieselbe Bruchstelle nur verschoben. Der Era-Abgleich ist deshalb von einem
+> `skip` zu einer Assertion geworden: passen Szene und mitgelieferter
+> Hintergrund nicht zusammen, ist der **Fixture-Satz** defekt, nicht die
+> Umgebung.
 
 ## Workflow
 
