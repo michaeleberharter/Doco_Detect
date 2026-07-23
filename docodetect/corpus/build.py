@@ -46,13 +46,25 @@ SOURCES = [
     # bleiben erhalten: Manifest.sessions wird gemergt, nicht ersetzt.
     # Neues Material bekommt eine neue Session mit eigenem Snapshot.
     #   ("phase-b", str(_P / "data/captures"), str(_P / "data/captures")),
-    # 2026-07-23 aufgenommen (Schritt 7). Beide Quellen sind archivierte
-    # analyze-Laeufe, damit der Bestand reproduzierbar bleibt: data/captures
+    # 2026-07-23 aufgenommen (Schritt 7). Quelle ist ein archivierter
+    # analyze-Lauf, damit der Bestand reproduzierbar bleibt: data/captures
     # wird von jedem `analyze --archive` geleert, ein Verweis dorthin waere
     # nach dem naechsten Lauf ins Leere gelaufen.
-    ("phase-c1", str(_P / "reports/analysis/messreihe_l14_2026-07-22/reports"),
-     str(_P / "data/captures")),
-    ("phase-c2", str(_P / "reports/analysis/cross_test_2/reports"),
+    #
+    # phase-c1 (LOEFFEL-14-Messreihe, 18 Bilder) ist HERAUSGENOMMEN und liegt
+    # in backups/2026-07-23-phase-c1-nicht-korpusfaehig/. Sie fiel im Tier-1-
+    # Lauf 18/18 durch: ihr Hintergrund vom 22.07. existiert nicht mehr
+    # (capture-background hat ihn am 23.07. ueberschrieben). Der Eintrag darf
+    # NICHT zurueck — sonst baut jeder Lauf die verworfene Session neu und
+    # der naechste --check rot. Details: Ergebnisdokument, Abschnitt 3.2.
+    # phase-c2 liest aus cross-mac-final/reports (44 bewertete Cross-Tests:
+    # die 23 aus cross_test_2 PLUS die 21 der Verdichtung vom 2026-07-23,
+    # 18:19-18:28). Der Nachtrag ist dieselbe Session — kein Enrollment und
+    # keine Aera-Grenze zwischen 17:20 und 18:28 (letztes Enrollment 17:07,
+    # Buendel-Snapshot 17:52), db_match_ratio 100 % gegen die Buendel-DB. Der
+    # Superset-Ordner ist die einzige Provenienz-Quelle; die 23 werden beim
+    # Rebuild als Dublette uebersprungen, nur die 21 kommen neu hinzu.
+    ("phase-c2", str(_P / "reports/analysis/cross-mac-final/reports"),
      str(_P / "data/captures")),
 ]
 
