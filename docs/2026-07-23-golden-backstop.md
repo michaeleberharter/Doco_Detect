@@ -18,7 +18,7 @@ python -m docodetect.cli identify          # je Szene einmal, IDs notieren
 # 3. Ansehen, nichts schreiben: Overlays prüfen, Flächen und Ära kontrollieren
 python scripts/adopt_goldens.py --dry-run --overlay-dir /tmp/overlays \
     01-leere-box=<id>:raises 02-teeloeffel-flach=<id> ... \
-    17-teller-randberuehrung=<id>:border 19-glastasse-transparent-2=<id>
+    17-teller-randberuehrung=<id>:border 19-glas-transparent-2=<id>
 # 4. Erst nach Sichtabnahme JEDER Maske: dasselbe Kommando ohne --dry-run
 python -m pytest tests/test_real_captures.py -q      # muss grün sein
 ```
@@ -73,12 +73,23 @@ verschiedene Kalibrier-Pfade treffen. Redundanz im Regressionsnetz ist Marge.
 | ☐ | `15-servierloeffel-flach` | Servierlöffel, flach | große Laffe, andere Lage |
 | ☐ | `16-teller-gross` | großer Teller, zentriert | großflächig, Fahne/Rand-Zone |
 | ☐ | `17-teller-randberuehrung` `:border` | **größter Teller, Rand berührt** | FOV-Grenze; `touches_border` MUSS greifen — dokumentiert nebenbei das FOV-Ergebnis |
-| ☐ | `18-glastasse-transparent` | Glastasse **mit Henkel** | **Transparent-Annex** |
-| ☐ | `19-glastasse-transparent-2` | dieselbe Tasse, zweiter Schuss | Reproduzierbarkeit transparent |
+| ☐ | `18-glas-transparent` | **Trinkglas** (ohne Henkel) | **Transparent-Annex** — refraktierendes Material, Boden scheint durch |
+| ☐ | `19-glas-transparent-2` | dasselbe Glas, neu aufgelegt und gedreht | Reproduzierbarkeit transparent |
 
 Die Reihenfolge minimiert Handgriffe: leere Box zuerst (Box ist ohnehin
 leer), dann klassenweise Teelöffel → Gabel → Messer → Servierlöffel →
 Teller → Glas.
+
+### Zur Transparent-Szene (18/19)
+
+Ursprünglich als Glastasse **mit Henkel** geplant, aufgenommen mit einem
+einfachen **Trinkglas**. Der Transparent-Mechanismus hängt am Material —
+refraktierendes Glas, durch das der Boden scheint —, nicht am Henkel. Was
+der Henkel zusätzlich beitrug, war die **Loch-Topologie**: eine vom Objekt
+umschlossene Bodenfläche, die nicht als Objekt annektiert werden darf.
+Genau das deckt der Backstop schon über die **Gabel-Zinkenschlitze** ab, die
+in jeder der sechs Gabel-Szenen offen bleiben müssen. Der Wechsel kostet
+also keine Abdeckung.
 
 ### Zur Randberührungs-Szene
 

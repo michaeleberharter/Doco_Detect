@@ -194,8 +194,19 @@ def schreiben(befunde: list[dict], bg_quelle: Path, ziel: Path = ZIEL) -> Path:
             pass
 
     for b in befunde:
-        shutil.copyfile(b["quelle"], szenen_dir / f"{b['szene']}.png")
-        eintrag = {"kind": b["kind"], "quelle": b["quelle"].name}
+        # Endung der QUELLE behalten. Die Fotobox schreibt Captures als .jpg
+        # (pipeline.py); ein Umbenennen nach .png legte JPEG-Inhalt unter
+        # einen PNG-Namen, ein Umkodieren wuerde die Datei veraendern. Das
+        # Fixture soll bitgleich das sein, was die Box geliefert hat.
+        datei = f"{b['szene']}{b['quelle'].suffix.lower()}"
+        # Eine frueher unter anderer Endung abgelegte Fassung derselben Szene
+        # muss weichen, sonst liegen zwei Dateien fuer eine Szene herum.
+        for alt in szenen_dir.glob(f"{b['szene']}.*"):
+            if alt.name != datei:
+                alt.unlink()
+        shutil.copyfile(b["quelle"], szenen_dir / datei)
+        eintrag = {"kind": b["kind"], "quelle": b["quelle"].name,
+                   "datei": datei}
         if b["kind"] in ("segment", "touches_border"):
             eintrag["area_px"] = b["area_px"]
         manifest["scenes"][b["szene"]] = eintrag

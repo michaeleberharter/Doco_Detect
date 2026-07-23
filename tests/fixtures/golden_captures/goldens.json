@@ -1,0 +1,120 @@
+{
+ "background": "background.png",
+ "scenes": {
+  "01-leere-box": {
+   "datei": "01-leere-box.jpg",
+   "kind": "raises",
+   "quelle": "20260723-145532-848.jpg"
+  },
+  "02-teeloeffel-flach": {
+   "area_px": 218970,
+   "datei": "02-teeloeffel-flach.jpg",
+   "kind": "segment",
+   "quelle": "20260723-145802-893.jpg"
+  },
+  "03-teeloeffel-diagonal": {
+   "area_px": 222342,
+   "datei": "03-teeloeffel-diagonal.jpg",
+   "kind": "segment",
+   "quelle": "20260723-145818-949.jpg"
+  },
+  "04-teeloeffel-gebogen": {
+   "area_px": 238422,
+   "datei": "04-teeloeffel-gebogen.jpg",
+   "kind": "segment",
+   "quelle": "20260723-145902-598.jpg"
+  },
+  "05-teeloeffel-klein-blank": {
+   "area_px": 131153,
+   "datei": "05-teeloeffel-klein-blank.jpg",
+   "kind": "segment",
+   "quelle": "20260723-145921-898.jpg"
+  },
+  "06-gabel-flach-links": {
+   "area_px": 269658,
+   "datei": "06-gabel-flach-links.jpg",
+   "kind": "segment",
+   "quelle": "20260723-150837-132.jpg"
+  },
+  "07-gabel-flach-rechts": {
+   "area_px": 270402,
+   "datei": "07-gabel-flach-rechts.jpg",
+   "kind": "segment",
+   "quelle": "20260723-150853-523.jpg"
+  },
+  "08-gabel-flach": {
+   "area_px": 284178,
+   "datei": "08-gabel-flach.jpg",
+   "kind": "segment",
+   "quelle": "20260723-150915-013.jpg"
+  },
+  "09-gabel-diagonal": {
+   "area_px": 273824,
+   "datei": "09-gabel-diagonal.jpg",
+   "kind": "segment",
+   "quelle": "20260723-150926-090.jpg"
+  },
+  "10-gabel-diagonal-spiegelferse": {
+   "area_px": 275273,
+   "datei": "10-gabel-diagonal-spiegelferse.jpg",
+   "kind": "segment",
+   "quelle": "20260723-150949-508.jpg"
+  },
+  "11-gabel-vertikal": {
+   "area_px": 268028,
+   "datei": "11-gabel-vertikal.jpg",
+   "kind": "segment",
+   "quelle": "20260723-151008-788.jpg"
+  },
+  "12-messer-flach": {
+   "area_px": 474414,
+   "datei": "12-messer-flach.jpg",
+   "kind": "segment",
+   "quelle": "20260723-151610-819.jpg"
+  },
+  "13-messer-diagonal": {
+   "area_px": 479566,
+   "datei": "13-messer-diagonal.jpg",
+   "kind": "segment",
+   "quelle": "20260723-151623-607.jpg"
+  },
+  "14-servierloeffel": {
+   "area_px": 877264,
+   "datei": "14-servierloeffel.jpg",
+   "kind": "segment",
+   "quelle": "20260723-151651-114.jpg"
+  },
+  "15-servierloeffel-flach": {
+   "area_px": 878692,
+   "datei": "15-servierloeffel-flach.jpg",
+   "kind": "segment",
+   "quelle": "20260723-151707-792.jpg"
+  },
+  "16-teller-gross": {
+   "area_px": 3562541,
+   "datei": "16-teller-gross.jpg",
+   "kind": "segment",
+   "quelle": "20260723-152053-221.jpg"
+  },
+  "17-teller-randberuehrung": {
+   "area_px": 3482936,
+   "datei": "17-teller-randberuehrung.jpg",
+   "kind": "touches_border",
+   "quelle": "20260723-152116-834.jpg"
+  },
+  "18-glas-transparent": {
+   "area_px": 1979196,
+   "datei": "18-glas-transparent.jpg",
+   "kind": "segment",
+   "quelle": "20260723-152515-205.jpg"
+  },
+  "19-glas-transparent-2": {
+   "area_px": 2009897,
+   "datei": "19-glas-transparent-2.jpg",
+   "kind": "segment",
+   "quelle": "20260723-152558-175.jpg"
+  }
+ },
+ "uebernommen": "2026-07-23",
+ "version": 1
+}

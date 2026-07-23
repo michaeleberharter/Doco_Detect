@@ -90,8 +90,15 @@ PFLICHT_SZENEN = (
     "15-servierloeffel-flach",
     "16-teller-gross",                 # grossflaechig, Fahne
     "17-teller-randberuehrung",        # FOV-Grenze, touches_border MUSS greifen
-    "18-glastasse-transparent",        # Transparent-Annex
-    "19-glastasse-transparent-2",
+    # Transparent-Annex: refraktierendes Material, das den Boden
+    # durchscheinen laesst. Aufgenommen mit einem einfachen Trinkglas statt
+    # der urspruenglich geplanten Glastasse — der Mechanismus haengt am
+    # Material, nicht am Henkel. Das Henkel-Kriterium war die
+    # Loch-Topologie (eine vom Objekt umschlossene Bodenflaeche), und die
+    # deckt der Backstop bereits ueber die Gabel-Zinkenschlitze ab, die in
+    # jeder Gabel-Szene offen bleiben muessen.
+    "18-glas-transparent",
+    "19-glas-transparent-2",           # dasselbe Glas, neu aufgelegt+gedreht
 )
 
 
@@ -142,7 +149,7 @@ def test_golden_fixtures_vollstaendig():
         f"erlaubt — dann aber PFLICHT_SZENEN in dieser Datei aendern, mit "
         f"Begruendung im Commit. {_UEBERNAHME}")
 
-    ohne_datei = [s for s in szenen if not (SCENES_DIR / f"{s}.png").is_file()]
+    ohne_datei = [s for s in szenen if not _szenendatei(s).is_file()]
     assert not ohne_datei, (
         f"Im Manifest gelistet, aber keine Bilddatei unter {SCENES_DIR}: "
         f"{', '.join(sorted(ohne_datei))}")
@@ -161,11 +168,28 @@ def test_scipy_vorhanden():
     import scipy  # noqa: F401
 
 
+def _szenendatei(scene_id: str) -> Path:
+    """Pfad der Szenendatei. Die Endung steht im Manifest, weil die Fotobox
+    `.jpg` liefert (pipeline.py) und aeltere Bestaende `.png` waren — das
+    Fixture behaelt die Endung seiner Quelle, statt umbenannt oder
+    umkodiert zu werden."""
+    eintrag = _szenen().get(scene_id, {})
+    datei = eintrag.get("datei")
+    if datei:
+        return SCENES_DIR / datei
+    treffer = sorted(SCENES_DIR.glob(f"{scene_id}.*"))
+    return treffer[0] if treffer else SCENES_DIR / f"{scene_id}.png"
+
+
 def _lade(scene_id: str):
     bg = cv2.imread(str(BACKGROUND))
-    img = cv2.imread(str(SCENES_DIR / f"{scene_id}.png"))
+    img = cv2.imread(str(_szenendatei(scene_id)))
     assert bg is not None, f"Hintergrund nicht lesbar: {BACKGROUND}"
-    assert img is not None, f"Szene nicht lesbar: {scene_id}"
+    assert img is not None, f"Szene nicht lesbar: {_szenendatei(scene_id)}"
+    assert img.shape == bg.shape, (
+        f"{scene_id}: Aufloesung {img.shape[1]}x{img.shape[0]} weicht vom "
+        f"Hintergrund {bg.shape[1]}x{bg.shape[0]} ab — der Fixture-Satz ist "
+        f"inkonsistent (vgl. den 1080p-Vorfall vom 2026-07-22).")
     return img, bg
 
 

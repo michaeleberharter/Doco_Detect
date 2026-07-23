@@ -60,6 +60,11 @@ def fixture_satz(tmp_path):
     return pfade
 
 
+def m_datei(ziel, szene) -> str:
+    m = json.loads((ziel / "goldens.json").read_text(encoding="utf-8"))
+    return m["scenes"][szene]["datei"]
+
+
 # --- Zuordnung parsen ------------------------------------------------------
 
 def test_zuordnung_mit_pfad_und_raises(fixture_satz):
@@ -191,6 +196,7 @@ def test_schreiben_legt_szenen_hintergrund_und_manifest_ab(tmp_path, fixture_sat
     assert (ziel / "background.png").is_file()
     assert (ziel / "scenes" / "01-objekt.png").is_file()
     assert (ziel / "scenes" / "15-leere-box.png").is_file()
+    assert m_datei(ziel, "01-objekt") == "01-objekt.png"
 
     m = json.loads((ziel / "goldens.json").read_text(encoding="utf-8"))
     assert m["background"] == "background.png"
@@ -237,6 +243,41 @@ def test_main_lehnt_era_abweichung_mit_exit_1_ab(tmp_path, fixture_satz, monkeyp
                        "--background", str(fixture_satz["bg"])])
     assert code == 1
     assert not (tmp_path / "golden_captures").exists()
+
+
+def test_jpg_quelle_behaelt_ihre_endung(tmp_path, fixture_satz):
+    """Die Fotobox schreibt .jpg (pipeline.py). Ein Umbenennen nach .png
+    legte JPEG-Inhalt unter einen PNG-Namen — die Datei behaelt deshalb die
+    Endung ihrer Quelle und wird bitgleich uebernommen."""
+    quelle = tmp_path / "kamera.jpg"
+    cv2.imwrite(str(quelle), _mit_objekt(_boden()))
+    bg = cv2.imread(str(fixture_satz["bg"]))
+    ziel = tmp_path / "golden_captures"
+    adopt.schreiben(adopt.messen(adopt.parse_zuordnung(
+        [f"02-teeloeffel-flach={quelle}"]), bg), fixture_satz["bg"], ziel=ziel)
+
+    assert (ziel / "scenes" / "02-teeloeffel-flach.jpg").is_file()
+    assert not (ziel / "scenes" / "02-teeloeffel-flach.png").exists()
+    assert m_datei(ziel, "02-teeloeffel-flach") == "02-teeloeffel-flach.jpg"
+    assert (ziel / "scenes" / "02-teeloeffel-flach.jpg").read_bytes() == \
+        quelle.read_bytes(), "Fixture ist nicht bitgleich zur Quelle"
+
+
+def test_endungswechsel_laesst_keine_zweite_datei_zurueck(tmp_path, fixture_satz):
+    """Wird eine Szene spaeter aus einer .jpg-Quelle nachgezogen, darf die
+    alte .png-Fassung nicht liegen bleiben."""
+    bg = cv2.imread(str(fixture_satz["bg"]))
+    ziel = tmp_path / "golden_captures"
+    adopt.schreiben(adopt.messen(adopt.parse_zuordnung(
+        [f"02-teeloeffel-flach={fixture_satz['objekt']}"]), bg),
+        fixture_satz["bg"], ziel=ziel)
+    jpg = tmp_path / "kamera.jpg"
+    cv2.imwrite(str(jpg), _mit_objekt(_boden()))
+    adopt.schreiben(adopt.messen(adopt.parse_zuordnung(
+        [f"02-teeloeffel-flach={jpg}"]), bg), fixture_satz["bg"], ziel=ziel)
+
+    dateien = sorted(p.name for p in (ziel / "scenes").glob("02-*"))
+    assert dateien == ["02-teeloeffel-flach.jpg"], dateien
 
 
 def test_overlay_dir_schreibt_kontrollbilder(tmp_path, fixture_satz):
