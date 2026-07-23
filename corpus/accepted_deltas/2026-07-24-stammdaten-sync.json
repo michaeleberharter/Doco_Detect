@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "generated": "2026-07-23T23:28:25",
+  "fix_commit": "872cbd20d2285309335b49c4e8a67c69ac252ed5",
+  "results_doc": "docs/superpowers/reports/2026-07-24-stammdaten-sync-ergebnis.md",
+  "plan_doc": "docs/arbeitsplan-2026-07-24.md (Block 1.2)",
+  "beschreibung": "Sync-Schicht des stammdaten-Diagonal-Fix (hypot->max in docodetect/stammdaten.py) + sync-stammdaten --apply am 2026-07-24. Die vier Bilder, bei denen der Sync die KORREKTHEITS-relevante Struktur aendert (Kandidatenset-Mitgliedschaft des WAHREN Artikels, Decision oder Top-1), einzeln begruendet. 51695897 = der Ziel-Kill loest sich (LOEFFEL-4). 8dc74a45 = bewusst akzeptierte fail-safe-Regression (LOEFFEL-7). 4587d1a8/cc1f627e = wahres Label verlaesst das Set bei ohnehin falschem Top-1. false_accept bleibt 0/44. expected-Felder = Replay 20260724-4d-post-sync (Buendel post-sync). Details und Zwei-Schichten-Attribution im results_doc.",
+  "images": {
+    "4587d1a8": {
+      "session": "phase-b",
+      "label": "LOEFFEL-3",
+      "kategorie": "sync",
+      "reason": "phase-b, LOEFFEL-3, gemessener Kreis-Oe 188.83mm. Der Sync hebt das LOEFFEL-3-Nominal 193.09 -> 196.55; dieser Shot liegt 7.72mm darunter -> LOEFFEL-3 verlaesst das eigene Set und faellt aus den Top-3. Decision und (bereits vor dem Sync falscher) Top-1 LOEFFEL-4 unveraendert; keine Fehlbuchung. Kosten: -1 top3. Gleiche Breitschaufel-Mechanik wie 8dc74a45.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "GABEL-6",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.9734,
+        "max_z_winner": 1.5059
+      }
+    },
+    "51695897": {
+      "session": "phase-c2",
+      "label": "LOEFFEL-4",
+      "kategorie": "sync",
+      "reason": "GEWOLLTER FIX — der eigentliche Ziel-Kill dieses Auftrags. phase-c2, LOEFFEL-4, gemessener Kreis-Oe 190.42mm. Vor dem Sync war das LOEFFEL-4-Nominal 183.21 (Fehler 7.21 > 6.0mm Toleranz) -> LOEFFEL-4 aus dem eigenen Kandidatenset gekillt, Top-1 faelschlich LOEFFEL-1. Nach dem Sync Nominal 186.49 (Fehler 3.93 < 6.0) -> LOEFFEL-4 wieder im Set und Top-1 korrekt. Decision bleibt ambiguous (Loeffel-Zwillings-Margin, keine Auto-Buchung, false_accept unveraendert 0).",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-3",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.3744,
+        "max_z_winner": 1.9718
+      }
+    },
+    "8dc74a45": {
+      "session": "phase-b",
+      "label": "LOEFFEL-7",
+      "kategorie": "sync",
+      "reason": "BEKANNTE, AKZEPTIERTE REGRESSION (fail-safe). phase-b, LOEFFEL-7 (breitschaufeliger Servierloeffel), gemessener Kreis-Oe 267.92mm. Der Sync zieht das LOEFFEL-7-Nominal korrekt auf das Enrollment-Mittel des Umkreis-Oe (268.58 -> 274.60mm; die breite Laffe hebt den Umkreis ueber die Laenge, phase-c-Ergebnis Abschnitt 6). Dieser einzelne Golden-Shot liegt mit 267.92 aber 6.68mm unter dem Mittel -> knapp ausserhalb der 6.0mm-Toleranz -> LOEFFEL-7 aus dem eigenen Set gekillt, Decision accept->reject. KEINE Fehlbuchung (reject ist der sichere Ausgang); Kosten: -1 top3, -1 auto_accept, +1 reject. Bewusst akzeptiert: der Sync macht die Nominale im Mittel wahrer, die 6mm-Festtoleranz ist fuer breitschaufelige Loeffel mit hoher Shot-Streuung zu eng. Kandidat fuer artikelweise Vorfilter-Toleranz, Entscheidung datengetrieben via Block-2-Sweep (NICHT in diesem Auftrag; diameter_tolerance_mm bleibt 6.0). Beleg: docs/assets/2026-07-24-stammdaten-sync/8dc74a45_*.png.",
+      "expected": {
+        "decision": "reject",
+        "candidates": [],
+        "gate_passed": false,
+        "llr_margin": null,
+        "max_z_winner": null
+      }
+    },
+    "cc1f627e": {
+      "session": "phase-b",
+      "label": "LOEFFEL-6",
+      "kategorie": "sync",
+      "reason": "phase-b, LOEFFEL-6, gemessener Kreis-Oe 190.13mm. Der Sync hebt das LOEFFEL-6-Nominal 193.65 -> 197.67; dieser Shot liegt 7.54mm darunter -> LOEFFEL-6 verlaesst das eigene Set (war ohnehin nicht in den Top-3, daher KEINE Metrik-Aenderung). Decision und (falscher) Top-1 LOEFFEL-5 unveraendert; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-4",
+          "GABEL-6",
+          "LOEFFEL-12",
+          "GABEL-8",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.2411,
+        "max_z_winner": 2.5027
+      }
+    }
+  }
+}
