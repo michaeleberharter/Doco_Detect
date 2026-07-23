@@ -1,0 +1,1268 @@
+{
+  "version": 1,
+  "generated": "2026-07-23T23:28:25",
+  "fix_commit": "872cbd20d2285309335b49c4e8a67c69ac252ed5",
+  "results_doc": "docs/superpowers/reports/2026-07-24-stammdaten-sync-ergebnis.md",
+  "plan_doc": "docs/arbeitsplan-2026-07-24.md (Block 1.2)",
+  "beschreibung": "Aera-Schicht des stammdaten-Diagonal-Fix. phase-b wurde am 2026-07-24 bewusst von 16 auf 41 Artikel migriert (die Golden-Reports entstanden vor dem Gabel/Messer-Enrollment; chirurgischer Buendel-DB-Tausch, siehe results_doc). Der geometrische Laengen-Vorfilter nimmt seither klassenfremde Kandidaten (Gabel/Messer) mit ins Set auf -> Kandidatenset waechst ggue. den 16er-Goldens. Die Klassentrennung leistet das Scoring: Top-1 und Decision bleiben in ALLEN diesen Bildern ggue. dem Baseline-Verhalten unveraendert (keine Klassenverwechslung, keine Fehlbuchung). Der post-sync Refresh ueberlagert hier nur benigne Margin-/Zwillings-Reshuffles ohne Korrektheits-Effekt. expected-Felder = Replay 20260724-4d-post-sync (Buendel post-sync). Bewusste Korpus-Semantik-Aenderung, im results_doc dokumentiert.",
+  "images": {
+    "0b695ec4": {
+      "session": "phase-b",
+      "label": "LOEFFEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-9', 'MESSER-8']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "GABEL-9",
+          "MESSER-8"
+        ],
+        "gate_passed": true,
+        "llr_margin": 36.1169,
+        "max_z_winner": 1.9331
+      }
+    },
+    "0d539289": {
+      "session": "phase-b",
+      "label": "LOEFFEL-3",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-4",
+          "GABEL-3",
+          "GABEL-7",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.4562,
+        "max_z_winner": 0.798
+      }
+    },
+    "10560c2f": {
+      "session": "phase-c2",
+      "label": "MESSER-7",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "MESSER-7",
+          "MESSER-5",
+          "MESSER-2",
+          "MESSER-6",
+          "MESSER-11",
+          "GABEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1243,
+        "max_z_winner": 1.7756
+      }
+    },
+    "1a48641b": {
+      "session": "phase-c2",
+      "label": "MESSER-5",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "MESSER-5",
+          "MESSER-7",
+          "MESSER-2",
+          "MESSER-6",
+          "MESSER-11",
+          "GABEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0613,
+        "max_z_winner": 1.4107
+      }
+    },
+    "1ea08720": {
+      "session": "phase-b",
+      "label": "LOEFFEL-8",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-1', 'GABEL-2', 'MESSER-1', 'MESSER-10', 'MESSER-4']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-8",
+          "GABEL-1",
+          "GABEL-2",
+          "MESSER-10",
+          "MESSER-4",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 20.9169,
+        "max_z_winner": 2.1861
+      }
+    },
+    "2316b3e0": {
+      "session": "phase-b",
+      "label": "LOEFFEL-7",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-7",
+          "GABEL-5"
+        ],
+        "gate_passed": true,
+        "llr_margin": 23.5907,
+        "max_z_winner": 1.3633
+      }
+    },
+    "262f2338": {
+      "session": "phase-c2",
+      "label": "GABEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'LOEFFEL-1', 'LOEFFEL-12', 'LOEFFEL-3', 'LOEFFEL-6']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-3",
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-6"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0055,
+        "max_z_winner": 1.1591
+      }
+    },
+    "2c88e15a": {
+      "session": "phase-b",
+      "label": "LOEFFEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 3.602,
+        "max_z_winner": 0.8997
+      }
+    },
+    "33b888ab": {
+      "session": "phase-b",
+      "label": "LOEFFEL-8",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-1', 'GABEL-2', 'MESSER-1', 'MESSER-10']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-8",
+          "GABEL-1",
+          "GABEL-2",
+          "MESSER-10",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 21.0897,
+        "max_z_winner": 1.6954
+      }
+    },
+    "340fea39": {
+      "session": "phase-b",
+      "label": "LOEFFEL-12",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "GABEL-3",
+          "LOEFFEL-3",
+          "GABEL-6",
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "GABEL-8",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 11.363,
+        "max_z_winner": 1.7495
+      }
+    },
+    "39cb6e0c": {
+      "session": "phase-b",
+      "label": "LOEFFEL-13",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-15']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-15"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.9755,
+        "max_z_winner": 2.0481
+      }
+    },
+    "3aae112e": {
+      "session": "phase-b",
+      "label": "LOEFFEL-15",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-15",
+          "LOEFFEL-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 4.5155,
+        "max_z_winner": 1.1287
+      }
+    },
+    "41a471ce": {
+      "session": "phase-b",
+      "label": "LOEFFEL-12",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "GABEL-3",
+          "LOEFFEL-3",
+          "GABEL-4",
+          "GABEL-6",
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "GABEL-8",
+          "LOEFFEL-6",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 9.652,
+        "max_z_winner": 1.3429
+      }
+    },
+    "4276dbde": {
+      "session": "phase-b",
+      "label": "LOEFFEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-9', 'MESSER-8']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "GABEL-9",
+          "MESSER-8"
+        ],
+        "gate_passed": true,
+        "llr_margin": 36.602,
+        "max_z_winner": 1.3649
+      }
+    },
+    "4ee58415": {
+      "session": "phase-b",
+      "label": "LOEFFEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "GABEL-7",
+          "GABEL-3",
+          "GABEL-4",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.9122,
+        "max_z_winner": 1.0708
+      }
+    },
+    "4f08405b": {
+      "session": "phase-b",
+      "label": "LOEFFEL-1",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-8",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.8915,
+        "max_z_winner": 1.5677
+      }
+    },
+    "57e075d6": {
+      "session": "phase-b",
+      "label": "LOEFFEL-13",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-15']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-15"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.1079,
+        "max_z_winner": 0.975
+      }
+    },
+    "5b64e610": {
+      "session": "phase-c2",
+      "label": "GABEL-3",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "GABEL-3",
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.8355,
+        "max_z_winner": 1.1549
+      }
+    },
+    "5ba3f2dd": {
+      "session": "phase-c2",
+      "label": "LOEFFEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: —). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 4.5979,
+        "max_z_winner": 1.5313
+      }
+    },
+    "5bf6b431": {
+      "session": "phase-c2",
+      "label": "GABEL-1",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "reject",
+        "candidates": [
+          "GABEL-1",
+          "GABEL-2",
+          "MESSER-7",
+          "MESSER-6",
+          "MESSER-5",
+          "MESSER-2"
+        ],
+        "gate_passed": false,
+        "llr_margin": 2.4486,
+        "max_z_winner": 4.2543
+      }
+    },
+    "5db55def": {
+      "session": "phase-b",
+      "label": "LOEFFEL-5",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-1",
+          "LOEFFEL-4",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.1992,
+        "max_z_winner": 0.7702
+      }
+    },
+    "5e952338": {
+      "session": "phase-b",
+      "label": "LOEFFEL-1",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-6",
+          "LOEFFEL-4",
+          "LOEFFEL-3",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-8",
+          "GABEL-4",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.8568,
+        "max_z_winner": 1.0048
+      }
+    },
+    "645eaac1": {
+      "session": "phase-c2",
+      "label": "LOEFFEL-14",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-11', 'LOEFFEL-13']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-14",
+          "LOEFFEL-11",
+          "LOEFFEL-13"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.0167,
+        "max_z_winner": 1.2045
+      }
+    },
+    "69287856": {
+      "session": "phase-b",
+      "label": "LOEFFEL-12",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "GABEL-3",
+          "LOEFFEL-3",
+          "GABEL-4",
+          "GABEL-6",
+          "LOEFFEL-1",
+          "GABEL-8",
+          "LOEFFEL-6",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 10.1915,
+        "max_z_winner": 1.3702
+      }
+    },
+    "6d6781ff": {
+      "session": "phase-c2",
+      "label": "MESSER-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "MESSER-2",
+          "MESSER-5",
+          "MESSER-7",
+          "MESSER-6",
+          "MESSER-11",
+          "GABEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1562,
+        "max_z_winner": 1.2625
+      }
+    },
+    "70984ff0": {
+      "session": "phase-b",
+      "label": "LOEFFEL-7",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-7",
+          "GABEL-5"
+        ],
+        "gate_passed": true,
+        "llr_margin": 23.8423,
+        "max_z_winner": 2.0399
+      }
+    },
+    "7d253afe": {
+      "session": "phase-b",
+      "label": "LOEFFEL-1",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-8",
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.2129,
+        "max_z_winner": 0.8888
+      }
+    },
+    "7ffd971a": {
+      "session": "phase-b",
+      "label": "LOEFFEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "GABEL-7",
+          "GABEL-3",
+          "GABEL-4",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.9772,
+        "max_z_winner": 1.0852
+      }
+    },
+    "8398cfec": {
+      "session": "phase-c2",
+      "label": "GABEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['MESSER-10']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "GABEL-2",
+          "GABEL-1",
+          "MESSER-10",
+          "MESSER-7",
+          "MESSER-6",
+          "MESSER-5",
+          "MESSER-2",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 4.2558,
+        "max_z_winner": 0.9229
+      }
+    },
+    "8ba4eb43": {
+      "session": "phase-c2",
+      "label": "GABEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-8', 'LOEFFEL-12']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "GABEL-4",
+          "GABEL-3",
+          "GABEL-7",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.3561,
+        "max_z_winner": 0.6851
+      }
+    },
+    "937b7df1": {
+      "session": "phase-b",
+      "label": "LOEFFEL-15",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: —). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-15"
+        ],
+        "gate_passed": true,
+        "llr_margin": null,
+        "max_z_winner": 1.1911
+      }
+    },
+    "9482d13a": {
+      "session": "phase-b",
+      "label": "LOEFFEL-8",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-1', 'GABEL-2', 'MESSER-1', 'MESSER-10', 'MESSER-4']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-8",
+          "GABEL-1",
+          "GABEL-2",
+          "MESSER-10",
+          "MESSER-4",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 21.1981,
+        "max_z_winner": 2.0843
+      }
+    },
+    "957a3f77": {
+      "session": "phase-b",
+      "label": "LOEFFEL-12",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-6', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-12",
+          "GABEL-6",
+          "LOEFFEL-4",
+          "LOEFFEL-1",
+          "GABEL-8",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 16.5653,
+        "max_z_winner": 2.3548
+      }
+    },
+    "99718c24": {
+      "session": "phase-b",
+      "label": "LOEFFEL-6",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'LOEFFEL-5', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-6",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-3",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-8",
+          "GABEL-7",
+          "GABEL-4",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.2006,
+        "max_z_winner": 1.2524
+      }
+    },
+    "99dfc89c": {
+      "session": "phase-b",
+      "label": "LOEFFEL-3",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'LOEFFEL-5', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-3",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.7403,
+        "max_z_winner": 1.5381
+      }
+    },
+    "9b1d4eb7": {
+      "session": "phase-b",
+      "label": "LOEFFEL-13",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: —). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-15"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.8318,
+        "max_z_winner": 1.8368
+      }
+    },
+    "9dd95998": {
+      "session": "phase-c2",
+      "label": "MESSER-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "MESSER-2",
+          "MESSER-5",
+          "MESSER-7",
+          "MESSER-6",
+          "MESSER-11",
+          "GABEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1636,
+        "max_z_winner": 1.1731
+      }
+    },
+    "a2883cb7": {
+      "session": "phase-b",
+      "label": "LOEFFEL-1",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-4",
+          "LOEFFEL-3",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-8",
+          "GABEL-4",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.4951,
+        "max_z_winner": 1.1884
+      }
+    },
+    "a8cf4d7a": {
+      "session": "phase-b",
+      "label": "LOEFFEL-5",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-6', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-4",
+          "GABEL-6",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.2253,
+        "max_z_winner": 1.5158
+      }
+    },
+    "a8d8c8d7": {
+      "session": "phase-b",
+      "label": "LOEFFEL-3",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-4",
+          "LOEFFEL-6",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-4",
+          "GABEL-3",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.7885,
+        "max_z_winner": 3.4494
+      }
+    },
+    "b22df805": {
+      "session": "phase-b",
+      "label": "LOEFFEL-5",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-6', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-4",
+          "GABEL-6",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.1225,
+        "max_z_winner": 1.5208
+      }
+    },
+    "b26a6160": {
+      "session": "phase-b",
+      "label": "LOEFFEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-6', 'GABEL-8', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-4",
+          "GABEL-6",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.2076,
+        "max_z_winner": 1.4997
+      }
+    },
+    "b6376f78": {
+      "session": "phase-b",
+      "label": "LOEFFEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-3",
+          "LOEFFEL-4",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "GABEL-3",
+          "GABEL-4",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.4526,
+        "max_z_winner": 0.6243
+      }
+    },
+    "ba700e35": {
+      "session": "phase-b",
+      "label": "LOEFFEL-8",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-1', 'MESSER-1', 'MESSER-10', 'MESSER-4']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-8",
+          "GABEL-1",
+          "MESSER-10",
+          "MESSER-4",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 23.3612,
+        "max_z_winner": 0.6557
+      }
+    },
+    "bef4cba8": {
+      "session": "phase-b",
+      "label": "LOEFFEL-7",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-7",
+          "GABEL-5"
+        ],
+        "gate_passed": true,
+        "llr_margin": 24.0195,
+        "max_z_winner": 2.9619
+      }
+    },
+    "c01479ac": {
+      "session": "phase-c2",
+      "label": "GABEL-3",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "GABEL-3",
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.9044,
+        "max_z_winner": 1.2952
+      }
+    },
+    "c0de9588": {
+      "session": "phase-c2",
+      "label": "GABEL-3",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-12', 'LOEFFEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "GABEL-3",
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-5",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.889,
+        "max_z_winner": 1.0602
+      }
+    },
+    "c8448523": {
+      "session": "phase-c2",
+      "label": "GABEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-6', 'LOEFFEL-12', 'LOEFFEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "GABEL-4",
+          "GABEL-7",
+          "GABEL-3",
+          "GABEL-6",
+          "LOEFFEL-12",
+          "LOEFFEL-3",
+          "LOEFFEL-1",
+          "LOEFFEL-6",
+          "LOEFFEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.2435,
+        "max_z_winner": 0.6938
+      }
+    },
+    "c915e56c": {
+      "session": "phase-c2",
+      "label": "LOEFFEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-12', 'LOEFFEL-5']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-6",
+          "LOEFFEL-2",
+          "LOEFFEL-1",
+          "LOEFFEL-5",
+          "LOEFFEL-3",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-8",
+          "GABEL-7",
+          "GABEL-4",
+          "GABEL-3"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1247,
+        "max_z_winner": 2.3299
+      }
+    },
+    "cd512c6a": {
+      "session": "phase-c2",
+      "label": "MESSER-5",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "MESSER-7",
+          "MESSER-5",
+          "MESSER-2",
+          "MESSER-6",
+          "MESSER-11",
+          "GABEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0329,
+        "max_z_winner": 1.6566
+      }
+    },
+    "d78cbe71": {
+      "session": "phase-b",
+      "label": "LOEFFEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-9', 'MESSER-8']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "GABEL-9",
+          "MESSER-8"
+        ],
+        "gate_passed": true,
+        "llr_margin": 33.7688,
+        "max_z_winner": 2.5821
+      }
+    },
+    "d7fe79aa": {
+      "session": "phase-b",
+      "label": "LOEFFEL-5",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-6', 'GABEL-8', 'LOEFFEL-4', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "LOEFFEL-1",
+          "LOEFFEL-4",
+          "LOEFFEL-3",
+          "GABEL-6",
+          "GABEL-8",
+          "LOEFFEL-12",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.6357,
+        "max_z_winner": 0.9488
+      }
+    },
+    "dfc036e5": {
+      "session": "phase-c2",
+      "label": "LOEFFEL-4",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: —). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "LOEFFEL-4",
+          "LOEFFEL-5",
+          "LOEFFEL-2",
+          "GABEL-6",
+          "GABEL-8",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 3.6935,
+        "max_z_winner": 1.737
+      }
+    },
+    "e24cb7e5": {
+      "session": "phase-b",
+      "label": "LOEFFEL-6",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'LOEFFEL-5', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-6",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-5",
+          "LOEFFEL-3",
+          "GABEL-6",
+          "LOEFFEL-12",
+          "GABEL-8",
+          "GABEL-7",
+          "GABEL-4",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.0032,
+        "max_z_winner": 1.2042
+      }
+    },
+    "e51bafab": {
+      "session": "phase-b",
+      "label": "LOEFFEL-13",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['LOEFFEL-15']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-13",
+          "LOEFFEL-11",
+          "LOEFFEL-15"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.4205,
+        "max_z_winner": 1.9893
+      }
+    },
+    "e9d3cddb": {
+      "session": "phase-c2",
+      "label": "GABEL-1",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['MESSER-10']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "GABEL-1",
+          "GABEL-2",
+          "LOEFFEL-8",
+          "MESSER-10",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 8.4057,
+        "max_z_winner": 1.8349
+      }
+    },
+    "eca29dd8": {
+      "session": "phase-c2",
+      "label": "GABEL-2",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['MESSER-1']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "accept",
+        "candidates": [
+          "GABEL-2",
+          "GABEL-1",
+          "MESSER-7",
+          "MESSER-6",
+          "MESSER-5",
+          "MESSER-2",
+          "MESSER-1"
+        ],
+        "gate_passed": true,
+        "llr_margin": 2.1099,
+        "max_z_winner": 2.8514
+      }
+    },
+    "f10f4a2b": {
+      "session": "phase-c2",
+      "label": "MESSER-6",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-2']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "MESSER-6",
+          "MESSER-7",
+          "MESSER-5",
+          "MESSER-2",
+          "MESSER-11",
+          "GABEL-2"
+        ],
+        "gate_passed": true,
+        "llr_margin": 1.2197,
+        "max_z_winner": 1.6648
+      }
+    },
+    "f8abf277": {
+      "session": "phase-b",
+      "label": "LOEFFEL-6",
+      "kategorie": "aera-16auf41",
+      "reason": "Aera-Migration des phase-b-Buendels 16->41 Artikel (2026-07-24): klassenfremde Artikel treten in den Laengen-Vorfilter ein (neu ggue. Baseline: ['GABEL-3', 'GABEL-4', 'GABEL-6', 'GABEL-7', 'GABEL-8', 'LOEFFEL-5', 'MESSER-9']). Zusaetzlich benigne post-sync-Reshuffle unter gleich langen Loeffel-Zwillingen (Margin/Reihenfolge). WEDER Decision, Top-1 NOCH die Kandidatenset-Mitgliedschaft des wahren Artikels aendern sich ggue. dem Baseline-Verhalten; keine Fehlbuchung.",
+      "expected": {
+        "decision": "ambiguous",
+        "candidates": [
+          "LOEFFEL-6",
+          "LOEFFEL-1",
+          "LOEFFEL-2",
+          "LOEFFEL-3",
+          "LOEFFEL-5",
+          "LOEFFEL-12",
+          "GABEL-6",
+          "GABEL-7",
+          "GABEL-8",
+          "GABEL-4",
+          "GABEL-3",
+          "MESSER-9"
+        ],
+        "gate_passed": true,
+        "llr_margin": 0.1037,
+        "max_z_winner": 1.0566
+      }
+    }
+  }
+}

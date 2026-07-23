@@ -1,6 +1,6 @@
 {
-  "generated": "2026-07-23T20:03:33",
-  "run_id": "20260723-baseline-final",
+  "generated": "2026-07-24T00:01:30",
+  "run_id": "20260724-baseline-post-sync-final",
   "tier": 2,
   "n": 104,
   "quoten_semantik": "top1-roh-gegen-label/2026-07-23",
@@ -13,25 +13,25 @@
       "wilson_hi": 0.9538
     },
     "accuracy_top3": {
-      "k": 102,
+      "k": 101,
       "n": 104,
-      "p": 0.9808,
-      "wilson_lo": 0.9326,
-      "wilson_hi": 0.9947
+      "p": 0.9712,
+      "wilson_lo": 0.9186,
+      "wilson_hi": 0.9901
     },
     "auto_accept_rate": {
-      "k": 45,
+      "k": 44,
       "n": 104,
-      "p": 0.4327,
-      "wilson_lo": 0.3415,
-      "wilson_hi": 0.5286
+      "p": 0.4231,
+      "wilson_lo": 0.3325,
+      "wilson_hi": 0.5191
     },
     "false_accept_rate": {
       "k": 0,
-      "n": 45,
+      "n": 44,
       "p": 0.0,
       "wilson_lo": 0.0,
-      "wilson_hi": 0.0787
+      "wilson_hi": 0.0803
     },
     "accuracy_top1_verdict": {
       "k": 83,
@@ -42,10 +42,10 @@
     },
     "decisions": {
       "ambiguous": 56,
-      "accept": 45,
-      "reject": 3
+      "accept": 44,
+      "reject": 4
     }
   },
-  "code_fingerprint": "96ee8586a03d9addcac695300704d3b7ac01a0a26ba590f5370b4335ed1fd0cd",
+  "code_fingerprint": "5f4e90b679bdce3c38fb1039d2d520e89b792df83976bd29af9f24fd4892601d",
   "config_fingerprint": "df1a1190c03adbbd105ec213b4c041811bb9e485f246ee48b7e1a604edaac920"
 }
