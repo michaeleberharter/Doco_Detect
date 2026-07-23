@@ -11,17 +11,33 @@ Hintergrund: `create-article` leitet die Stammdaten aus EINEM Shot ab,
 
 Der Geometrie-Vorfilter in `matcher.py` vergleicht den gemessenen
 minEnclosingCircle-Ø gegen `_nominal_size_mm(article)`, also gegen
-`diameter_mm` bzw. `hypot(width_mm, depth_mm)`. GENAU diese Größe wird hier
-auf den Enrollment-Mittelwert gezogen – bei länglichen Artikeln über einen
-gemeinsamen Faktor auf width und depth, damit das Seitenverhältnis aus dem
-minAreaRect (echte Information) erhalten bleibt.
+`diameter_mm` bzw. `max(width_mm, depth_mm)` – die LÄNGE, nicht die
+Diagonale des minAreaRect. Besteck ist eine „Stadion"-Form (Schaft +
+abgerundete Enden); dafür ist der minEnclosingCircle-Ø exakt gleich der
+Länge, unabhängig von der Breite (Beweis und Randfälle: `matcher.py`,
+`_nominal_size_mm`). GENAU diese Größe wird hier auf den Enrollment-
+Mittelwert gezogen – bei länglichen Artikeln über einen gemeinsamen Faktor
+auf width und depth, damit das Seitenverhältnis aus dem minAreaRect (echte
+Information) erhalten bleibt.
+
+Bis 2026-07-24 rechnete dieses Modul stattdessen gegen `hypot(width_mm,
+depth_mm)` (die Diagonale) – ein Äpfel-Birnen-Vergleich, der das
+Vorzeichen des mittleren Abstands kippte (Befund E2, dritte Fundstelle
+derselben Fehlerklasse nach dem Vorfilter- und dem Flächen-Check-Review;
+siehe docs/superpowers/reports/2026-07-23-phase-c-ergebnis.md, Abschnitt 6).
+
+CAVEAT (wie in `matcher._nominal_size_mm`): `max(width, depth)` gilt nur
+für konvexe, stadionförmige Besteckformen. Ein scharfkantig RECHTECKIGER
+länglicher Artikel (Tablett, GN-Behälter) hätte seinen minEnclosingCircle-Ø
+an der Diagonale, nicht an der Länge – dort synchronisierte dieses Modul in
+die falsche Richtung. Vor dem Einlernen eines solchen Artikels prüfen, hier
+bewusst nicht gelöst.
 
 Nur lesend, solange `apply_sync` nicht gerufen wird.
 """
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
 from .database import Database
@@ -69,8 +85,11 @@ def compute_sync(db: Database, min_shots: int = DEFAULT_MIN_SHOTS) -> tuple[list
             alt = float(art.diameter_mm)
             felder = {"diameter_mm": (alt, round(mean, 2))}
         elif art.width_mm and art.depth_mm:
+            # Laenge, nicht Diagonale -- dieselbe Groesse, die
+            # matcher._nominal_size_mm vergleicht (Option A, Stadion-Form;
+            # Tablett-Caveat siehe Modul-Docstring oben).
             w, d = float(art.width_mm), float(art.depth_mm)
-            alt = math.hypot(w, d)
+            alt = max(w, d)
             f = mean / alt if alt > 0 else 1.0
             felder = {"width_mm": (w, round(w * f, 2)),
                       "depth_mm": (d, round(d * f, 2))}
@@ -124,7 +143,8 @@ def format_table(rows: list, skipped: list, min_shots: int,
         out.append(f"  [übersprungen] {s}")
     out.append("")
     out.append("  Angeglichen wird die Größe, die der Vorfilter vergleicht "
-               "(diameter_mm bzw. hypot(width, depth)).")
+               "(diameter_mm bzw. max(width, depth) – die Länge, nicht die "
+               "Diagonale).")
     out.append("  Bei länglichen Artikeln skalieren width und depth mit "
                "gemeinsamem Faktor – das Seitenverhältnis bleibt erhalten.")
     if not applied and rows:
