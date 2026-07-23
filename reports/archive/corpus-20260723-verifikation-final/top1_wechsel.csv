@@ -1,0 +1,5 @@
+richtung,anzahl
+falsch->richtig,9
+richtig->falsch,0
+falsch->falsch,0
+richtig->richtig,0

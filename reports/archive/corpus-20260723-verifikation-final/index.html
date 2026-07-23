@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Korpus-Review 20260723-verifikation-final</title><style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+       margin: 0 auto; max-width: 1180px; padding: 1.6rem 1.2rem 4rem;
+       line-height: 1.55; }
+h1 { font-size: 1.5rem; margin-bottom: .2rem; }
+h2 { font-size: 1.15rem; margin-top: 2.2rem;
+     border-bottom: 1px solid rgba(128,128,128,.35); padding-bottom: .25rem; }
+.meta { font-size: .85rem; opacity: .75; }
+img { max-width: 100%; height: auto; display: block; margin: .8rem 0;
+      border: 1px solid rgba(128,128,128,.3); border-radius: 6px;
+      background: #fff; }
+table { border-collapse: collapse; font-size: .82rem; display: block;
+        overflow-x: auto; max-width: 100%; }
+th, td { border: 1px solid rgba(128,128,128,.35); padding: .25rem .5rem;
+         text-align: left; white-space: nowrap; }
+th { background: rgba(128,128,128,.14); }
+code { font-size: .85em; }
+.note { border-left: 3px solid #b58900; padding: .4rem .8rem; margin: .8rem 0;
+        background: rgba(181,137,0,.08); font-size: .88rem; }
+.files a { margin-right: 1rem; font-size: .85rem; }
+.band-pass { color: #1a7f37; } .band-drift { color: #b58900; }
+.band-fail { color: #b02a37; font-weight: 600; }
+</style></head><body>
+<h1>Korpus-Review: golden-set → 20260723-verifikation-final</h1>
+<p class='meta'>erzeugt 2026-07-23T20:13:06 · 104 Bilder auf beiden Seiten · Gates: min_llr_margin = 2.0, max_z_accept = 3.5</p>
+<p class='meta'>alt: <code>corpus/manifest.json + phase-*/reports</code> · neu: <code>runs/20260723-verifikation-final</code></p>
+<div class='note'>Reine Konsumentenschicht: alle Band-Urteile (PASS/DRIFT/FAIL) stammen aus <code>metrics.json</code> bzw. <code>failures/</code> des Laufs, alle Quoten einer Laufseite aus dessen <code>metrics.json</code>. Nichts davon wird hier nachgerechnet.</div>
+<div class='note'><b>Umgebung:</b><ul><li>20260723-verifikation-final: Python 3.9.6 · numpy 2.0.2 · cv2 5.0.0 · scipy 1.13.1 · macOS-15.6-arm64-arm-64bit</li></ul></div>
+<h2>1. Drift-Review</h2>
+<p><b>Neue Fehlbuchungen: 0.</b></p>
+<p>Baender (Urteil des Laufs): <span class='band-pass'>PASS: 104</span> · <span class='band-drift'>DRIFT: 0</span> · <span class='band-fail'>FAIL: 0</span></p>
+<p>Aenderungen alt→neu: identisch: 44 · score: 21 · kandidatenset: 29 · top1: 8 · entscheidung: 2</p>
+<p class='meta'>Je Bild zaehlt nur die SCHWERSTE Klasse: ein Bild, dessen Entscheidung UND Rang 1 sich aendern, steht unter „entscheidung“, nicht unter „top1“. Die Richtungsbilanz darunter zaehlt dagegen jeden Rang-1-Wechsel — beide Zahlen duerfen auseinanderlaufen.</p>
+<p>Rang-1-Wechsel: falsch-&gt;richtig: 9</p>
+<p class='meta'>Rang-1-Wechsel und neue Fehlbuchungen sind verschiedene Mengen: war Rang 1 schon vorher falsch und kippt nur die Entscheidung auf accept, entsteht eine Fehlbuchung ohne Rang-1-Wechsel.</p>
+<img src='drift_scatter.png' alt='Margin- und max|z|-Scatter'>
+<img src='decision_matrix.png' alt='Entscheidungsmatrix alt→neu'>
+<h3 style='font-size:1rem'>Bilder mit Entscheidungs- oder Rang-1-Wechsel (10)</h3>
+<table><thead><tr><th>sha8</th><th>band</th><th>aenderung</th><th>label</th><th>decision_alt</th><th>decision_neu</th><th>top1_alt</th><th>top1_neu</th><th>llr_margin_alt</th><th>llr_margin_neu</th><th>max_z_alt</th><th>max_z_neu</th><th>treiber_neu</th><th>treiber_z_neu</th><th>delta_status</th><th>delta_kategorie</th></tr></thead><tbody>
+<tr><td>46f9b1b3</td><td>pass</td><td>top1</td><td>LOEFFEL-14</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-11</td><td>LOEFFEL-14</td><td>0.4097</td><td>0.062</td><td>1.7081</td><td>3.1014</td><td>hu_log</td><td>3.1014</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>4f08405b</td><td>pass</td><td>top1</td><td>LOEFFEL-1</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-5</td><td>LOEFFEL-1</td><td>0.659</td><td>0.9338</td><td>3.0603</td><td>1.5677</td><td>diameter_mm</td><td>1.5677</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>53a17205</td><td>pass</td><td>top1</td><td>LOEFFEL-11</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-13</td><td>LOEFFEL-11</td><td>0.0509</td><td>0.5885</td><td>1.1658</td><td>0.8141</td><td>solidity</td><td>0.8141</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>957a3f77</td><td>pass</td><td>entscheidung</td><td>LOEFFEL-12</td><td>ambiguous</td><td>accept</td><td>LOEFFEL-12</td><td>LOEFFEL-12</td><td>0.5547</td><td>14.1076</td><td>2.4374</td><td>2.3548</td><td>diameter_mm</td><td>2.3548</td><td>akzeptiert</td><td>a</td></tr>
+<tr><td>a2883cb7</td><td>pass</td><td>top1</td><td>LOEFFEL-1</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-5</td><td>LOEFFEL-1</td><td>0.4626</td><td>0.4904</td><td>2.1783</td><td>1.1884</td><td>diameter_mm</td><td>1.1884</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>a8cf4d7a</td><td>pass</td><td>entscheidung</td><td>LOEFFEL-5</td><td>ambiguous</td><td>accept</td><td>LOEFFEL-4</td><td>LOEFFEL-5</td><td>0.0411</td><td>2.1414</td><td>2.2739</td><td>1.5158</td><td>diameter_mm</td><td>1.5158</td><td>akzeptiert</td><td>a</td></tr>
+<tr><td>a8d8c8d7</td><td>pass</td><td>top1</td><td>LOEFFEL-3</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-1</td><td>LOEFFEL-3</td><td>0.0794</td><td>0.7997</td><td>1.6571</td><td>3.4494</td><td>hu_log</td><td>3.4494</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>b22df805</td><td>pass</td><td>top1</td><td>LOEFFEL-5</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-4</td><td>LOEFFEL-5</td><td>0.3221</td><td>1.0394</td><td>1.9238</td><td>1.5208</td><td>solidity</td><td>1.5208</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>e24cb7e5</td><td>pass</td><td>top1</td><td>LOEFFEL-6</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-1</td><td>LOEFFEL-6</td><td>0.1734</td><td>0.0067</td><td>1.111</td><td>1.2042</td><td>hist_rim</td><td>1.2042</td><td>akzeptiert</td><td>b</td></tr>
+<tr><td>f649d598</td><td>pass</td><td>top1</td><td>LOEFFEL-14</td><td>ambiguous</td><td>ambiguous</td><td>LOEFFEL-11</td><td>LOEFFEL-14</td><td>0.3849</td><td>0.249</td><td>1.697</td><td>3.1101</td><td>hu_log</td><td>3.1101</td><td>akzeptiert</td><td>b</td></tr>
+</tbody></table>
+<p class='files'>Daten: <a href='drift_review.csv'>drift_review.csv</a> <a href='decision_matrix.csv'>decision_matrix.csv</a> <a href='top1_wechsel.csv'>top1_wechsel.csv</a> <a href='neue_fehlbuchungen.csv'>neue_fehlbuchungen.csv</a></p>
+<h2>2. Baseline-Verlauf</h2>
+<p class='meta'>Quoten je Commit, der corpus/baseline.json angefasst hat — direkt aus der Git-Historie gelesen.</p>
+<img src='baseline_verlauf.png' alt='Baseline-Quoten je Commit'>
+<table><thead><tr><th>commit</th><th>datum</th><th>run_id</th><th>n</th><th>accuracy_top1</th><th>accuracy_top3</th><th>auto_accept_rate</th><th>false_accept_rate</th><th>betreff</th></tr></thead><tbody>
+<tr><td>92fec42a</td><td>2026-07-21</td><td>baseline-init</td><td>60</td><td>0.7667</td><td>0.9</td><td>0.4167</td><td>0.0</td><td>feat(corpus): Erstlauf – Manifest und Baseline aus dem vollen Lauf</td></tr>
+<tr><td>26ec28ae</td><td>2026-07-21</td><td>final-tier2</td><td>60</td><td>0.7667</td><td>0.9</td><td>0.4167</td><td>0.0</td><td>feat(corpus): test-2-loeffel ausgeschlossen, Korpus vollstaendig gruen</td></tr>
+<tr><td>465c907c</td><td>2026-07-21</td><td>20260721-190727</td><td>60</td><td>0.7667</td><td>0.9333</td><td>0.4</td><td>0.0</td><td>fix(matcher): Vorfilter fuer laengliche Artikel vergleicht Laenge statt Diagonale</td></tr>
+<tr><td>19dca37c</td><td>2026-07-22</td><td>20260722-floors-baseline</td><td>60</td><td>0.7667</td><td>0.9833</td><td>0.45</td><td>0.0</td><td>feat(config): gemessene sigma_floors versioniert + Korpus-Waechter gegen lokale Overrides</td></tr>
+<tr><td>332289ff</td><td>2026-07-23</td><td>20260723-baseline-phasec2</td><td>83</td><td>0.9036</td><td>0.9759</td><td>0.506</td><td>0.0</td><td>feat(corpus): phase-c2 aufgenommen, Buendel gegen stilles Ueberschreiben</td></tr>
+</tbody></table>
+<p class='files'>Daten: <a href='baseline_verlauf.csv'>baseline_verlauf.csv</a></p>
+<h2>3. Verteilungen</h2>
+<p class='meta'>Wahres Label aus <code>golden-set</code>; korrekt = top1 == label (roh, nicht verdict-basiert). LLR-Margin: 78 korrekt / 9 falsch.</p>
+<img src='verteilungen.png' alt='Histogramme Margin und max|z|'>
+<p class='files'>Daten: <a href='verteilungen.csv'>verteilungen.csv</a></p>
+<h2>4. Konfusionsmatrix und Quoten</h2>
+<p class='meta'>Konfusion ueber 104 gelabelte Bilder des Replay-Stands <code>20260723-verifikation-final</code>.</p>
+<img src='confusion_matrix.png' alt='Konfusionsmatrix'>
+<img src='confusion_matrix_accept.png' alt='Konfusionsmatrix nur ACCEPT'>
+<img src='quoten.png' alt='Quoten mit Wilson-CI'>
+<table><thead><tr><th>kennzahl</th><th>seite</th><th>k</th><th>n</th><th>p</th><th>wilson_lo</th><th>wilson_hi</th><th>quelle</th></tr></thead><tbody>
+<tr><td>accuracy_top1</td><td>golden-set</td><td>86</td><td>104</td><td>0.8269</td><td>0.7429</td><td>0.8876</td><td>gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports</td></tr>
+<tr><td>accuracy_top3</td><td>golden-set</td><td>97</td><td>104</td><td>0.9327</td><td>0.8675</td><td>0.967</td><td>gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports</td></tr>
+<tr><td>auto_accept_rate</td><td>golden-set</td><td>43</td><td>104</td><td>0.4135</td><td>0.3235</td><td>0.5095</td><td>gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports</td></tr>
+<tr><td>false_accept_rate</td><td>golden-set</td><td>0</td><td>43</td><td>0.0</td><td>0.0</td><td>0.082</td><td>gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports</td></tr>
+<tr><td>accuracy_top1_verdict</td><td>golden-set</td><td>83</td><td>104</td><td>0.7981</td><td>0.711</td><td>0.864</td><td>gerechnet: corpus.report.tier2_quotas() ueber die Golden-Reports</td></tr>
+<tr><td>roh_top1_gleich_label</td><td>golden-set</td><td>86</td><td>104</td><td>0.8269</td><td>0.7429</td><td>0.8876</td><td>gerechnet: top1 == label (KEINE Runner-Kennzahl; muss accuracy_top1 entsprechen — Abweichung = metrics.json aus der verdict-Aera)</td></tr>
+<tr><td>accuracy_top1</td><td>20260723-verifikation-final</td><td>95</td><td>104</td><td>0.9135</td><td>0.8437</td><td>0.9538</td><td>runs/20260723-verifikation-final/metrics.json</td></tr>
+<tr><td>accuracy_top3</td><td>20260723-verifikation-final</td><td>102</td><td>104</td><td>0.9808</td><td>0.9326</td><td>0.9947</td><td>runs/20260723-verifikation-final/metrics.json</td></tr>
+<tr><td>auto_accept_rate</td><td>20260723-verifikation-final</td><td>45</td><td>104</td><td>0.4327</td><td>0.3415</td><td>0.5286</td><td>runs/20260723-verifikation-final/metrics.json</td></tr>
+<tr><td>false_accept_rate</td><td>20260723-verifikation-final</td><td>0</td><td>45</td><td>0.0</td><td>0.0</td><td>0.0787</td><td>runs/20260723-verifikation-final/metrics.json</td></tr>
+<tr><td>accuracy_top1_verdict</td><td>20260723-verifikation-final</td><td>83</td><td>104</td><td>0.7981</td><td>0.711</td><td>0.864</td><td>runs/20260723-verifikation-final/metrics.json</td></tr>
+<tr><td>roh_top1_gleich_label</td><td>20260723-verifikation-final</td><td>95</td><td>104</td><td>0.9135</td><td>0.8437</td><td>0.9538</td><td>gerechnet: top1 == label (KEINE Runner-Kennzahl; muss accuracy_top1 entsprechen — Abweichung = metrics.json aus der verdict-Aera)</td></tr>
+</tbody></table>
+<p class='files'>Daten: <a href='quoten.csv'>quoten.csv</a> <a href='confusion_matrix.csv'>confusion_matrix.csv</a> <a href='confusion_matrix_accept.csv'>confusion_matrix_accept.csv</a></p>
+</body></html>

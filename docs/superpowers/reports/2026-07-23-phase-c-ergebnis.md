@@ -16,22 +16,38 @@ teuerste Lehre des Tages ist keine Zahl, sondern ein verlorener Hintergrund.
 
 ## 1. Ausgangslage und Ergebnis
 
-| | vorher | nachher |
-|---|---|---|
-| Korpus | 129 Bilder, 2 Sessions, nur LOEFFEL | **152 Bilder, 3 Sessions, 6 Artikelklassen** |
-| Tier-2-Bilder | 60 | **83** |
-| `accuracy_top1` | 46/60 (verdict-basiert) | **75/83 = 0,9036** (roh gegen Label) |
-| `accuracy_top3` | 59/60 | **81/83 = 0,9759** |
-| `auto_accept_rate` | 27/60 | **42/83 = 0,5060** |
-| `false_accept_rate` | **0/27** | **0/42** |
+Der Korpus wuchs an diesem Abend in zwei Schritten: zuerst die 23
+Cross-Tests (phase-c2), dann die **Verdichtung** — 21 weitere bewertete
+Auflagen der Messer- und Gabel-Zwillinge (Abschnitt 4.4). Der Endstand:
 
-Beide Gates grün: `corpus-run --tier 1 --check` (152 Bilder, Exit 0) und
-`--tier 2 --check` (83 Bilder, Exit 0). Baseline-Lauf:
-`20260723-baseline-phasec2`, Verifikation: `20260723-t2-verifikation`,
-generierte Review: `reports/corpus/20260723-t2-verifikation/index.html`.
+| | vorher | Zwischenstand | **Endstand** |
+|---|---|---|---|
+| Korpus | 129, nur LOEFFEL | 152 | **173 Bilder, 3 Sessions, 6 Klassen** |
+| Tier-2-Bilder | 60 | 83 | **104** |
+| `accuracy_top1` | 46/60 (verdict) | 75/83 | **95/104 = 0,9135** (roh gegen Label) |
+| `accuracy_top3` | 59/60 | 81/83 | **102/104 = 0,9808** |
+| `auto_accept_rate` | 27/60 | 42/83 | **45/104 = 0,4327** |
+| `false_accept_rate` | **0/27** | 0/42 | **0/45** |
+
+Beide Gates grün auf dem Endstand: `corpus-run --tier 1 --check` (173
+Bilder, Exit 0) und `--tier 2 --check` (104 Bilder, Exit 0). Finaler
+Baseline-Lauf: `20260723-baseline-final`, Verifikation:
+`20260723-verifikation-final`, generierte Review:
+`reports/corpus/20260723-verifikation-final/index.html`. Abschluss-Batch
+über alle 44 bewerteten Cross-Reports: `analyze --run-id cross-mac-final`
+(`reports/archive/cross-mac-final/`), ersetzt cross_test_2 als Abschluss.
 
 **Die Fehlbuchungsrate bleibt 0.** Das ist die Invariante, an der der Tag
-gemessen wird, und sie hält auch mit dreifach größerem Kandidatenraum.
+gemessen wird, und sie hält auf 45 Annahmen bei dreifach größerem
+Kandidatenraum — und über die Messer-Zwillinge hinweg, die vier fast
+gleich langen Klingen (Abschnitt 4.4).
+
+> **Anmerkung zur Verdichtung.** Der Auftrag nannte 14 Reports (je 2×);
+> die Daten zeigen **21** (je 3×). Inhaltlich exakt die genannten Artikel
+> (MESSER-2/5/6/7/11, GABEL-3/4), nur eine Auflage mehr je Artikel. Das
+> Aufnahmekriterium — „alle bewerteten Reports nach 17:20:25" — ist
+> eindeutig und liefert 21; alle tragen ein Verdict. Deshalb Endstand
+> 173/104/44 statt der im Auftrag genannten 166/97/37.
 
 ## 2. Der Metrik-Semantikwechsel (Abschnitt A)
 
@@ -65,20 +81,23 @@ soll eine top1-Schranke aus der verdict-Ära für geprüft halten.
 
 ### 2.3 Der Beweis, dass es etwas ändert
 
-Die Gegenprobe der 23 Cross-Tests gegen den `analyze`-Lauf `cross_test_2`:
+Die Gegenprobe der phase-c2-Teilmenge (44 Bilder) gegen den `analyze`-Lauf
+`cross-mac-final`:
 
-| Kennzahl | Replay | cross_test_2 | |
+| Kennzahl | Replay | cross-mac-final | |
 |---|---|---|---|
-| `accuracy_top3` | 22/23 | 22/23 | identisch |
-| `auto_accept_rate` | 15/23 | 15/23 | identisch |
-| `false_accept_rate` | 0/15 | 0/15 | identisch |
-| `accuracy_top1_verdict` | **17/23** | **17/23** | identisch |
-| `accuracy_top1` (roh) | **19/23** | — | +2 |
+| `accuracy_top3` | 43/44 | 43/44 | identisch |
+| `auto_accept_rate` | 18/44 | 18/44 | identisch |
+| `false_accept_rate` | 0/18 | 0/18 | identisch |
+| `accuracy_top1_verdict` | **37/44** | **37/44** | identisch |
+| `accuracy_top1` (roh) | **39/44** | — | +2 |
 
 Die Differenz ist **exakt** die zwei GABEL-1-Aufnahmen, bei denen Rang 1
 korrekt war und das z-Gate trotzdem verworfen hat. Die neue Kennzahl sieht,
 was die alte verschluckte; die alte trifft weiterhin punktgenau die
-`analyze`-Zahl. Beides zugleich ist genau das Gewünschte.
+`analyze`-Zahl (die über `judgement()` aggregiert). Beides zugleich ist genau
+das Gewünschte — und es hält auf dem größeren Satz genauso wie auf den ersten
+23 (dort war es 19/23 roh vs 17/23 verdict, dieselben zwei Rejects).
 
 ### 2.4 Das Ein-Bild-Rätsel der alten 60
 
@@ -169,17 +188,20 @@ einem lebenden Pfad hängt.**
 
 ## 4. Cross-Test-Zahlen und Kernbefunde
 
-23 Identifikationen, 6 Artikel, alle bewertet. `analyze`-Lauf `cross_test_2`
-(veröffentlicht unter `reports/archive/cross_test_2/`).
+**44 Identifikationen über zwei Blöcke, alle bewertet.** Der erste Block
+(23, 17:11–17:20) war die Klassen-Stichprobe, der zweite (21, 18:19–18:28)
+die Zwillings-Verdichtung. `analyze`-Lauf `cross-mac-final`
+(veröffentlicht unter `reports/archive/cross-mac-final/`).
 
-| Artikel | richtig/n |
-|---|---|
-| GABEL-2 | 5/5 |
-| MESSER-1 | 4/4 |
-| GABEL-1 | 3/5 |
-| LOEFFEL-2 | 2/3 |
-| LOEFFEL-4 | 2/3 |
-| LOEFFEL-14 | 1/3 |
+| Artikel | richtig/n | | Artikel | richtig/n |
+|---|---|---|---|---|
+| GABEL-2 | 5/5 | | MESSER-2 | 3/3 |
+| MESSER-1 | 4/4 | | MESSER-5 | 2/3 |
+| GABEL-1 | 3/5 | | MESSER-6 | 3/3 |
+| LOEFFEL-2 | 2/3 | | MESSER-7 | 3/3 |
+| LOEFFEL-4 | 2/3 | | MESSER-11 | 3/3 |
+| LOEFFEL-14 | 1/3 | | GABEL-3 | 3/3 |
+| | | | GABEL-4 | 3/3 |
 
 ### 4.1 Klassentrennung: der eigentliche Erfolg des Tages
 
@@ -230,6 +252,41 @@ max|z| ≈ 4,3 ist **nicht** der LOEFFEL-4-Kill, sondern der GABEL-1-Reject.
 Der L4-Kill hat eine *niedrige* Margin (1,05). Die beiden Fälle sind
 komplementär, nicht identisch.
 
+### 4.4 Die Messer-Zwillinge: das Löffel-Muster auf härterer Stufe
+
+Die Verdichtung (21 Auflagen, je 3× MESSER-2/5/6/7/11 und GABEL-3/4) war
+gezielt auf die engste Zwillingsgruppe im Bestand gerichtet: vier fast gleich
+lange Klingen (MESSER-2/5/6/7, alle ~213 mm). Ergebnis:
+
+| Artikel | n | ambiguous | accept | Top-1 == Label | Label in Top-3 |
+|---|---|---|---|---|---|
+| MESSER-2 | 3 | 3 | 0 | 3 | 3 |
+| MESSER-5 | 3 | 3 | 0 | 2 | 3 |
+| MESSER-6 | 3 | 3 | 0 | 3 | 3 |
+| MESSER-7 | 3 | 3 | 0 | 3 | 3 |
+| **MESSER-11** | 3 | **0** | **3** | 3 | 3 |
+| GABEL-3 | 3 | 3 | 0 | 3 | 3 |
+| GABEL-4 | 3 | 3 | 0 | 3 | 3 |
+
+**Das Muster ist exakt das der Löffel, nur enger:** Die vier
+213-mm-Zwillinge landen zu 12/12 auf `ambiguous`, keiner wird gebucht, der
+Top-1 ist 11/12 korrekt, das Label liegt 12/12 in den Top-3. Der Softmax
+teilt sich unter ihnen auf ~0,33/0,32/0,29 — die Margins fallen gegen null.
+Der eine „falsche" Fall (MESSER-5, 18:20:41) ist genau so ein Beinahe-
+Gleichstand: Margin 0,033, MESSER-7 auf 0,335 vor MESSER-5 auf 0,324, das
+wahre Label auf Rang 2. **Keine Fehlbuchung — ambiguous, nicht gebucht.**
+
+**MESSER-11 ist die Kontrollprobe.** Mit ~209 mm ist es kürzer und fällt aus
+der Zwillingsgruppe; es trennt sauber und wird 3/3 gebucht. Das zeigt, dass
+die `ambiguous`-Häufung der anderen vier kein Kalibrierungsfehler ist,
+sondern die ehrliche Antwort auf tatsächlich fast identische Objekte.
+
+Das ist die härteste Bewährung des Scorings an diesem Tag, und der Ausgang ist
+der gewünschte: **lieber ein Handgriff mehr (ambiguous) als eine Fehlbuchung.**
+Die vier Zwillinge sind zugleich die stärksten Kandidaten für Stufe 2
+(DINOv2/FAISS), falls die `ambiguous`-Rate im Betrieb stört — der Hook steht
+(`TODO(stage-2)` in `matcher.py`).
+
 ## 5. Die GABEL-1-Rejects: Pose, nicht Enrollment
 
 **Diagnose: die Gabel lag auf dem Rücken.** Beide Rejects zeigen die
@@ -272,7 +329,9 @@ Begründung:
   Handgriff; ein falsch gebuchtes kostet Vertrauen in die Zahlen.
 - **Posen-Mischung im Enrollment machte die Referenzen bimodal.** Vorder- und
   Rückseite in einen Merkmalssatz zu werfen bläht `sigma_enroll` auf und
-  verwässert genau die Zwillingstrennung, die Abschnitt 4.2 gerade trägt.
+  verwässert genau die Zwillingstrennung, die Abschnitt 4.2/4.4 gerade trägt
+  (bei den vier 213-mm-Messern hätte eine bimodale Referenz die ohnehin
+  hauchdünnen Margins vollends zerstört).
 - **Saubere Pose-Unterstützung wäre Schema-Arbeit** (Pose als eigene
   Dimension neben dem Artikel), nicht ein zusätzlicher Enrollment-Durchgang.
 
@@ -285,7 +344,13 @@ Manifest als **Rückenlage-Wächter** gekennzeichnet (`notiz`-Feld,
 Kennzeichnung liest ein späterer Betrachter sie als Fehlschläge und
 „repariert" womöglich das Gate, das hier gerade richtig arbeitet.
 
-## 6. sync-stammdaten: nicht anwenden (Abschnitt E2)
+## 6. sync-stammdaten: nicht anwenden — die dritte Fundstelle (Abschnitt E2)
+
+**Dies ist die dritte Stelle derselben Fehlerklasse: Diagonale statt Länge
+bei länglichen Artikeln.** Die Klasse ist bekannt und wurde zweimal gefunden:
+im Vorfilter selbst (Fix vom 2026-07-21) und im Flächen-Check (damals geprüft
+und korrekt). Der **Sync-Rechner wurde übersehen** — und er ist die
+gefährlichste der drei, weil er als einziger *schreibt*.
 
 **`sync-stammdaten` rechnet gegen eine Größe, die der Vorfilter nicht mehr
 benutzt.** `stammdaten.compute_sync` bildet den Nominalwert als

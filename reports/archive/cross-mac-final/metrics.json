@@ -1,0 +1,131 @@
+{
+  "generated": "2026-07-23T19:59:20",
+  "n_judged": 44,
+  "n_reports": 44,
+  "per_article": {
+    "GABEL-1": {
+      "k": 3,
+      "n": 5,
+      "p": 0.6,
+      "wilson_hi": 0.8824,
+      "wilson_lo": 0.2307
+    },
+    "GABEL-2": {
+      "k": 5,
+      "n": 5,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.5655
+    },
+    "GABEL-3": {
+      "k": 3,
+      "n": 3,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.4385
+    },
+    "GABEL-4": {
+      "k": 3,
+      "n": 3,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.4385
+    },
+    "LOEFFEL-14": {
+      "k": 1,
+      "n": 3,
+      "p": 0.3333,
+      "wilson_hi": 0.7923,
+      "wilson_lo": 0.0615
+    },
+    "LOEFFEL-2": {
+      "k": 2,
+      "n": 3,
+      "p": 0.6667,
+      "wilson_hi": 0.9385,
+      "wilson_lo": 0.2077
+    },
+    "LOEFFEL-4": {
+      "k": 2,
+      "n": 3,
+      "p": 0.6667,
+      "wilson_hi": 0.9385,
+      "wilson_lo": 0.2077
+    },
+    "MESSER-1": {
+      "k": 4,
+      "n": 4,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.5101
+    },
+    "MESSER-11": {
+      "k": 3,
+      "n": 3,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.4385
+    },
+    "MESSER-2": {
+      "k": 3,
+      "n": 3,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.4385
+    },
+    "MESSER-5": {
+      "k": 2,
+      "n": 3,
+      "p": 0.6667,
+      "wilson_hi": 0.9385,
+      "wilson_lo": 0.2077
+    },
+    "MESSER-6": {
+      "k": 3,
+      "n": 3,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.4385
+    },
+    "MESSER-7": {
+      "k": 3,
+      "n": 3,
+      "p": 1.0,
+      "wilson_hi": 1.0,
+      "wilson_lo": 0.4385
+    }
+  },
+  "quotas": {
+    "accuracy_top1": {
+      "k": 37,
+      "n": 44,
+      "p": 0.8409,
+      "wilson_hi": 0.9207,
+      "wilson_lo": 0.7063
+    },
+    "accuracy_top3": {
+      "k": 43,
+      "n": 44,
+      "p": 0.9773,
+      "wilson_hi": 0.996,
+      "wilson_lo": 0.8819
+    },
+    "auto_accept_rate": {
+      "k": 18,
+      "n": 44,
+      "p": 0.4091,
+      "wilson_hi": 0.5559,
+      "wilson_lo": 0.2769
+    },
+    "false_accept_rate": {
+      "k": 0,
+      "n": 18,
+      "p": 0.0,
+      "rule_of_three": "0 Fehler bei n=18 -> Fehlerrate < 16.7% (95%)",
+      "wilson_hi": 0.1759,
+      "wilson_lo": 0.0
+    }
+  },
+  "run_id": "cross-mac-final",
+  "source": "reports/analysis/cross-mac-final/reports"
+}

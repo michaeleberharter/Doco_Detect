@@ -714,32 +714,12 @@ data/reference/    Eingelernte Referenzfotos pro Artikel
 
 ## Nächste Schritte (offen)
 
-### Kleinkram (aufgenommen 2026-07-23, nicht gebaut)
-
-- [ ] **Session-Artefakte archivieren statt überschreiben.**
-      `capture-background` (und die Kalibrierung) müssen den bestehenden
-      Stand vor dem Schreiben mit Zeitstempel wegsichern
-      (`background-<ts>.png` o. ä.), statt ihn zu ersetzen. Das ist der
-      **dritte** Überschreiben-statt-Verschieben-Vorfall: der Hintergrund
-      vom 22.07. wurde am 23.07. um 14:55 überschrieben und hat damit die
-      18 Bilder der LOEFFEL-14-Messreihe unwiederbringlich
-      korpus-unfähig gemacht (18/18 irreproduzibel, Details im
-      Ergebnisdokument `docs/superpowers/reports/2026-07-23-phase-c-ergebnis.md`).
-      Die CLAUDE.md-Regel „Destruktives immer als Verschieben nach
-      `backups/`" gilt bisher nur für Menschen und Ad-hoc-Skripte — sie
-      muss auch für die Pipeline selbst gelten.
-- [ ] **Ära-Kennzahl ersetzen.** Der Ära-Abgleich in
-      `scripts/adopt_goldens.py::era_median` (Median-|diff| gegen Schranke 6)
-      ist bei schwarzer Box strukturell blind: die Fläche dominiert den
-      Median, das Objekt und sein Umfeld gehen darin unter. Gemessen am
-      2026-07-23: Median-|diff| 0 (bzw. 1 gegen den ältesten Hintergrund)
-      bei real **18/18 nicht reproduzierbaren** Messungen. Kandidaten: hohes
-      Perzentil (P99) statt Median, oder maskierte Differenz auf die
-      Objektregion und deren Umgebung. Solange die Kennzahl nicht ersetzt
-      ist, gilt: **ihr grünes Licht ist kein Beweis** — der Beweis ist ein
-      Tier-1-Lauf gegen die Goldens der Session.
-
-### Größere Brocken
+> **Der laufende Arbeitsplan steht in
+> [docs/arbeitsplan-2026-07-24.md](docs/arbeitsplan-2026-07-24.md)** (Blöcke 1–5).
+> Die früher hier notierten Kleinkram-Punkte (Session-Artefakte
+> archivieren statt überschreiben; Ära-Kennzahl `era_median` ersetzen)
+> sind dorthin umgezogen — Block 4. Der stammdaten.py-Fix samt
+> `sync-stammdaten --apply` ist Block 1, Punkt 2.
 
 - [x] FOV-Test mit größtem Teller (2026-07-23) — **Ergebnis negativ.** Nur ein
       einziger Teller passt im 16:9-Modus vollständig ins Bild, und so knapp,

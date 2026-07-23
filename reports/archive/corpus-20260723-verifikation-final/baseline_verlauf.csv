@@ -1,0 +1,6 @@
+commit,datum,betreff,run_id,n,accuracy_top1,accuracy_top3,auto_accept_rate,false_accept_rate,false_accept_rate_k,false_accept_rate_n
+92fec42a,2026-07-21,feat(corpus): Erstlauf – Manifest und Baseline aus dem vollen Lauf,baseline-init,60,0.7667,0.9,0.4167,0.0,0,25
+26ec28ae,2026-07-21,"feat(corpus): test-2-loeffel ausgeschlossen, Korpus vollstaendig gruen",final-tier2,60,0.7667,0.9,0.4167,0.0,0,25
+465c907c,2026-07-21,fix(matcher): Vorfilter fuer laengliche Artikel vergleicht Laenge statt Diagonale,20260721-190727,60,0.7667,0.9333,0.4,0.0,0,24
+19dca37c,2026-07-22,feat(config): gemessene sigma_floors versioniert + Korpus-Waechter gegen lokale Overrides,20260722-floors-baseline,60,0.7667,0.9833,0.45,0.0,0,27
+332289ff,2026-07-23,"feat(corpus): phase-c2 aufgenommen, Buendel gegen stilles Ueberschreiben",20260723-baseline-phasec2,83,0.9036,0.9759,0.506,0.0,0,42
