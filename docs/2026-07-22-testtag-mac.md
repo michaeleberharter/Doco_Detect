@@ -104,9 +104,32 @@ erzwingen.
 
 - Ist das −3,16-mm-Residuum Auflage-Rauschen? (Schritte 1–2)
 - Passt der größte Teller ins FOV — und welche Teller kommen heute in die
-  DB? (Schritt 4)
+  DB? (Schritt 4) → **beantwortet: keiner.** Siehe „Befund FOV" unten.
 - Wie gut trennt das Scoring längliche Artikel gleicher Länge?
   (Schritt 6)
+
+## Befund FOV — final (2026-07-23)
+
+**Auf diesem Rig wird kein Teller eingelernt.** Der FOV-Test aus Schritt 4 ist
+damit entschieden, und zwar negativ: Genau ein Teller passt im aktuellen
+16:9-Modus vollständig ins Bild, aber so knapp, dass die im Betrieb üblichen
+Auflage-Toleranzen (Versatz beim Einlegen, Drehung) regelmäßig zur
+Randberührung führen würden. Ein Artikel, dessen Messung im Alltag
+reproduzierbar an `touches_border` scheitert, ist keine belastbare Referenz —
+ihn jetzt einzulernen hieße, Referenzen anzulegen, die gegen die künftige
+Geometrie ohnehin neu aufgenommen werden müssten.
+
+**Konsequenz für die DB dieses Rigs: besteck-only.** Sie enthält Löffel,
+Gabeln und Messer (plus die CD-Referenz) — keinen einzigen Teller. Alle Teller
+warten auf die Geometrie-Entscheidung (Kamerahöhe erhöhen / 4:3-Modus /
+Weitwinkel), die zu **P1 Windows-Setup** gehört; erst danach werden sie
+eingelernt, dann gegen die finale Geometrie.
+
+Der Segmentierungs-Backstop bleibt davon unberührt: `16-teller-gross` und
+`17-teller-randberuehrung` sind als Golden-Fixtures aufgenommen und bleiben es.
+Sie brauchen kein Enrollment — die Goldens prüfen Masken, keine Zuordnungen —
+und `17` hält genau die Randberührung als Testfall fest, aus der dieser Befund
+stammt.
 
 ## Danach (nicht heute)
 

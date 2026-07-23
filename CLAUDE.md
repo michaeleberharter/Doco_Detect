@@ -151,6 +151,13 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   **minAreaRect**; `reference_stats.scalar_mean["diameter_mm"]` (aus `enroll`)
   ist der **minEnclosingCircle**-Ø. Zwei verschiedene Größen — `width_mm`
   direkt gegen den Enrollment-Mittelwert zu vergleichen erzeugt einen
-  Scheinversatz von ~2,8 mm. Der Vorfilter vergleicht `hypot(width, depth)`.
+  Scheinversatz von ~2,8 mm. Der Vorfilter vergleicht seit dem Fix vom
+  2026-07-21 **`max(width, depth)`** (die Länge), nicht mehr
+  `hypot(width, depth)` — maßgeblich ist `matcher._nominal_size_mm`.
+  **`stammdaten.py` rechnet noch mit `hypot` und ist damit stale**: seine
+  Spalte „was der Vorfilter heute vergleicht" stimmt nicht, und das
+  Vorzeichen des mittleren Abstands kippt (−0,86 mm gemeldet vs. +1,15 mm
+  echt). `sync-stammdaten --apply` bleibt gesperrt, bis beide dieselbe
+  Funktion benutzen (Befund 2026-07-23, Details im phase-c-Ergebnisdokument).
 - Der Geometrie-Vorfilter nutzt **immer** die `articles`-Stammdaten, nie
   `reference_stats` — die Basis wechselt auch nach dem Einlernen nicht.

@@ -608,11 +608,22 @@ sie dagegen; weicht etwas ab, steht das als **Konsistenz-Befund** im
 Bericht, und angezeigt wird weiterhin der Wert aus `metrics.json`, weil das
 die Zahl ist, die `--check` bewertet hat.
 
-Zwei Kennzahlen sehen ähnlich aus und sind es nicht: `accuracy_top1` ist
-über den Korpus verdict-eingefroren (jedes Bild trägt ein menschliches
-Urteil) und bewegt sich durch keine Matcher-Änderung; `roh_top1_gleich_label`
-ist der rohe Label-Vergleich und als Zusatz gekennzeichnet. Für eine
-Schwellen-Diskussion zählt die rohe Größe.
+**Semantikwechsel 2026-07-23.** `accuracy_top1` und `accuracy_top3` rechnen
+seither **roh gegen das Label** (Rang 1 bzw. Rang 1–3 == `label`), über
+dieselbe Grundmenge aller gelabelten Reports. Vorher führte `accuracy_top1`
+über `judgement()` das menschliche `verdict`, und ein verdict ist am Tag der
+Aufnahme eingefroren: es bleibt „falsch", auch wenn eine spätere
+Matcher-Änderung den Artikel korrekt auf Rang 1 hebt — als Regressions-Gate
+war die Kennzahl damit blind. Die alte Zählung läuft als
+`accuracy_top1_verdict` weiter, ist aber **nicht Gate-relevant**
+(`report.NUR_INFO`); sie schlägt die Brücke zu den `analyze`-Zahlen, die
+weiter über `judgement()` aggregieren. Jede geschriebene `baseline.json`
+trägt die Marke `quoten_semantik`; fehlt sie oder weicht sie ab, meldet
+`--check` das im Klartext, weil die top1-Schranken dann eine andere Größe
+beschreiben. Die Zusatzzeile `roh_top1_gleich_label` in `corpus-report`
+bleibt als unabhängige Nachrechnung bestehen und muss `accuracy_top1`
+treffen — tut sie es nicht, stammt die `metrics.json` der Laufseite aus der
+verdict-Ära.
 
 Ein Lauf **ohne `metrics.json`** ist abgebrochen und gilt als
 unvollständig: `corpus-report` lehnt ihn als Vergleichsseite mit Klartext
@@ -703,7 +714,43 @@ data/reference/    Eingelernte Referenzfotos pro Artikel
 
 ## Nächste Schritte (offen)
 
-- [ ] FOV-Test mit größtem Teller → ggf. Kamerahöhe/Box anpassen
+### Kleinkram (aufgenommen 2026-07-23, nicht gebaut)
+
+- [ ] **Session-Artefakte archivieren statt überschreiben.**
+      `capture-background` (und die Kalibrierung) müssen den bestehenden
+      Stand vor dem Schreiben mit Zeitstempel wegsichern
+      (`background-<ts>.png` o. ä.), statt ihn zu ersetzen. Das ist der
+      **dritte** Überschreiben-statt-Verschieben-Vorfall: der Hintergrund
+      vom 22.07. wurde am 23.07. um 14:55 überschrieben und hat damit die
+      18 Bilder der LOEFFEL-14-Messreihe unwiederbringlich
+      korpus-unfähig gemacht (18/18 irreproduzibel, Details im
+      Ergebnisdokument `docs/superpowers/reports/2026-07-23-phase-c-ergebnis.md`).
+      Die CLAUDE.md-Regel „Destruktives immer als Verschieben nach
+      `backups/`" gilt bisher nur für Menschen und Ad-hoc-Skripte — sie
+      muss auch für die Pipeline selbst gelten.
+- [ ] **Ära-Kennzahl ersetzen.** Der Ära-Abgleich in
+      `scripts/adopt_goldens.py::era_median` (Median-|diff| gegen Schranke 6)
+      ist bei schwarzer Box strukturell blind: die Fläche dominiert den
+      Median, das Objekt und sein Umfeld gehen darin unter. Gemessen am
+      2026-07-23: Median-|diff| 0 (bzw. 1 gegen den ältesten Hintergrund)
+      bei real **18/18 nicht reproduzierbaren** Messungen. Kandidaten: hohes
+      Perzentil (P99) statt Median, oder maskierte Differenz auf die
+      Objektregion und deren Umgebung. Solange die Kennzahl nicht ersetzt
+      ist, gilt: **ihr grünes Licht ist kein Beweis** — der Beweis ist ein
+      Tier-1-Lauf gegen die Goldens der Session.
+
+### Größere Brocken
+
+- [x] FOV-Test mit größtem Teller (2026-07-23) — **Ergebnis negativ.** Nur ein
+      einziger Teller passt im 16:9-Modus vollständig ins Bild, und so knapp,
+      dass Betriebs-Auflagen regelmäßig randberühren würden. Auf diesem Rig
+      wird deshalb **kein Teller eingelernt**; die DB ist besteck-only
+      (Löffel, Gabeln, Messer). Begründung:
+      `docs/2026-07-22-testtag-mac.md`, Abschnitt „Befund FOV".
+- [ ] **Teller-Geometrie entscheiden — P1, gehört zum Windows-Setup:** Kamera
+      höher montieren / 4:3-Modus / Weitwinkel. Erst danach die Teller
+      einlernen, und zwar gegen die finale Geometrie. Solange blockiert
+      dieser Punkt **alle** Teller-Artikel.
 - [ ] Echte Artikelliste aus DO&CO-Datenbank exportieren (Mapping auf CSV-Schema)
 - [ ] Beleuchtung finalisieren (diffus, konstant — Voraussetzung für Farbmerkmale)
 - [ ] sigma_floors aus 15–20er-Messreihe bestimmen (siehe „Testphase" im
