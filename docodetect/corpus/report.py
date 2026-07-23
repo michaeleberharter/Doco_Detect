@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..config import project_root
-from ..reporting import NO_MATCH, judgement, summarize
+from ..reporting import NO_MATCH, judgement, predicted_article, summarize
 from .compare import DRIFT, FAIL
 
 BASELINE_PATH = project_root() / "corpus" / "baseline.json"
@@ -25,6 +25,21 @@ UNIFORM_MAX_STREUUNG = 0.25
 # steht bei 0/25 mit wilson_lo 0.0, und p < 0.0 kann nie eintreten — eine
 # Fehlbuchungsrate von 0 auf 20 % liefe damit als "OK" durch.
 FEHLERRATEN = ("false_accept_rate",)
+
+# Kennzahlen, die MITLAUFEN, aber NICHT gaten. accuracy_top1_verdict ist die
+# alte, verdict-basierte Zaehlung: sie friert das menschliche Urteil vom Tag
+# der Aufnahme ein und bewegt sich durch keine Matcher-Aenderung — als Gate
+# misst sie darum nichts. Sie bleibt als Zusatzfeld erhalten, weil sie die
+# Bruecke zu den `analyze`-Zahlen und zur alten Baseline schlaegt.
+NUR_INFO = ("accuracy_top1_verdict",)
+
+# Semantik-Marke der Quoten. Steht in jeder geschriebenen baseline.json und
+# wird von check_against_baseline gegen die eigene geprueft: eine Baseline
+# aus der verdict-Aera traegt sie NICHT, und ihre top1-Schranke beschreibt
+# eine andere Groesse als die heute gerechnete. Ohne diese Marke haette der
+# Wechsel den Vergleich still verschoben — die Zahl haette sich bewegt und
+# niemand haette gewusst, ob Matcher oder Definition sich geaendert hat.
+QUOTEN_SEMANTIK = "top1-roh-gegen-label/2026-07-23"
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple:
@@ -43,22 +58,39 @@ def tier2_quotas(reports: list) -> dict:
     """Kennzahlen ueber Replay-Reports. Nutzt dieselbe Aggregation wie
     `analyze`, damit die Zahlen zwischen den Werkzeugen identisch bleiben.
 
-    accuracy_top1 rechnet ueber `judgement()`, nicht ueber `top_k_accuracy`:
-    judgement() gibt dem menschlichen Urteil (report.verdict, schliesst das
-    z-Gate ein) Vorrang vor dem reinen Label-Vergleich. Ein Report wie
-    1784562586318.png (Rang-1-Kandidat == Label, aber vom Gate verworfen und
-    darum verdict="wrong") ist in top_k_accuracy ein Treffer, im
-    `analyze`-Befehl aber nicht — ohne diesen Wechsel weichen die
-    Korpus-Zahlen vom bestehenden Werkzeug ab.
+    SEMANTIK seit 2026-07-23 (Semantikwechsel, siehe baseline.json/
+    "semantik" und docs/superpowers/reports/2026-07-23-phase-c-ergebnis.md):
+
+    accuracy_top1 und accuracy_top3 rechnen **roh gegen das wahre Label** —
+    Rang-1 bzw. Rang-1..3 gegen `report.label`, ueber dieselbe Grundmenge
+    (alle gelabelten Reports). Das ist die einzige Groesse, die sich bewegt,
+    wenn der Matcher sich aendert, und damit die einzige, die als Gate etwas
+    misst.
+
+    Vorher rechnete accuracy_top1 ueber `judgement()`, das dem menschlichen
+    `verdict` Vorrang vor dem Label-Vergleich gibt. Ein verdict ist am Tag der
+    Aufnahme eingefroren: es bleibt "wrong", auch wenn eine spaetere
+    Matcher-Aenderung den Artikel korrekt auf Rang 1 hebt. Als Regressions-
+    Gate war die Kennzahl damit blind. Sie laeuft als `accuracy_top1_verdict`
+    weiter (Zusatzfeld, NICHT Gate-relevant — siehe NUR_INFO), weil sie die
+    Bruecke zu den `analyze`-Zahlen schlaegt, die weiter ueber judgement()
+    aggregieren.
+
+    Nebenwirkung des Wechsels: top1 und top3 teilen jetzt denselben Nenner.
+    Vorher war n(top1) = beurteilbare (verdict ODER label), n(top3) =
+    gelabelte — zwei verschiedene Grundmengen, deren Quoten man nicht
+    nebeneinander lesen durfte.
     """
     s = summarize(reports)
-    judged = [(r, judgement(r)) for r in reports if judgement(r) is not None]
     labeled = [r for r in reports if r.label]
-    h1, n1 = sum(1 for _, ok in judged if ok), len(judged)
+    h1 = sum(1 for r in labeled if predicted_article(r) == r.label)
+    n1 = len(labeled)
     h3 = sum(1 for r in labeled
              if (r.label in [c.article_number for c in r.candidates[:3]]
                  or (not r.candidates and r.label == NO_MATCH)))
     n3 = len(labeled)
+    judged = [ok for r in reports if (ok := judgement(r)) is not None]
+    hv, nv = sum(1 for ok in judged if ok), len(judged)
     akzeptiert = [r for r in reports if r.decision == "accept"]
     falsch_akzeptiert = sum(
         1 for r in akzeptiert
@@ -73,8 +105,39 @@ def tier2_quotas(reports: list) -> dict:
         "accuracy_top3": q(h3, n3),
         "auto_accept_rate": q(len(akzeptiert), len(reports)),
         "false_accept_rate": q(falsch_akzeptiert, len(akzeptiert)),
+        "accuracy_top1_verdict": q(hv, nv),
         "decisions": s.decision_counts,
     }
+
+
+def umgebung() -> dict:
+    """Versionen der vier Pakete des Messpfads plus Plattform.
+
+    Zweck ist die Attribution beim Plattformwechsel Mac<->Windows: DRIFT
+    bricht per Default, und die Frage ist dann immer dieselbe — Code oder
+    Umgebung? Ohne diesen Block steht die Antwort nirgends und muss
+    nachtraeglich rekonstruiert werden, wenn die Umgebung sich laengst
+    weitergedreht hat.
+
+    Die Importe sind bewusst lokal und einzeln abgesichert: eine fehlende
+    Bibliothek darf einen fertigen Lauf nicht um seine metrics.json bringen.
+    """
+    import platform
+    import sys
+
+    werte = {
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+    }
+    for name, modul in (("numpy", "numpy"), ("cv2", "cv2"), ("scipy", "scipy")):
+        try:
+            werte[name] = __import__(modul).__version__
+        except Exception as exc:                       # noqa: BLE001
+            werte[name] = f"<nicht ermittelbar: {type(exc).__name__}>"
+    werte["python_impl"] = platform.python_implementation()
+    werte["executable"] = sys.executable
+    return werte
 
 
 def classify_drift(results: list) -> dict:
@@ -131,6 +194,21 @@ def check_against_baseline(run: dict, quotas: dict, baseline: dict, *,
     fails = [r for r in run["results"] if r["band"] == FAIL]
     drifts = [r for r in run["results"] if r["band"] == DRIFT]
 
+    # Semantik-Abgleich VOR den Kennzahlen: sonst liest sich ein gruener
+    # Lauf wie eine bestaetigte Quote, obwohl die Baseline-Schranke fuer
+    # top1 eine andere Groesse beschreibt (verdict statt Label). Kein
+    # Exit-Code — die Bild-Vergleiche sind von der Definition unberuehrt,
+    # und ein hartes Fail wuerde jeden Lauf bis zum Re-Baselining blockieren.
+    # Aber laut genug, dass niemand die Zahl fuer geprueft haelt.
+    if baseline and baseline.get("quoten_semantik") != QUOTEN_SEMANTIK:
+        meldungen.append(
+            f"HINWEIS: Baseline-Semantik "
+            f"'{baseline.get('quoten_semantik', '<keine>')}' != "
+            f"'{QUOTEN_SEMANTIK}'. accuracy_top1/top3 werden jetzt roh gegen "
+            f"das Label gerechnet, die Baseline-Schranken stammen aus der "
+            f"verdict-Aera — die beiden top1-Zahlen sind NICHT vergleichbar. "
+            f"Re-Baselining faellig: corpus-run --tier 2 --update-baseline")
+
     if fails:
         code = 1
         meldungen.append(f"FAIL: {len(fails)} Bild(er) ausserhalb der weichen Stufe")
@@ -145,6 +223,12 @@ def check_against_baseline(run: dict, quotas: dict, baseline: dict, *,
                              "code-verursacht (--accept-drift zum Tolerieren)")
 
     for name, jetzt in (quotas or {}).items():
+        if name in NUR_INFO:
+            # Bewusst kein Gate: die verdict-Zaehlung ist eingefroren und
+            # kann eine Regression weder anzeigen noch ausschliessen. Sie
+            # hier mitzupruefen hiesse, Sicherheit zu melden, die nicht
+            # geprueft wurde.
+            continue
         alt = (baseline.get("quotas") or {}).get(name)
         # Kein Baseline-Eintrag: die Kennzahl ist neu, es gibt nichts zu
         # vergleichen. `decisions` traegt kein "p" und faellt hier ebenfalls
@@ -193,6 +277,8 @@ def write_run(root: Path, run_id: str, run: dict, quotas: dict) -> Path:
          "tier": run["tier"], "n": run["n"], "dauer_s": run["dauer_s"],
          "bilder_pro_s": run["bilder_pro_s"], "baender": zaehler,
          "drift": drift, "quotas": quotas,
+         "quoten_semantik": QUOTEN_SEMANTIK,
+         "env": umgebung(),
          "code_fingerprint": run["code_fingerprint"],
          "config_fingerprint": run["config_fingerprint"]},
         indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

@@ -1,0 +1,39 @@
+# requirements.lock — Referenz-Umgebung der Baseline-Maschine
+#
+# NUR DOKUMENTATION. Diese Datei installiert nichts und wird von keinem
+# Code gelesen; `pip install -r requirements.txt` bleibt der Weg. Sie haelt
+# fest, GEGEN WELCHE Bibliotheksversionen die versionierte
+# corpus/baseline.json entstanden ist.
+#
+# Wozu: DRIFT bricht `corpus-run --check` per Default, weil auf gepinnter
+# Umgebung jede Abweichung code-verursacht ist. Beim Plattformwechsel
+# Mac -> Windows (Freitag, 2026-07-24) gilt das nicht mehr, und dann ist die
+# erste Frage: Code oder Umgebung? Diese Datei ist die eine Seite des
+# Vergleichs, der `env`-Block in `runs/<id>/metrics.json` die andere.
+#
+# Stand: 2026-07-23, Baseline-Lauf der phase-c-Erweiterung.
+# Erhoben mit: .venv/bin/python -m pip freeze
+#
+# --- Messpfad (diese vier entscheiden ueber Zahlen) ----------------------
+# segmentation.py -> scipy.sparse.csgraph.maximum_flow
+# features.py/matcher.py -> numpy
+# camera.py/pipeline.py -> cv2
+numpy==2.0.2
+opencv-contrib-python==5.0.0.93
+scipy==1.13.1
+PyYAML==6.0.3
+
+# --- Auswertung (bewegt keine Messwerte, nur Grafiken) ------------------
+matplotlib==3.9.4
+
+# --- Test ----------------------------------------------------------------
+pytest==8.4.2
+
+# --- Interpreter/Plattform (kein pip-Paket, aber Teil des Fingerprints) --
+# python==3.9.6 (CPython)
+# platform==macOS-15.6-arm64-arm-64bit
+# machine==arm64
+#
+# ACHTUNG Windows: dort ist der Interpreter ein anderer Build und cv2 nutzt
+# DSHOW statt AVFoundation. Ein Versionsgleichstand dieser Datei ist die
+# Voraussetzung fuer die Attribution, keine Garantie fuer identische Zahlen.

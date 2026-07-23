@@ -446,6 +446,11 @@ def cmd_corpus_build(args, cfg):
     for s, v in stat["sessions"].items():
         print(f"  {s:16} Tier {v['tier']}  DB-Abgleich {v['db_verified']:.0%}  "
               f"{v['n_images']} Bilder (+{v['neu']})")
+    # Laut melden, nicht nur im Rueckgabewert fuehren: ein eingefrorenes
+    # Buendel, dessen Quelle sich weitergedreht hat, ist der Fall, in dem
+    # ein spaeterer --check eine Regression meldet, die keine ist.
+    for meldung in stat.get("bundle_konflikt", []):
+        print(f"[corpus-build] BUENDEL UNVERAENDERT: {meldung}")
     if args.dry_run:
         print("[corpus-build] dry-run – nichts geschrieben.")
 
@@ -539,6 +544,7 @@ def cmd_corpus_run(args, cfg):
         corpus_report.save_baseline({
             "generated": datetime.now().isoformat(timespec="seconds"),
             "run_id": run_id, "tier": run["tier"], "n": run["n"],
+            "quoten_semantik": corpus_report.QUOTEN_SEMANTIK,
             "quotas": quotas, "code_fingerprint": run["code_fingerprint"],
             "config_fingerprint": run["config_fingerprint"]})
         print(f"[corpus-run] Baseline aktualisiert: {corpus_report.BASELINE_PATH}")
