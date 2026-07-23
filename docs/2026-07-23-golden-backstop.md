@@ -60,7 +60,7 @@ verschiedene Kalibrier-Pfade treffen. Redundanz im Regressionsnetz ist Marge.
 | ☐ | `02-teeloeffel-flach` | Teelöffel, flach | Grundfall Laffe |
 | ☐ | `03-teeloeffel-diagonal` | Teelöffel, diagonal | Rotationslage |
 | ☐ | `04-teeloeffel-gebogen` | Teelöffel, gebogen aufliegend | ungleichmäßige Auflage |
-| ☐ | `05-teeloeffel-klein-dunkel` | kleiner Teelöffel, dunkel/matt | **Glow-Fringe auf kleiner Fläche** |
+| ☐ | `05-teeloeffel-klein-blank` | **kleiner, polierter/blanker** Teelöffel | **Bloom-Saum** — relativ zur kleinen Objektfläche groß; der einseitige Saum darf NICHT annektiert werden. Nicht matt: Glow braucht die polierte Oberfläche |
 | ☐ | `06-gabel-flach-links` | Gabel flach, Zinken nach links | Zinkenschlitze müssen offen bleiben |
 | ☐ | `07-gabel-flach-rechts` | Gabel flach, Zinken nach rechts | Gegenrichtung |
 | ☐ | `08-gabel-flach` | Gabel flach, dritte Orientierung | Streuung über Lagen |
@@ -90,6 +90,22 @@ vermisst die Pipeline stillschweigend ein abgeschnittenes Objekt. Der Helfer
 lehnt eine `:border`-Szene ab, die den Rand *nicht* berührt — und ebenso
 eine gewöhnliche Szene, die ihn berührt.
 
+## Ära-Regel: eine Ära = ein Licht
+
+**Ändert sich Beleuchtung, Box oder Kamera irgendwo zwischen dem
+Hintergrund und Szene 19, ist die Session gerissen — dann wird KOMPLETT neu
+begonnen: Hintergrund und alle 19 Szenen.** Nicht „ab hier neu": ein Satz,
+dessen erste Hälfte gegen ein anderes Licht aufgenommen wurde als seine
+zweite, ist keine Ära mehr, auch wenn jede einzelne Szene für sich den
+Ära-Abgleich besteht (der prüft Szene gegen Hintergrund, nicht Szene gegen
+Szene).
+
+Der Grund steckt in den Goldens selbst: `area_px` und die
+Material-Abdeckung sind gegen *diese* Beleuchtung abgenommen. Ein gemischter
+Satz verschiebt die Vergleichsbasis zwischen den Szenen und macht jede
+spätere Abweichung unattribuierbar — man wüsste nie, ob die Segmentierung
+driftet oder der Fixture-Satz inkonsistent ist.
+
 ## Worauf beim Abnehmen zu achten ist
 
 Aus dem Abnahmeprotokoll von 2026-07-16 — das sind die Kriterien, gegen die
@@ -105,8 +121,7 @@ die alten Goldens freigegeben wurden:
 ## Fallstricke, die der Helfer selbst abfängt
 
 - **Ära-Abstand**: passt eine Szene nicht zum Hintergrund (Median-|diff| > 6),
-  bricht der Helfer mit Exit 1 ab und schreibt nichts. Dann Hintergrund neu
-  aufnehmen **oder** die Szene neu schießen — nie übernehmen.
+  bricht der Helfer mit Exit 1 ab und schreibt nichts.
 - **`:raises` ohne Ausnahme**: ist die Box bei `15-leere-box` nicht wirklich
   leer, meldet der Helfer das statt ein sinnloses Golden abzulegen.
 - **Segmentierungs-Abbruch bei einer Objekt-Szene**: wird als unbrauchbar

@@ -72,7 +72,12 @@ PFLICHT_SZENEN = (
     "02-teeloeffel-flach",
     "03-teeloeffel-diagonal",
     "04-teeloeffel-gebogen",
-    "05-teeloeffel-klein-dunkel",      # Glow-Fringe auf kleiner Flaeche
+    # Bloom-Saum um ein kleines HELLES (poliertes) Objekt: der Saum ist
+    # relativ zur Objektflaeche gross, das Annektieren waere hier am
+    # verlockendsten. Nicht "matt" — Glow braucht die polierte Oberflaeche
+    # (segmentation.py: "bloom glow around a bright object"; matt ist dort
+    # die Eigenschaft des BODENS).
+    "05-teeloeffel-klein-blank",
     "06-gabel-flach-links",
     "07-gabel-flach-rechts",
     "08-gabel-flach",
