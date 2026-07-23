@@ -40,12 +40,20 @@ def _mit_objekt(bg):
     return img
 
 
+def _randberuehrend(bg):
+    """Objekt laeuft bis an den Bildrand — der FOV-Ueberschreitungsfall."""
+    img = bg.copy()
+    cv2.rectangle(img, (60, 0), (260, 170), (210, 210, 210), -1)
+    return img
+
+
 @pytest.fixture
 def fixture_satz(tmp_path):
     """Hintergrund + eine Objekt-Szene + eine Leer-Szene als PNG-Dateien."""
     bg = _boden()
     pfade = {}
-    for name, bild in (("bg", bg), ("objekt", _mit_objekt(bg)), ("leer", bg.copy())):
+    for name, bild in (("bg", bg), ("objekt", _mit_objekt(bg)),
+                       ("rand", _randberuehrend(bg)), ("leer", bg.copy())):
         p = tmp_path / f"{name}.png"
         cv2.imwrite(str(p), bild)
         pfade[name] = p
@@ -120,6 +128,52 @@ def test_segment_deklariert_aber_abgebrochen(fixture_satz):
         adopt.parse_zuordnung([f"01-objekt={fixture_satz['leer']}"]), bg)
     assert any("abgebrochen" in x or "unbrauchbar" in x
                for x in adopt.pruefen(befunde))
+
+
+# --- Randberuehrung (:border) ---------------------------------------------
+
+def test_border_szene_wird_als_solche_erkannt(fixture_satz):
+    bg = cv2.imread(str(fixture_satz["bg"]))
+    z = adopt.parse_zuordnung(
+        [f"17-teller-randberuehrung={fixture_satz['rand']}:border"])
+    assert z[0][2] == "touches_border"
+    befunde = adopt.messen(z, bg)
+    assert befunde[0]["touches_border"] is True
+    assert befunde[0]["area_px"] > 0
+    assert adopt.pruefen(befunde) == []
+
+
+def test_border_deklariert_aber_objekt_zentriert(fixture_satz):
+    """Eine ':border'-Szene ohne Randberuehrung wuerde als Golden das
+    Gegenteil ihrer Zusage festschreiben."""
+    bg = cv2.imread(str(fixture_satz["bg"]))
+    befunde = adopt.messen(adopt.parse_zuordnung(
+        [f"17-teller-randberuehrung={fixture_satz['objekt']}:border"]), bg)
+    assert any("KEINE Randberuehrung" in x for x in adopt.pruefen(befunde))
+
+
+def test_gewoehnliche_szene_am_bildrand_wird_abgelehnt(fixture_satz):
+    """Die Pipeline lehnt randberuehrende Aufnahmen im Betrieb ab — als
+    normales Golden waeren sie sinnlos."""
+    bg = cv2.imread(str(fixture_satz["bg"]))
+    befunde = adopt.messen(adopt.parse_zuordnung(
+        [f"08-gabel-flach={fixture_satz['rand']}"]), bg)
+    assert any("beruehrt den Bildrand" in x for x in adopt.pruefen(befunde))
+
+
+def test_border_szene_bekommt_flaechen_golden(tmp_path, fixture_satz):
+    bg = cv2.imread(str(fixture_satz["bg"]))
+    ziel = tmp_path / "golden_captures"
+    adopt.schreiben(
+        adopt.messen(adopt.parse_zuordnung(
+            [f"17-teller-randberuehrung={fixture_satz['rand']}:border"]), bg),
+        fixture_satz["bg"], ziel=ziel)
+    m = json.loads((ziel / "goldens.json").read_text(encoding="utf-8"))
+    eintrag = m["scenes"]["17-teller-randberuehrung"]
+    assert eintrag["kind"] == "touches_border"
+    assert eintrag["area_px"] > 0, (
+        "Auch die Randberuehrungs-Szene braucht ein Flaechen-Golden — das "
+        "Fixture ist ein festes Bild, der sichtbare Anteil reproduzierbar.")
 
 
 # --- Schreiben -------------------------------------------------------------

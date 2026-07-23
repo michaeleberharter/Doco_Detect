@@ -56,26 +56,37 @@ ERA_MEDIAN_MAX = 6         # Median-|diff| Boden gegen Hintergrund
 
 # Die Szenen, die der Backstop abdecken MUSS. Bewusst hier und nicht nur im
 # Manifest: waere die Liste allein das Manifest, machte eine Uebernahme von
-# 3 statt 15 Szenen die Suite gruen. Eine Szene zu streichen ist damit eine
+# 3 statt 19 Szenen die Suite gruen. Eine Szene zu streichen ist damit eine
 # bewusste, reviewbare Code-Aenderung — kein Nebeneffekt eines Hardware-Tags.
-# Zusammensetzung: die harten Faelle des alten Bestands (Spiegelhals,
-# Spiegelferse, Glow-Fringe, transparent) plus die Leerbox-Probe.
+#
+# Auswahlkriterium ist Objektklasse x Fehlermechanismus, NICHT eine runde
+# Zahl. Aehnliche Lagen derselben Klasse gelten ausdruecklich nicht als
+# redundant: die Segmentierung kalibriert pro Bild selbst, zwei benachbarte
+# Lagen koennen verschiedene Kalibrier-Pfade treffen. Redundanz im
+# Regressionsnetz ist Marge, kein Ballast.
+#
+# Nummerierung = Aufnahme-Reihenfolge. Die Leerbox steht bewusst vorn: sie
+# wird direkt nach `capture-background` geschossen, solange die Box leer ist.
 PFLICHT_SZENEN = (
-    "01-teeloeffel-flach",
-    "02-teeloeffel-diagonal",
-    "03-teeloeffel-gebogen",
-    "04-teeloeffel-klein-dunkel",      # Glow-Fringe-Fall
-    "05-gabel-flach-links",
-    "06-gabel-flach-rechts",
-    "07-gabel-vertikal",               # Spiegelhals, Brueckenfall
-    "08-gabel-diagonal-spiegelferse",
+    "01-leere-box",                    # muss SegmentationError werfen
+    "02-teeloeffel-flach",
+    "03-teeloeffel-diagonal",
+    "04-teeloeffel-gebogen",
+    "05-teeloeffel-klein-dunkel",      # Glow-Fringe auf kleiner Flaeche
+    "06-gabel-flach-links",
+    "07-gabel-flach-rechts",
+    "08-gabel-flach",
     "09-gabel-diagonal",
-    "10-gabel-flach",
-    "11-servierloeffel",
-    "12-servierloeffel-flach",
-    "13-glastasse-transparent",        # Transparent-Annex
-    "14-glastasse-transparent-2",
-    "15-leere-box",                    # muss SegmentationError werfen
+    "10-gabel-diagonal-spiegelferse",  # Spiegelkeil mit eigener Umriss-Struktur
+    "11-gabel-vertikal",               # Spiegelhals, Brueckenfall
+    "12-messer-flach",                 # Spiegelstreifen ueber die ganze Klinge
+    "13-messer-diagonal",              # Kropf im Spiegel -> Zertrennungsfall
+    "14-servierloeffel",
+    "15-servierloeffel-flach",
+    "16-teller-gross",                 # grossflaechig, Fahne
+    "17-teller-randberuehrung",        # FOV-Grenze, touches_border MUSS greifen
+    "18-glastasse-transparent",        # Transparent-Annex
+    "19-glastasse-transparent-2",
 )
 
 
@@ -132,7 +143,7 @@ def test_golden_fixtures_vollstaendig():
         f"{', '.join(sorted(ohne_datei))}")
 
     ohne_golden = [s for s, m in szenen.items()
-                   if m.get("kind", "segment") == "segment"
+                   if m.get("kind", "segment") in ("segment", "touches_border")
                    and not isinstance(m.get("area_px"), (int, float))]
     assert not ohne_golden, (
         f"Szenen ohne numerisches area_px im Manifest: "
@@ -171,6 +182,20 @@ def _era_pruefen(scene_id: str, img, bg):
     return cue, bgc
 
 
+def _flaeche_und_abdeckung(scene_id, s, cue, bgc) -> None:
+    """Die beiden Kernzusagen jeder messbaren Szene."""
+    golden = _szenen()[scene_id]["area_px"]
+    assert abs(s.area_px - golden) / golden <= AREA_TOL, (
+        f"{scene_id}: Flaeche {s.area_px:.0f} gegen Golden {golden} "
+        f"({(s.area_px - golden) / golden:+.1%})")
+
+    strong = cv2.absdiff(cue, bgc) >= STRONG_DIFF
+    coverage = float((strong & (s.mask > 0)).sum()) / max(1, int(strong.sum()))
+    assert coverage >= MIN_STEEL_COVERAGE, (
+        f"{scene_id}: Material-Abdeckung {coverage:.3f} – Objektmaterial verloren")
+    assert cv2.contourArea(s.contour) > 0
+
+
 @pytest.mark.parametrize("scene_id", sorted(
     s for s, m in _szenen().items() if m.get("kind", "segment") == "segment"))
 def test_real_capture_segmentation(scene_id):
@@ -179,22 +204,30 @@ def test_real_capture_segmentation(scene_id):
     img, bg = _lade(scene_id)
     cue, bgc = _era_pruefen(scene_id, img, bg)
     s = segment(img, bg)
-
-    # 1. Flaeche nahe am sichtabgenommenen Golden
-    golden = _szenen()[scene_id]["area_px"]
-    assert abs(s.area_px - golden) / golden <= AREA_TOL, (
-        f"{scene_id}: Flaeche {s.area_px:.0f} gegen Golden {golden} "
-        f"({(s.area_px - golden) / golden:+.1%})")
-
-    # 2. kein Material verloren: Maske deckt (fast) alle Stark-Evidenz-Pixel
-    strong = cv2.absdiff(cue, bgc) >= STRONG_DIFF
-    coverage = float((strong & (s.mask > 0)).sum()) / max(1, int(strong.sum()))
-    assert coverage >= MIN_STEEL_COVERAGE, (
-        f"{scene_id}: Material-Abdeckung {coverage:.3f} – Objektmaterial verloren")
-
-    # 3. plausibles Ergebnisobjekt
+    _flaeche_und_abdeckung(scene_id, s, cue, bgc)
     assert not s.touches_border
-    assert cv2.contourArea(s.contour) > 0
+
+
+@pytest.mark.parametrize("scene_id", sorted(
+    s for s, m in _szenen().items() if m.get("kind") == "touches_border"))
+def test_randberuehrung_wird_erkannt(scene_id):
+    """Objekt groesser als das Sichtfeld: `segment()` WIRFT hier nicht, es
+    setzt `touches_border` — erst `Pipeline.analyze` macht daraus einen
+    Fehler (pipeline.py). Der Backstop haelt genau diese Arbeitsteilung
+    fest: erkennt die Segmentierung die Randberuehrung nicht mehr, misst die
+    Pipeline stillschweigend ein abgeschnittenes Objekt.
+
+    Flaeche und Abdeckung werden trotzdem geprueft: das Fixture ist ein
+    festes Bild, der sichtbare Anteil ist also reproduzierbar."""
+    from docodetect.segmentation import segment
+
+    img, bg = _lade(scene_id)
+    cue, bgc = _era_pruefen(scene_id, img, bg)
+    s = segment(img, bg)
+    _flaeche_und_abdeckung(scene_id, s, cue, bgc)
+    assert s.touches_border, (
+        f"{scene_id}: Randberuehrung NICHT erkannt — die Pipeline wuerde ein "
+        f"abgeschnittenes Objekt vermessen statt abzubrechen.")
 
 
 @pytest.mark.parametrize("scene_id", sorted(

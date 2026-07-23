@@ -13,10 +13,16 @@ Maskenflaeche. Der Test `tests/test_real_captures.py` liest genau diesen Satz.
         01-teeloeffel-flach=1784075122341 ...
 
 Rechts vom `=` steht eine Capture-ID aus `data/captures/` (ohne `.png`) ODER
-ein Pfad zu einer Bilddatei. Szenen, die WERFEN muessen (die leere Box),
-werden mit `:raises` markiert:
+ein Pfad zu einer Bilddatei. Zwei Sonderarten werden per Suffix markiert:
 
-    python scripts/adopt_goldens.py 15-leere-box=1784152866853:raises
+    01-leere-box=<id>:raises          # Segmentierung MUSS abbrechen
+    17-teller-randberuehrung=<id>:border   # MUSS touches_border melden
+
+`:border` ist kein Randfall der Bequemlichkeit: `segment()` wirft bei
+Randberuehrung NICHT, es setzt nur das Flag — erst `Pipeline.analyze` macht
+daraus einen Fehler. Ohne diese Szene bliebe unbemerkt, wenn die
+Segmentierung die Randberuehrung verlernt und die Pipeline anfaengt,
+abgeschnittene Objekte zu vermessen.
 
 WICHTIG — die Flaeche, die hier gemessen wird, ist danach das Golden. Der
 Helfer nimmt sie NICHT ab: vorher jede Maske ansehen (`--overlay-dir`
@@ -70,8 +76,11 @@ def parse_zuordnung(argumente: list[str]) -> list[tuple[str, Path, str]]:
                              f"szene=capture-id (siehe --help)")
         szene, quelle = arg.split("=", 1)
         kind = "segment"
-        if quelle.endswith(":raises"):
-            quelle, kind = quelle[:-len(":raises")], "raises"
+        for suffix, art in ((":raises", "raises"),
+                            (":border", "touches_border")):
+            if quelle.endswith(suffix):
+                quelle, kind = quelle[:-len(suffix)], art
+                break
         szene = szene.strip()
         if not szene:
             raise SystemExit(f"[adopt] leerer Szenenname in '{arg}'")
@@ -114,10 +123,12 @@ def messen(zuordnung, bg, *, overlay_dir: Path | None = None) -> list[dict]:
         if img is None:
             raise SystemExit(f"[adopt] {szene}: Bild nicht lesbar ({pfad})")
         eintrag = {"szene": szene, "quelle": pfad, "kind": kind,
-                   "era": era_median(img, bg), "area_px": None, "fehler": None}
+                   "era": era_median(img, bg), "area_px": None,
+                   "touches_border": None, "fehler": None}
         try:
             s = segment(img, bg)
             eintrag["area_px"] = int(round(s.area_px))
+            eintrag["touches_border"] = bool(s.touches_border)
             if overlay_dir is not None:
                 overlay_dir.mkdir(parents=True, exist_ok=True)
                 cv2.imwrite(str(overlay_dir / f"{szene}.png"),
@@ -143,10 +154,25 @@ def pruefen(befunde: list[dict]) -> list[str]:
                 f"{b['szene']}: als ':raises' deklariert, aber die "
                 f"Segmentierung lieferte eine Maske ({b['area_px']} px). "
                 f"Ist die Box wirklich leer?")
-        if b["kind"] == "segment" and b["fehler"] is not None:
+        if b["kind"] in ("segment", "touches_border") and b["fehler"] is not None:
             probleme.append(
                 f"{b['szene']}: Segmentierung brach ab ({b['fehler']}) — als "
                 f"Golden unbrauchbar.")
+        # Randberuehrung ist eine Zusage, keine Nebenbeobachtung: eine
+        # ':border'-Szene, die den Rand NICHT beruehrt, wuerde als Golden
+        # genau das Gegenteil festschreiben. Und eine gewoehnliche Szene,
+        # die ihn beruehrt, ist schlicht falsch aufgenommen — die Pipeline
+        # wuerde sie im Betrieb ablehnen.
+        if b["kind"] == "touches_border" and b["touches_border"] is False:
+            probleme.append(
+                f"{b['szene']}: als ':border' deklariert, aber die "
+                f"Segmentierung meldet KEINE Randberuehrung. Objekt weiter "
+                f"an den Rand legen oder groesseres Objekt nehmen.")
+        if b["kind"] == "segment" and b["touches_border"] is True:
+            probleme.append(
+                f"{b['szene']}: beruehrt den Bildrand. Als gewoehnliche Szene "
+                f"unbrauchbar — die Pipeline lehnt solche Aufnahmen ab. "
+                f"Objekt zentrieren, oder bewusst als ':border' uebernehmen.")
     return probleme
 
 
@@ -170,7 +196,7 @@ def schreiben(befunde: list[dict], bg_quelle: Path, ziel: Path = ZIEL) -> Path:
     for b in befunde:
         shutil.copyfile(b["quelle"], szenen_dir / f"{b['szene']}.png")
         eintrag = {"kind": b["kind"], "quelle": b["quelle"].name}
-        if b["kind"] == "segment":
+        if b["kind"] in ("segment", "touches_border"):
             eintrag["area_px"] = b["area_px"]
         manifest["scenes"][b["szene"]] = eintrag
 
