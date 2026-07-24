@@ -123,12 +123,17 @@ def umgebung() -> dict:
     Bibliothek darf einen fertigen Lauf nicht um seine metrics.json bringen.
     """
     import platform
+    import sqlite3
     import sys
 
     werte = {
         "python": platform.python_version(),
         "platform": platform.platform(),
         "machine": platform.machine(),
+        # Die SQLite-Version war der unsichtbare Plattform-Unterschied
+        # Mac<->Windows (unixepoch() braucht >=3.38; Windows-3.9.6 = 3.35.5).
+        # Ab jetzt Teil des Fingerprint-Umfelds.
+        "sqlite_version": sqlite3.sqlite_version,
     }
     for name, modul in (("numpy", "numpy"), ("cv2", "cv2"), ("scipy", "scipy")):
         try:
