@@ -140,6 +140,46 @@ Aufgelaufene offene Punkte, keiner eilig, zusammen ein Auftrag:
   Tripel-Vergleich, which-python, Verschieben-statt-Löschen) sind
   über mehrere Commits verstreut — einmal zusammenziehen.
 
+### Block 4 — Restpunkte nach dem Hygiene-Sammelauftrag (Stand 2026-07-25)
+
+Erledigt im Sammelauftrag (Branch `chore/block4-hygiene`): P1 has_db-Wächter
+(`corpus/verify.py`, Aufruf aus CLI + testseitig in `test_corpus.py::_lauf`),
+P2 toter phase-c1-Eintrag entfernt, P3 Windows-Commit-Konvention (`-F`),
+P4 Ära-Kennzahl (`mm_per_px` je Session in `metrics.json`/`summary.md`),
+P7 Kalibrier-Archivierung (`calibration._archiviere_vorhandene`), P8
+`docs/INDEX.md`. `accuracy_top1_verdict` ist entschieden (bleibt als
+`NUR_INFO`-Zusatzfeld). Offen bleiben:
+
+- **runs/-Hygiene** (Befund P5): 38 Läufe / 10 in `runs/_invalid/`. Waisen
+  entstehen, weil `test_corpus.py::_lauf` → `run_corpus()` direkt aufruft und
+  `write_run` nie erreicht → Tier-2-Läufe hinterlassen `runs/<ts>/replay/`
+  ohne `metrics.json`. Kandidaten: (a) Test-`run_id`-Präfix `_test-…` +
+  Teardown-Aufräumen; (b) `run_corpus` einen optionalen `runs_root`-Parameter
+  geben, damit Tests in `tmp_path` schreiben; (c) Läufe über `write_run`
+  gültig machen. **Empfehlung (b)**, kleinste deterministische Änderung.
+  Aufwand ~1–2 h + Test. Eigener Auftrag.
+- **Auflösungs-Wächter** (Befund P6): kein Wächter vorhanden, die
+  1080p-Fixture `data/quarantine/` existiert nicht (mehr) im Repo. Kandidat
+  (1) *camera-config-frei, klein:* verhandelte Auflösung IMMER loggen (eine
+  Zeile in `camera.py`, ~15 min). Kandidat (2) *der eigentliche Wächter:*
+  Live-Auflösung beim Capture hart gegen `image_width/height` aus
+  `calibration.json` prüfen und abbrechen — berührt Capture-/camera-Config,
+  braucht die Quarantäne-Fixture zurück, ~½–1 Tag inkl. Test. Eigener Auftrag.
+- **Toter floor-Smoke-Test** (Befund): `test_floor_analysis.py::
+  test_smoke_gegen_phase_b_reports` zielt auf `phase-b/reports` — eine aus
+  SOURCES entfernte, geschlossene Session → er skippt IMMER. **Einordnung:
+  ein Test, der immer skippt, ist eine abgeschaltete Sicherung — dieselbe
+  Klasse wie die skip→fail-Regel des Golden-Backstops.** Konsistent dazu
+  auflösen: entweder auf `phase-c2` umlenken (hat Reports) ODER mit
+  `@pytest.mark.corpus_smoke` markieren und als bewusst korpusabhängig
+  kennzeichnen. Kleiner eigener Schritt, ~30 min.
+- **Mengen-Wächter** (Kandidat E2, NUR notiert): `has_db:true`-ohne-Datei ist
+  eine *Ursache*; das *Symptom* ist „weniger Bilder geprüft als erwartet".
+  Direkte Sicherung wäre ein Soll-Ist-Abgleich der Bildzahl je Tier gegen das
+  Manifest (Abweichung = laut scheitern) — deckt alle Ursachen statt einer.
+  Ergänzt den has_db-Wächter, ersetzt ihn nicht. Eigener Auftrag, Aufwand
+  ~2–3 h inkl. Test.
+
 ## Block 5 — Windows-Tag (sobald PC verfügbar; ~halber Tag)
 
 Reihenfolge bindend:
