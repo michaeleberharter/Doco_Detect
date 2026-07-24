@@ -1,0 +1,194 @@
+{
+  "m_knee": {
+    "sha8": "4587d1a8",
+    "label": "LOEFFEL-3",
+    "accepted": "LOEFFEL-4",
+    "max_z_winner": 1.5057,
+    "llr_margin": 1.9735
+  },
+  "dist_to_operating": 0.026499999999999968,
+  "drift_reserve_x": 17.666666666666647,
+  "n_top1_wrong": 8,
+  "cases": [
+    {
+      "sha8": "03034e84",
+      "label": "LOEFFEL-14",
+      "accepted": "LOEFFEL-11",
+      "max_z_winner": 2.3579,
+      "llr_margin": 0.2546
+    },
+    {
+      "sha8": "4587d1a8",
+      "label": "LOEFFEL-3",
+      "accepted": "LOEFFEL-4",
+      "max_z_winner": 1.5057,
+      "llr_margin": 1.9735
+    },
+    {
+      "sha8": "82cf53e1",
+      "label": "LOEFFEL-14",
+      "accepted": "LOEFFEL-11",
+      "max_z_winner": 1.9512,
+      "llr_margin": 0.1425
+    },
+    {
+      "sha8": "b26a6160",
+      "label": "LOEFFEL-2",
+      "accepted": "LOEFFEL-5",
+      "max_z_winner": 1.4997,
+      "llr_margin": 1.2076
+    },
+    {
+      "sha8": "c915e56c",
+      "label": "LOEFFEL-2",
+      "accepted": "LOEFFEL-6",
+      "max_z_winner": 2.3299,
+      "llr_margin": 0.1247
+    },
+    {
+      "sha8": "cc1f627e",
+      "label": "LOEFFEL-6",
+      "accepted": "LOEFFEL-5",
+      "max_z_winner": 2.5027,
+      "llr_margin": 0.2411
+    },
+    {
+      "sha8": "cd512c6a",
+      "label": "MESSER-5",
+      "accepted": "MESSER-7",
+      "max_z_winner": 1.6567,
+      "llr_margin": 0.0329
+    },
+    {
+      "sha8": "de4d09c3",
+      "label": "LOEFFEL-14",
+      "accepted": "LOEFFEL-11",
+      "max_z_winner": 2.4267,
+      "llr_margin": 0.002
+    }
+  ],
+  "z_gains": [
+    {
+      "sha8": "dbb5f4ea",
+      "label": "LOEFFEL-9",
+      "top1": "LOEFFEL-9",
+      "correct": true,
+      "enters_at_z": 3.812,
+      "llr": null
+    },
+    {
+      "sha8": "5bf6b431",
+      "label": "GABEL-1",
+      "top1": "GABEL-1",
+      "correct": true,
+      "enters_at_z": 4.2475,
+      "llr": 2.4501
+    },
+    {
+      "sha8": "152de077",
+      "label": "GABEL-1",
+      "top1": "GABEL-1",
+      "correct": true,
+      "enters_at_z": 4.4936,
+      "llr": 12.8222
+    }
+  ],
+  "fine_m_at_Z3p5": [
+    {
+      "min_llr_margin": 1.9,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.91,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.92,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.93,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.94,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.95,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.96,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.97,
+      "accept": 45,
+      "false": 1,
+      "false_n": 45
+    },
+    {
+      "min_llr_margin": 1.98,
+      "accept": 44,
+      "false": 0,
+      "false_n": 44
+    },
+    {
+      "min_llr_margin": 1.99,
+      "accept": 44,
+      "false": 0,
+      "false_n": 44
+    },
+    {
+      "min_llr_margin": 2.0,
+      "accept": 44,
+      "false": 0,
+      "false_n": 44
+    },
+    {
+      "min_llr_margin": 2.01,
+      "accept": 44,
+      "false": 0,
+      "false_n": 44
+    },
+    {
+      "min_llr_margin": 2.02,
+      "accept": 43,
+      "false": 0,
+      "false_n": 43
+    },
+    {
+      "min_llr_margin": 2.03,
+      "accept": 43,
+      "false": 0,
+      "false_n": 43
+    },
+    {
+      "min_llr_margin": 2.04,
+      "accept": 43,
+      "false": 0,
+      "false_n": 43
+    },
+    {
+      "min_llr_margin": 2.05,
+      "accept": 43,
+      "false": 0,
+      "false_n": 43
+    }
+  ]
+}
