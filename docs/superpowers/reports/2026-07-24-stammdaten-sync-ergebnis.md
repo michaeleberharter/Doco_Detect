@@ -275,6 +275,9 @@ reproduzierten Kalibrierung. Die Baustelle ist die **Kalibrier-Reproduzierbarkei
    die Kalibrier-Baustelle (1) würde eine weitere Toleranz nur die Drift kaschieren.
 3. **Wiederholbarkeits-Test + CD-Positions-Block priorisieren** — misst die
    Je-Session-Skalen-Varianz (phase-a ≠ phase-b in 6b) direkt und macht 1 prüfbar.
+   Die Varianz ist im HS-Drift-Ergebnisdokument
+   (`2026-07-24-hs-drift-attribution-ergebnis.md`, §10) unabhängig bestätigt:
+   Steigungen nicht trennbar, aber Offsets/Vorzeichen trennen → kein Einzelereignis.
 4. **Block 4:** (a) fehlender Wächter — `has_db:true` bei fehlender Bündel-Datei
    muss laut scheitern; das phase-b-Bündel ist ab jetzt „nur manuell gepflegt"
    (in `session.json` vermerkt, da nicht in `build.SOURCES`). (b) `BUNDLE_QUELLEN`
