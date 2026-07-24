@@ -363,9 +363,15 @@ def test_camera_worker_without_camera_goes_no_camera(qapp, tmp_path):
     cfg = make_cfg(tmp_path)
     cfg["camera"].update(index=99, warmup_frames=0)  # Index existiert sicher nicht
     win = MainWindow(cfg, demo=False)
-    # Der erste Fehler kann schon gefeuert haben, bevor wir hier verbinden
-    # (die Kamera-Sperre aus conftest.py schlägt sofort fehl, ein echtes
-    # Gerät braucht Millisekunden) – dass er ankam, zeigt die UI unten.
+    # Die EINE Erstmeldung ("keine Kamera – wird alle 3 s neu versucht") ist
+    # Soll. Geprüft wird die Invariante DANACH: der Reconnect fügt KEINE
+    # weitere Meldung hinzu. Ob der Spy die Erstmeldung selbst noch fängt,
+    # entscheidet ein Plattform-Race (QThread start()->run()-Latenz gegen den
+    # connect hier): auf dem Mac feuert das erste emit VOR dem connect (Spy
+    # verpasst es, n0=0), auf Windows DANACH (Spy fängt es, n0=1). Deshalb ist
+    # `later_errors == []` falsch – es schreibt den Mac-Race-Ausgang als
+    # Gesetz fest und lässt den korrekten, leisen Worker auf Windows scheitern.
+    # Robust ist nur der Delta-Vergleich gegen einen Snapshot n0 (s. unten).
     later_errors = []
     win.source.camera_error.connect(lambda m: later_errors.append(m))
     try:
@@ -378,6 +384,11 @@ def test_camera_worker_without_camera_goes_no_camera(qapp, tmp_path):
         assert not win.source.camera_ok
         assert win.preview._message and "Keine Kamera" in win.preview._message
         assert not win.identify_button.isEnabled()
+        # Ab hier ist die (höchstens eine) Erstmeldung durchgelaufen – die UI
+        # steht auf "getrennt", also wurde ihr camera_error zugestellt. Als
+        # Baseline festhalten, gegen die der Reconnect leise bleiben muss.
+        n0 = len(later_errors)
+        assert n0 <= 1, f"Erstmeldung kam mehr als einmal: {later_errors}"
         # Reconnect läuft LEISE: Thread lebt weiter, aber über einen vollen
         # Reconnect-Zyklus (also mind. einen weiteren Öffnungsversuch) darf
         # KEINE zusätzliche Fehlermeldung mehr kommen.
@@ -386,8 +397,9 @@ def test_camera_worker_without_camera_goes_no_camera(qapp, tmp_path):
         while time.time() < deadline:
             qapp.processEvents()
             time.sleep(0.05)
-        assert later_errors == [], (
-            f"Reconnect meldet wiederholt statt leise: {later_errors}")
+        assert len(later_errors) == n0, (
+            "Reconnect meldet wiederholt statt leise – zusätzliche Meldung(en) "
+            f"nach der Erstmeldung: {later_errors[n0:]}")
         assert win.source.isRunning()
         # Identifizieren im NO_CAMERA-Zustand ist ein No-Op, kein Crash
         win.identify_now()
