@@ -77,45 +77,31 @@ BUNDLE_QUELLEN = {
         "calibration": str(_P / "calibration/calibration.json"),
         "db": None,      # kein passender Snapshot -> Tier-1-only
     },
+    # phase-b: NUR MANUELL GEPFLEGT. Der SOURCES-Eintrag ist bewusst
+    # auskommentiert (s.o.), also baut kein Lauf diese Session neu und
+    # schreibt auch ihre session.json nicht neu. Ihr Buendel im Korpus ist
+    # ein von Hand eingefrorener Stand vom 20.07.; diese Quellen dienen nur
+    # noch der Provenienz-Dokumentation und einem etwaigen bewussten Neubau
+    # nach Verschieben. Der Konsistenz-Waechter (corpus/verify.py) prueft
+    # weiterhin, dass ihre has_db-Zusage zur Buendel-DB passt.
     "phase-b": {
         "background": str(_P / "calibration/background.png"),
         "calibration": str(_P / "calibration/calibration.json"),
         "db": str(_P / "doco_detect.sqlite3"),
     },
     # --- 2026-07-23 (Schritt 7) ------------------------------------------
-    # phase-c1: Messreihe LOEFFEL-14 vom 2026-07-22, 18 bewertete Reports.
-    # BEWUSST Tier-1-only, obwohl der DB-Abgleich 100 % ergibt (geprueft am
-    # 2026-07-23). Der Grund liegt nicht in der DB, sondern in der Config:
-    # die Entscheidungen dieser Reihe entstanden unter den DAMALS lokalen
-    # sigma_floors, die erst spaeter am 2026-07-22 versioniert in
-    # config.yaml wanderten. Als Tier-2-Goldens produzierten sie auf jedem
-    # kuenftigen Lauf Delta-Laerm gegen eine Entscheidungsbasis, die es so
-    # nie wieder gibt. Ihr Wert ist die MESS-Serie: 18 Auflagen desselben
-    # Loeffels sind der Wiederholbarkeits-Beleg, und der ist reine Tier-1-
-    # Groesse (Segmentierung + Geometrie, entscheidungsfrei).
+    # phase-c1 (Messreihe LOEFFEL-14, 18 Bilder) ist ENTFERNT. Die Session
+    # existiert im Korpus nicht — sie liegt in
+    # backups/2026-07-23-phase-c1-nicht-korpusfaehig/ (Hintergrund vom 22.07.
+    # ueberschrieben, Tier-1-Lauf 18/18 durchgefallen; Details oben im
+    # SOURCES-Kommentar und im Ergebnisdokument, Abschnitt 3.2). Ihr
+    # SOURCES-Eintrag fehlt, dieser BUNDLE_QUELLEN-Eintrag lief also ins
+    # Leere — build_corpus schlaegt nur ueber SOURCES nach, ein Buendel-
+    # Eintrag ohne Quelle wird nie gelesen. Bewusst nicht als tote Attrappe
+    # stehen gelassen: analog zur phase-b-Auskommentierung dokumentiert,
+    # damit niemand ihn fuer eine aktive Session haelt. NICHT zurueckbauen —
+    # sonst baut jeder Lauf die verworfene Session neu.
     #
-    # ACHTUNG Hintergrund: der Hintergrund DIESER Session existiert nicht
-    # mehr — calibration/background.png wurde am 2026-07-23 um 14:55 fuer
-    # die Golden-Fixtures neu aufgenommen und hat den vom 22.07.
-    # ueberschrieben. Gebuendelt wird darum der heutige. Belegt statt
-    # geraten (Messung 2026-07-23): der Aera-Abgleich der 18 Captures gegen
-    # den heutigen Hintergrund ergibt Median-|diff| 0 (Schranke 6), gegen
-    # den aeltesten verfuegbaren vom 20.07. Median 1; die beiden
-    # Hintergruende unterscheiden sich untereinander um Median 1 / Mittel
-    # 1,06. Die Beleuchtung der Box ist ueber die drei Tage stabil. Den
-    # Beweis fuehrt aber nicht diese Rechnung, sondern der Tier-1-Lauf: er
-    # reproduziert die Messwerte vom 22.07. gegen den heutigen Hintergrund.
-    # Faellt er, ist phase-c1 nicht korpusfaehig.
-    "phase-c1": {
-        "background": str(_P / "calibration/background.png"),
-        "calibration": str(_P / "calibration/calibration.json"),
-        "db": str(_P / "doco_detect.sqlite3"),
-        "tier1_only": True,
-        "tier1_grund": ("bewusst Tier-1-only: Entscheidungen entstanden "
-                        "unter den damals lokalen sigma_floors, als "
-                        "Tier-2-Goldens nur Delta-Laerm; der Wert der "
-                        "Session ist die Mess-Serie"),
-    },
     # phase-c2: die 23 bewerteten Cross-Tests vom 2026-07-23, voll Tier 2.
     # Sie liefen bereits gegen die heutige config.yaml und die heutige DB
     # (nach dem Gabel/Messer-Enrollment) — Entstehungs- und Replay-Zustand

@@ -463,7 +463,15 @@ def cmd_corpus_run(args, cfg):
     from .corpus import report as corpus_report
     from .corpus import runner as corpus_runner
     from .corpus.manifest import corpus_root
+    from .corpus.verify import pruefe_bundle_db_konsistenz
     from .matcher import MatchReport
+
+    # Konsistenz VOR dem Rechnen: eine als Tier-2-faehig ausgewiesene Session
+    # ohne Buendel-DB laesst einen Tier-2-Lauf stillschweigend schmaler
+    # werden (siehe corpus/verify.py). Lieber hier laut abbrechen als spaeter
+    # ein zu enges, gruenes Merge-Gate.
+    if corpus_root(cfg).exists():
+        pruefe_bundle_db_konsistenz(corpus_root(cfg))
 
     run_id = args.run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
     run = corpus_runner.run_corpus(
