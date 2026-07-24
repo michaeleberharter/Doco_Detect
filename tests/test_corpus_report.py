@@ -7,8 +7,13 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from docodetect.corpus.report import (QUOTEN_SEMANTIK, check_against_baseline,
-                                      classify_drift, tier2_quotas, wilson)
+import json
+
+import docodetect.corpus.manifest as corpus_manifest
+from docodetect.corpus.report import (QUOTEN_SEMANTIK, aera_skalen,
+                                      check_against_baseline, classify_drift,
+                                      tier2_quotas, wilson, write_run)
+from docodetect.corpus.manifest import Manifest
 from docodetect.matcher import CandidateReport, MatchReport
 from docodetect.reporting import NO_MATCH
 
@@ -340,3 +345,36 @@ def test_tier2_quotas_accuracy_top3_counts_a_correctly_rejected_no_match():
     q = tier2_quotas([r])
     assert q["accuracy_top3"]["k"] == 1
     assert q["accuracy_top3"]["n"] == 1
+
+
+# ---- Aera-Kennzahl: mm_per_px je Session (P4) ----------------------------
+
+def _patch_manifest(monkeypatch, sessions):
+    m = Manifest(sessions=sessions)
+    monkeypatch.setattr(corpus_manifest.Manifest, "load",
+                        staticmethod(lambda: m))
+
+
+def test_aera_skalen_liest_mm_per_px_je_session_aus_dem_manifest(monkeypatch):
+    _patch_manifest(monkeypatch, {"phase-a": {"mm_per_px": 0.0787},
+                                  "phase-c2": {"mm_per_px": 0.0791}})
+    got = aera_skalen([{"session": "phase-a"}, {"session": "phase-c2"},
+                       {"session": "phase-a"}])
+    assert got == {"phase-a": 0.0787, "phase-c2": 0.0791}
+
+
+def test_aera_skalen_traegt_none_fuer_unbekannte_session(monkeypatch):
+    """Eine Session ohne mm_per_px im Manifest bricht nichts — sie erscheint
+    mit None statt zu fehlen."""
+    _patch_manifest(monkeypatch, {"phase-a": {}})
+    assert aera_skalen([{"session": "phase-a"}]) == {"phase-a": None}
+
+
+def test_write_run_schreibt_aera_skala_in_metrics(tmp_path, monkeypatch):
+    _patch_manifest(monkeypatch, {"s": {"mm_per_px": 0.0787}})
+    run = {**_run({"pass": 3}), "dauer_s": 0.1, "bilder_pro_s": 30.0,
+           "neu_gerechnet": 3, "code_fingerprint": "c", "config_fingerprint": "d"}
+    out = write_run(tmp_path, "lauf-1", run, {})
+    metrics = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["aera_skala_mm_per_px"] == {"s": 0.0787}
+    assert "Aera-Skala" in (out / "summary.md").read_text(encoding="utf-8")
