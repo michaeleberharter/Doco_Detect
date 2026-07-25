@@ -39,7 +39,17 @@ def _grund() -> str | None:
 
 def _lauf(**kwargs) -> dict:
     from docodetect.corpus.runner import run_corpus
-    return run_corpus(load_config(), **kwargs)
+    from docodetect.corpus.verify import pruefe_bundle_db_konsistenz
+    cfg = load_config()
+    # E1: Der Konsistenz-Waechter greift sonst nur ueber cli.py
+    # (cmd_corpus_run). Die Reproduktions-Tests hier gehen aber direkt ueber
+    # run_corpus und umgingen ihn — der Merge-Gate-Pfad waere ungeschuetzt.
+    # Bewusst TESTSEITIG aufgerufen (nicht in runner.py), damit runner.py und
+    # der code_fingerprint unberuehrt bleiben. Faellt eine als Tier-2-faehig
+    # ausgewiesene Session ihre Buendel-DB, bricht der Lauf hier laut ab
+    # statt stillschweigend schmaler zu werden.
+    pruefe_bundle_db_konsistenz(corpus_root(cfg))
+    return run_corpus(cfg, **kwargs)
 
 
 @pytest.mark.corpus_smoke

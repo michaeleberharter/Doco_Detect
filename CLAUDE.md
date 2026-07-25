@@ -136,6 +136,11 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
 - Produktionsziel: **Windows/DSHOW** an der Fotobox. Windows-venv-Eigenheiten:
   `.venv\Scripts\Activate.ps1`, `python -m pip` (defekter Launcher).
 - Windows-Verhalten darf durch Mac-Arbeiten nie unbemerkt kippen.
+- **Commit-Messages auf Windows über Datei, nicht inline:**
+  `git commit -F <datei>` statt `git commit -m "…"`. Das PowerShell-/Bash-
+  Tool-Quoting hat einen mehrzeiligen Here-String schon zu einem nackten
+  `@` verstümmelt (Subject leer). Nachricht in eine Temp-Datei schreiben
+  (Write-Tool), dann `-F` — so ist das Subject reproduzierbar korrekt.
 
 ## Auswertung
 
