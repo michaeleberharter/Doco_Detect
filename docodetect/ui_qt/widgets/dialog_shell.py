@@ -67,6 +67,10 @@ class _Header(QWidget):
         self.retheme()
 
     def retheme(self) -> None:
+        # Bewusst KEIN Live-Nachrendern beim Display-Wechsel wie in
+        # action_bar._IconLabel: der Dialog wird bei jeder Öffnung neu erzeugt
+        # und liest die dpr dann frisch – ein wandernder Dialog über zwei
+        # Monitore ist kein realer Fall. Kein Versehen, sondern Absicht.
         t = current_theme()
         dpr = self.devicePixelRatioF() or 1.0
         self.badge.setPixmap(icons.pixmap(self._icon_name, 18, t["accent"], dpr))

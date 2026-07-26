@@ -13,9 +13,11 @@ gewünschte Kantenlänge skaliert; der Strich skaliert mit.
 
 from __future__ import annotations
 
+import math
+
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import (QColor, QIcon, QPainter, QPainterPath, QPen,
-                           QPixmap)
+from PySide6.QtGui import (QColor, QIcon, QIconEngine, QPainter, QPainterPath,
+                           QPen, QPixmap)
 
 _GRID = 24.0
 _STROKE = 1.7          # Strichstärke im 24er-Raster (Entwurf)
@@ -117,16 +119,78 @@ def paint(painter: QPainter, name: str, rect: QRectF, color: str,
 
 
 def pixmap(name: str, size: int, color: str, dpr: float = 1.0) -> QPixmap:
-    """Transparente QPixmap mit dem Icon – dpr für scharfe High-DPI-Icons."""
-    px = QPixmap(int(size * dpr), int(size * dpr))
+    """Transparente QPixmap mit dem Icon – `dpr` für scharfe High-DPI-Icons.
+
+    Der Backing-Store ist PHYSISCH (`size * dpr` Pixel), gezeichnet wird aber
+    LOGISCH: `setDevicePixelRatio(dpr)` weist den Painter an, in
+    device-unabhängigen Einheiten zu arbeiten (Qt legt den dpr-Transform
+    selbst auf). Deshalb ist das Ziel-Rect `size` (nicht `size * dpr`) und der
+    Strich `_STROKE` (nicht `_STROKE * dpr`) – sonst skaliert man ein zweites
+    Mal und rendert nur das linke obere Viertel.
+
+    Backing per `ceil`, nicht `int`: bei krummem `size * dpr` (z.B. dpr 1.5)
+    würde `int()` eine Pixelreihe abschneiden, sodass die effektive dpr
+    (Backing/logisch) nicht mehr dem gesetzten `dpr` entspräche. `ceil`
+    rundet AUF, also nie Anschnitt – höchstens ein subpixelbreiter
+    transparenter Rand rechts/unten. Für die real genutzten `size ∈ {18,20,24}`
+    und `dpr ∈ {1,1.5,2,2.5,3}` ist `size * dpr` ohnehin ganzzahlig, `ceil`
+    also ein No-op und die logische Größe exakt `size`; den gesetzten `dpr`
+    beizubehalten (statt Backing/size) hält die Pixmap-dpr deckungsgleich mit
+    der des Ziel-Screens, sodass beim Compositing kein Nachskalieren entsteht.
+    """
+    backing = math.ceil(size * dpr)
+    px = QPixmap(backing, backing)
     px.setDevicePixelRatio(dpr)
     px.fill(Qt.transparent)
     p = QPainter(px)
-    paint(p, name, QRectF(0, 0, size * dpr, size * dpr), color,
-          _STROKE * dpr)
+    paint(p, name, QRectF(0, 0, size, size), color)
     p.end()
     return px
 
 
+class _StrokeIconEngine(QIconEngine):
+    """QIcon-Engine, die das Strichicon bei JEDER Anfrage frisch in das
+    geforderte Ziel-Rect/-Auflösung zeichnet – also genau einmal und bei der
+    tatsächlichen Zielauflösung rasterisiert. Damit teilen die QToolButtons
+    der Schiene (`setIcon`) und die direkt gemalten Badges denselben
+    Renderpfad wie `result_card` (`icons.paint`); es gibt keine zweite,
+    dpr-blinde Rasterisierung mehr."""
+
+    def __init__(self, name: str, color: str):
+        super().__init__()
+        self._name = name
+        self._color = color
+
+    def paint(self, painter: QPainter, rect, mode, state) -> None:  # noqa: N802
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        paint(painter, self._name, QRectF(rect), self._color)
+
+    def scaledPixmap(self, size, mode, state, scale) -> QPixmap:  # noqa: N802
+        # `size` ist die LOGISCHE Zielgröße, `scale` die Ziel-dpr. Der Painter
+        # zeichnet dank gesetztem dpr in logischen Einheiten – deshalb Ziel-
+        # Rect = logische `size`, nicht size*scale (siehe pixmap()).
+        w = max(1, math.ceil(size.width() * scale))
+        h = max(1, math.ceil(size.height() * scale))
+        px = QPixmap(w, h)
+        px.setDevicePixelRatio(scale)
+        px.fill(Qt.transparent)
+        p = QPainter(px)
+        paint(p, self._name, QRectF(0, 0, size.width(), size.height()),
+              self._color)
+        p.end()
+        return px
+
+    def pixmap(self, size, mode, state) -> QPixmap:  # noqa: N802
+        # Ohne dpr-Information (z.B. QIcon.pixmap(w, h)): physisch = logisch.
+        return self.scaledPixmap(size, mode, state, 1.0)
+
+    def clone(self) -> "QIconEngine":
+        return _StrokeIconEngine(self._name, self._color)
+
+
 def icon(name: str, size: int, color: str) -> QIcon:
-    return QIcon(pixmap(name, size, color))
+    """QIcon mit `_StrokeIconEngine` – rendert bei jeder vom Widget
+    geforderten Größe und dpr frisch. `size` wird nicht mehr fixiert (die
+    Engine ist größenunabhängig); der Parameter bleibt nur für die
+    bestehenden Aufrufer erhalten."""
+    return QIcon(_StrokeIconEngine(name, color))
