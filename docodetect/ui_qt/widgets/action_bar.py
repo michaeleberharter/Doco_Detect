@@ -36,6 +36,13 @@ _SECONDARY_WIDTH = 120    # Entwurf
 _PRIMARY_ICON = 24
 _SECONDARY_ICON = 20
 
+# DevicePixelRatioChange gibt es erst ab Qt 6.6. Einmalig auflösen: auf einer
+# älteren PySide6 wäre `QEvent.Type.DevicePixelRatioChange` ein AttributeError
+# – und da event() bei JEDEM Event liefe, praktisch ein Start-Crash. None =>
+# Vergleich unten wird übersprungen (dann nur showEvent-Neurender, kein Live-
+# Nachziehen beim Display-Wechsel).
+_DPR_CHANGE_EVENT = getattr(QEvent.Type, "DevicePixelRatioChange", None)
+
 
 class _IconLabel(QLabel):
     """Label, das ein Strichicon in Themefarbe zeigt (QIcon lässt sich nicht
@@ -52,6 +59,20 @@ class _IconLabel(QLabel):
         color = "#ffffff" if self._role == "onAccent" else t["text"]
         dpr = self.devicePixelRatioF() or 1.0
         self.setPixmap(icons.pixmap(self._name, self._size, color, dpr))
+
+    def showEvent(self, event) -> None:              # noqa: N802 (Qt-API)
+        # Vor dem ersten Show hängt das Label an keinem Screen, devicePixel-
+        # RatioF() liefert dann 1.0. Jetzt kennt es den echten Screen – neu
+        # zeichnen, damit das Retina-Icon von Anfang an scharf ist.
+        super().showEvent(event)
+        self.retheme()
+
+    def event(self, e) -> bool:                      # noqa: N802 (Qt-API)
+        # Fenster über Displays mit unterschiedlicher dpr verschoben
+        # (MacBook-Retina ↔ externer Monitor): mit der neuen dpr neu rendern.
+        if _DPR_CHANGE_EVENT is not None and e.type() == _DPR_CHANGE_EVENT:
+            self.retheme()
+        return super().event(e)
 
 
 class IdentifyButton(QPushButton):
