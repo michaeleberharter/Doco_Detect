@@ -104,6 +104,13 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   ausgeführten Folgeaktion liest, ist kein Freigabe-Punkt (so geschehen
   2026-07-22: Suite-Tripel gemeldet und im selben Zug committet UND
   gemergt). Nachträglich nachreichen heilt das nicht.
+- **Nebenausgaben (Analyse-Berichte, PNGs, Scratch — alles, was NICHT ins
+  Repo gehört) immer nach `~/Documents/tmp/`, NIE nach `/tmp`.** `/tmp` ist
+  auf dem Mac im Finder ausgeblendet und wird beim Neustart geleert (User hat
+  Dateien dort mehrfach nicht gefunden). `~/Documents/tmp/` liegt neben dem
+  Projekt (außerhalb des Repos, `git status` bleibt sauber), ist dauerhaft und
+  im Finder sichtbar. Verlangt eine Aufgabe explizit `/tmp/x`, zusätzlich
+  dorthin kopieren.
 
 ## Worktrees
 
@@ -159,10 +166,14 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   Scheinversatz von ~2,8 mm. Der Vorfilter vergleicht seit dem Fix vom
   2026-07-21 **`max(width, depth)`** (die Länge), nicht mehr
   `hypot(width, depth)` — maßgeblich ist `matcher._nominal_size_mm`.
-  **`stammdaten.py` rechnet noch mit `hypot` und ist damit stale**: seine
-  Spalte „was der Vorfilter heute vergleicht" stimmt nicht, und das
-  Vorzeichen des mittleren Abstands kippt (−0,86 mm gemeldet vs. +1,15 mm
-  echt). `sync-stammdaten --apply` bleibt gesperrt, bis beide dieselbe
-  Funktion benutzen (Befund 2026-07-23, Details im phase-c-Ergebnisdokument).
+  Der 2026-07-23-Vorbehalt („`stammdaten.py` rechnet noch mit `hypot`,
+  `sync-stammdaten --apply` deshalb gesperrt") ist **erledigt**: der
+  hypot→max-Fix landete am 2026-07-24, `stammdaten.py` und
+  `matcher._nominal_size_mm` vergleichen jetzt beide `max(width, depth)`, und
+  **`sync-stammdaten --apply` wurde am 2026-07-24 ausgeführt** — Live-DB und
+  Bundle-DBs sind seither post-sync (Nominal == Enrollment-Ø-Mittel). Wirkung
+  am 2026-07-27 aus Snapshots gemessen (docs/2026-07-27-scoring-analyse.md,
+  Nachtrag): **0 neue Falschakzepte**, aber −1 korrekter Auto-Accept und
+  Vorfilter-Kills 1→3 (die Messausreißer LOEFFEL-3/-6/-7).
 - Der Geometrie-Vorfilter nutzt **immer** die `articles`-Stammdaten, nie
   `reference_stats` — die Basis wechselt auch nach dem Einlernen nicht.

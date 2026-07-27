@@ -16,6 +16,15 @@ MatchReport-JSONs (kein Eingriff in Messpfad, Config, Reports oder Goldens).
 Die Rohtabellen lagen zum Analysezeitpunkt unter `/tmp/` (flüchtig); die hier
 wichtigen sind unten eingebettet.
 
+> **HISTORISCH-VORBEHALT (Nachtrag 2026-07-27, siehe Abschnitt 10).** Der
+> ausgewertete Korpus stammt aus der **16-Artikel-Ära UND von vor sync**; die
+> DB hat inzwischen **41 Artikel und ist post-sync**. Alle konkreten Zahlen der
+> Serie C3–H (58 AMBIGUOUS, Median-Margin 0,248, 24/60 Auto-Accept,
+> 14/17 nicht trennbare Paare, die 6 Vorfilter-Kills) gelten für den
+> **16-Artikel-/pre-sync-Stand** und sind **historisch**. Die **strukturellen
+> Befunde bleiben gültig, die Zahlen nicht** — die neue Referenz ist die
+> 41-Artikel-/post-sync-Baseline aus Abschnitt 10.
+
 ---
 
 ## 1. Ausgangsfrage und Ergebnis
@@ -310,3 +319,55 @@ des Tail-Effekts ist ausgeschlossen** (damit auch Parallaxe/Scherung erneut,
 vgl. Abschnitt 5). Da Bildgeometrie ausscheidet und die Konturen vollständig
 sind, bleiben auflage- oder segmentierungsseitige Ursachen — mit den
 vorhandenen Daten (kein Enrollment-Bild) nicht weiter auflösbar.
+
+---
+
+## 10. Nachtrag 2026-07-27: Korpus-Stand, Fidelitäts-Eingangstest, sync-Wirkung
+
+**Der Korpus war nicht mehr selbstkonsistent.** Ein Voll-Recompute des
+gespeicherten Korpus gegen den heutigen Stand ergab **38 exakt / 66 abweichend
+von 104** (Δllr median 0,088, p90 1,52, max 92,6). Ursache sind **zwei**
+überlagerte Effekte: (a) die Korpus-Reports wurden in der **16-Artikel-Ära**
+gebaut, die DB hat inzwischen **41 Artikel** (Migration 16→41 → größere
+Kandidatensets, Margin-Kompression, Rang-Wechsel); (b) **sync-stammdaten wurde
+am 2026-07-24 ausgeführt** (die Live-DB und beide Bundle-DBs sind post-sync,
+Nominal == Enrollment-Ø-Mittel; der pre-sync-Stand liegt in
+`backups/…2026-07-24_pre-sync…`). Beide zusammen erklären die 38/66-Divergenz.
+Deshalb der Historisch-Vorbehalt oben: die C3–H-Zahlen sind der 16er-/pre-sync-
+Stand.
+
+**Fidelitäts-Eingangstest.** `scripts/corpus_fidelity_check.py` (READ-ONLY)
+rechnet jeden Korpus-Report gegen den heutigen Stand neu und meldet
+exakt/abweichend + Δllr + Dateiliste. **Ab jetzt Pflicht-Eingangstest vor jeder
+Korpus-Analyse** — er hätte die 16→41-/sync-Drift sofort sichtbar gemacht.
+
+**sync-Wirkung, aus Snapshots gemessen (kein `--apply`, sync war schon
+erfolgt).** Korpus tier-2 (104) zweimal neu gerechnet, gegen die
+**PRE-sync**- und die **POST-sync**-Bundle-DBs — beide 41 Artikel, damit nur
+sync variiert (Methode `bundle_cfg`; Urteile per SHA eingespielt, je 104/104
+verifiziert). Vorher/Nachher:
+
+| Kennzahl | PRE-sync | POST-sync |
+|---|---|---|
+| ACCEPT / AMBIGUOUS / REJECT | 45 / 56 / 3 | 44 / 56 / 4 |
+| Auto-Accept-Rate | 43,3 % | 42,3 % |
+| **neue Falschakzepte** | — | **0** |
+| Vorfilter-Kills (wahrer Art. nicht im Set) | 1 | 3 |
+| llr ACCEPT median | 10,26 | 11,36 |
+| llr AMBIG median | 0,623 | 0,589 |
+
+**0 neue Falschakzepte** → sync ist nach der harten Randbedingung nicht
+disqualifiziert. Netto aber leicht negativ: **−1 korrekter Auto-Accept**
+(LOEFFEL-7 accept→reject) und **Vorfilter-Kills 1→3** — sync löst den
+geometrischen Nominal-Drift-Kill (LOEFFEL-4, wird wieder Top-1, bleibt
+ambiguous), verschärft aber die **Messausreißer** LOEFFEL-3/-6/-7 (gemessener
+Ø ~7,5 mm unter dem eigenen Enrollment-Mittel → post-sync-Nominal schiebt sie
+aus der 6-mm-Toleranz). Das deckt sich mit dem strukturellen Befund aus
+Abschnitt 4/5: sync betrifft Geometrie/Vorfilter, nicht die Trennbarkeit im
+Merkmalsraum. Details: `sync_messung.md` (Artefakte
+`~/Documents/tmp/sync_baseline_{pre,post}/`).
+
+Smoke-Baseline (11/14) unverändert relevant, aber nur mit der Smoke-
+Kalibrierung (~0,2 mm/px) reproduzierbar; am 2026-07-27 nicht neu ausgeführt,
+weil das `calibration/` überschriebe — an matcher/features/config wurde nichts
+geändert, die Smoke-Logik ist unberührt.
