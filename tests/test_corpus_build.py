@@ -74,6 +74,16 @@ def welt(tmp_path, monkeypatch):
     return cfg, korpus, quelle
 
 
+def test_phase_c1_ist_kein_bundle_eintrag_mehr():
+    """phase-c1 liegt in backups/, nicht im Korpus. Ein BUNDLE_QUELLEN-
+    Eintrag ohne SOURCES-Quelle ist tot (build schlaegt nur ueber SOURCES
+    nach) — er darf nicht zurueckkommen, sonst baut jeder Lauf die
+    verworfene Session neu."""
+    assert "phase-c1" not in corpus_build.BUNDLE_QUELLEN
+    quellen = {s for s, _, _ in corpus_build.SOURCES}
+    assert "phase-c1" not in quellen
+
+
 def test_build_creates_the_expected_layout(welt):
     cfg, korpus, _ = welt
     corpus_build.build_corpus(cfg)

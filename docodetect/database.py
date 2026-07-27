@@ -34,7 +34,22 @@ def _slug(name: str) -> str:
     s = re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-").upper()
     return s or "ARTIKEL"
 
-SCHEMA = """
+# Portabler Unix-Sekunden-Ausdruck fuer SQLite. unixepoch() gibt es erst ab
+# SQLite 3.38 (2022); die mit Python 3.9 gebuendelte SQLite kennt es NICHT
+# (Windows 3.9.6 = 3.35.5, Floor 3.9.0 = 3.33.0) — macOS verdeckte das nur
+# ueber seine neuere System-libsqlite. strftime('%s','now') liefert denselben
+# ganzzahligen UTC-Sekundenwert und ist seit jeher verfuegbar; die REAL-Spalte
+# speichert ihn per Typ-Affinitaet identisch zu frueher. EINE Definition,
+# ueberall interpoliert (Schema-Defaults + beide Schreibpfade), damit die drei
+# Stellen nicht auseinanderdriften.
+_SQL_UNIX_NOW = "CAST(strftime('%s','now') AS INT)"
+
+# HINWEIS Bestands-DBs: dort steht im gespeicherten Schema weiter
+# DEFAULT (unixepoch()). Bleibt bewusst stehen (KEINE Nachmigration) — die
+# Schreibpfade unten setzen created_unix/updated_unix ab jetzt IMMER explizit,
+# der schlafende Default wird nie mehr ausgewertet. So laeuft die 2x2-Matrix
+# Bestands-/Neu-DB x SQLite 3.35/>=3.38 vollstaendig.
+SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS articles (
     id INTEGER PRIMARY KEY,
     article_number TEXT UNIQUE NOT NULL,   -- key used everywhere in the CLI
@@ -53,14 +68,14 @@ CREATE TABLE IF NOT EXISTS reference_features (
     article_number TEXT NOT NULL REFERENCES articles(article_number),
     image_path TEXT,
     features_json TEXT NOT NULL,
-    created_unix REAL DEFAULT (unixepoch())
+    created_unix REAL DEFAULT ({_SQL_UNIX_NOW})
 );
 CREATE INDEX IF NOT EXISTS idx_ref_article ON reference_features(article_number);
 
 CREATE TABLE IF NOT EXISTS reference_stats (
     article_number TEXT PRIMARY KEY REFERENCES articles(article_number),
     stats_json TEXT NOT NULL,
-    updated_unix REAL DEFAULT (unixepoch())
+    updated_unix REAL DEFAULT ({_SQL_UNIX_NOW})
 );
 """
 
@@ -210,8 +225,9 @@ class Database:
         if self.get_article(article_number) is None:
             raise KeyError(f"Unknown article_number '{article_number}' – import it first.")
         self.conn.execute(
-            "INSERT INTO reference_features (article_number, image_path, features_json) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO reference_features "
+            "(article_number, image_path, features_json, created_unix) "
+            f"VALUES (?, ?, ?, {_SQL_UNIX_NOW})",
             (article_number, image_path, features.to_json()),
         )
         self._recompute_stats(article_number)
@@ -262,9 +278,10 @@ class Database:
                 (article_number,))
             return
         self.conn.execute(
-            "INSERT INTO reference_stats (article_number, stats_json) VALUES (?, ?) "
+            "INSERT INTO reference_stats (article_number, stats_json, updated_unix) "
+            f"VALUES (?, ?, {_SQL_UNIX_NOW}) "
             "ON CONFLICT(article_number) DO UPDATE SET stats_json=excluded.stats_json, "
-            "updated_unix=unixepoch()",
+            f"updated_unix={_SQL_UNIX_NOW}",
             (article_number, compute_enrollment_stats(feats).to_json()))
 
     def stats_for(self, article_number: str) -> EnrollmentStats | None:

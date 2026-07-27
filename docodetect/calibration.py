@@ -27,6 +27,33 @@ import numpy as np
 from .config import resolve
 
 
+def _archiviere_vorhandene(path: Path) -> Path | None:
+    """Eine bestehende Datei mit Zeitstempel wegsichern, BEVOR sie neu
+    geschrieben wird — verschieben statt ueberschreiben.
+
+    Warum in der Pipeline und nicht nur bei Mensch/Skript: `capture-background`
+    und `calibrate` schreiben auf feste Pfade. Ohne diese Sicherung
+    verschwindet der alte Stand beim Neuaufnehmen unwiederbringlich. Genau so
+    wurden schon Messreihen korpus-unfaehig (u.a. LOEFFEL-14: der Hintergrund
+    ihrer Aera wurde ueberschrieben). Die CLAUDE.md-Regel „Destruktives immer
+    als Verschieben" gilt damit auch fuer den Schreibpfad selbst.
+
+    Gibt den Archivpfad zurueck oder None, wenn nichts zu sichern war.
+    """
+    if not path.exists():
+        return None
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    ziel = path.with_name(f"{path.stem}-{ts}{path.suffix}")
+    # Zwei Aufnahmen in derselben Sekunde duerfen sich nicht gegenseitig
+    # ueberschreiben — das waere genau der Datenverlust, den wir verhindern.
+    n = 1
+    while ziel.exists():
+        ziel = path.with_name(f"{path.stem}-{ts}-{n}{path.suffix}")
+        n += 1
+    path.rename(ziel)
+    return ziel
+
+
 @dataclass
 class Calibration:
     mm_per_px: float
@@ -97,6 +124,9 @@ def calibrate_from_image(image: np.ndarray, cfg: dict) -> Calibration:
 def run_calibration(image: np.ndarray, cfg: dict) -> Calibration:
     cal = calibrate_from_image(image, cfg)
     out = resolve(cfg["calibration"]["file"])
+    gesichert = _archiviere_vorhandene(out)
+    if gesichert:
+        print(f"[calibration] alte Kalibrierung gesichert -> {gesichert}")
     cal.save(out)
     print(f"[calibration] mm_per_px = {cal.mm_per_px:.5f}  -> saved to {out}")
     fov_w = cal.mm_per_px * cal.image_width
@@ -112,6 +142,9 @@ def run_calibration(image: np.ndarray, cfg: dict) -> Calibration:
 def save_background(image: np.ndarray, cfg: dict) -> Path:
     out = resolve(cfg["calibration"]["background_file"])
     out.parent.mkdir(parents=True, exist_ok=True)
+    gesichert = _archiviere_vorhandene(out)
+    if gesichert:
+        print(f"[calibration] alter Hintergrund gesichert -> {gesichert}")
     cv2.imwrite(str(out), image)
     print(f"[calibration] background reference saved to {out}")
     return out

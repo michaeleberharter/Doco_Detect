@@ -123,12 +123,17 @@ def umgebung() -> dict:
     Bibliothek darf einen fertigen Lauf nicht um seine metrics.json bringen.
     """
     import platform
+    import sqlite3
     import sys
 
     werte = {
         "python": platform.python_version(),
         "platform": platform.platform(),
         "machine": platform.machine(),
+        # Die SQLite-Version war der unsichtbare Plattform-Unterschied
+        # Mac<->Windows (unixepoch() braucht >=3.38; Windows-3.9.6 = 3.35.5).
+        # Ab jetzt Teil des Fingerprint-Umfelds.
+        "sqlite_version": sqlite3.sqlite_version,
     }
     for name, modul in (("numpy", "numpy"), ("cv2", "cv2"), ("scipy", "scipy")):
         try:
@@ -262,12 +267,29 @@ def check_against_baseline(run: dict, quotas: dict, baseline: dict, *,
     return code, meldungen
 
 
+def aera_skalen(results: list) -> dict:
+    """Kalibrier-Skala (mm_per_px) je Session, die in diesem Lauf vorkommt.
+
+    Das ist die Aera-Kennzahl: sie identifiziert die Kalibrier-Epoche eines
+    Buendels. Zwei Laeufe mit gleicher Kennzahl liegen gegen dieselbe
+    Kalibrierung, ein Sprung markiert einen Rig-/Kalibrier-Wechsel. Report-
+    only — sie gatet nichts und stammt aus dem versionierten Manifest
+    (recover_mm_per_px beim Build), nicht aus einer Nachrechnung hier.
+    """
+    from .manifest import Manifest
+    sessions = {r["session"] for r in results}
+    meta = Manifest.load().sessions
+    return {s: (meta.get(s) or {}).get("mm_per_px")
+            for s in sorted(sessions)}
+
+
 def write_run(root: Path, run_id: str, run: dict, quotas: dict) -> Path:
     """runs/<run_id>/ mit summary.md, metrics.json und failures/."""
     out = root / "runs" / run_id
     (out / "failures").mkdir(parents=True, exist_ok=True)
 
     drift = classify_drift(run["results"])
+    skalen = aera_skalen(run["results"])
     zaehler = {}
     for r in run["results"]:
         zaehler[r["band"]] = zaehler.get(r["band"], 0) + 1
@@ -278,6 +300,7 @@ def write_run(root: Path, run_id: str, run: dict, quotas: dict) -> Path:
          "bilder_pro_s": run["bilder_pro_s"], "baender": zaehler,
          "drift": drift, "quotas": quotas,
          "quoten_semantik": QUOTEN_SEMANTIK,
+         "aera_skala_mm_per_px": skalen,
          "env": umgebung(),
          "code_fingerprint": run["code_fingerprint"],
          "config_fingerprint": run["config_fingerprint"]},
@@ -309,6 +332,10 @@ def write_run(root: Path, run_id: str, run: dict, quotas: dict) -> Path:
                       "Bibliothek/Plattform, nicht Code.")
     elif drift["muster"] == "ausreisser":
         zeilen.append("> Einzelne Bilder betroffen — Muster Code-Regression.")
+    if skalen:
+        zeilen += ["", "## Aera-Skala (mm_per_px je Session)", ""]
+        for s, v in skalen.items():
+            zeilen.append(f"- {s}: {v if v is not None else '—'}")
     if quotas:
         zeilen += ["", "## Tier-2-Quoten", "",
                    "| Kennzahl | k/n | p | Wilson |", "|---|---|---|---|"]
