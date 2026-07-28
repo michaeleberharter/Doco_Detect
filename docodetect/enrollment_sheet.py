@@ -59,6 +59,7 @@ from .features import Features, scalar_value  # noqa: E402
 # nicht dupliziert werden (CLAUDE.md). Nur-Lesen, features.py bleibt unberuehrt.
 from .features import _PROTO_SRC  # noqa: E402
 from .pipeline import Pipeline  # noqa: E402
+from .plotstyle import DIV, OUTLIER, SEQ, panel_label, style_context  # noqa: E402
 from .segmentation import SegmentationError  # noqa: E402
 
 # C-Serie saubere Gruppen: Streuung von ext_full lag bei 0,43-0,92 mm.
@@ -467,50 +468,21 @@ def _contour_outlier(geoms: list):
 
 
 # ============================================================ Rendering
-# NUR Darstellung – keine Kennzahl wird hier berechnet. Panel-Stil nach
-# Vorbild wissenschaftlicher Artikel: fette Panel-Labels ausserhalb der Achsen,
-# duenne Achsen ohne top/right-spine, kleine serifenlose Schrift, gedaempfte
-# Palette, Shot-Kurven sequenziell (viridis) nach Shot-Index, auffaelligster
-# Shot in kontrastierendem Rot.
-
-_RC = {
-    "font.family": "sans-serif",
-    "font.size": 8,
-    "axes.titlesize": 8.5,
-    "axes.labelsize": 8,
-    "axes.linewidth": 0.6,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "xtick.labelsize": 7,
-    "ytick.labelsize": 7,
-    "xtick.major.size": 2.5,
-    "ytick.major.size": 2.5,
-    "xtick.major.width": 0.6,
-    "ytick.major.width": 0.6,
-    "legend.fontsize": 6.5,
-    "legend.frameon": False,
-    "figure.dpi": 110,
-}
-_OUTLIER_COLOR = "#d62728"          # kontrastierendes Rot
-_SHOT_CMAP = "viridis"
-
-
-def _panel(ax, letter: str) -> None:
-    """Fettes Panel-Label oben links, ausserhalb der Achsen (Punkt-Offset,
-    robust gegen Panelbreite)."""
-    ax.annotate(letter, xy=(0, 1), xycoords="axes fraction",
-                xytext=(-22, 9), textcoords="offset points",
-                fontsize=11, fontweight="bold", va="bottom", ha="left")
+# NUR Darstellung – keine Kennzahl wird hier berechnet. Stil zentral aus
+# docodetect.plotstyle: Panel-Labels ausserhalb der Achsen, duenne Achsen ohne
+# top/right-spine, serifenlos; Shot-Kurven sequenziell (SEQ=viridis) nach
+# Shot-Index, auffaelligster Shot in kontrastierendem Rot (OUTLIER), skalare
+# z-Heatmap divergierend (DIV).
 
 
 def _shot_color(i: int, n: int):
-    return plt.get_cmap(_SHOT_CMAP)(i / max(1, n - 1))
+    return plt.get_cmap(SEQ)(i / max(1, n - 1))
 
 
 def _shot_index_colorbar(fig, ax, n: int) -> None:
     if n < 2:
         return
-    sm = ScalarMappable(norm=Normalize(1, n), cmap=plt.get_cmap(_SHOT_CMAP))
+    sm = ScalarMappable(norm=Normalize(1, n), cmap=plt.get_cmap(SEQ))
     cb = fig.colorbar(sm, ax=ax, fraction=0.045, pad=0.02)
     cb.set_label("Shot-Index", fontsize=7)
     cb.ax.tick_params(labelsize=6, width=0.5)
@@ -518,7 +490,7 @@ def _shot_index_colorbar(fig, ax, n: int) -> None:
 
 
 def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
-    _panel(ax, "a")
+    panel_label(ax, "a")
     present = [(i, g) for i, g in enumerate(geoms) if g is not None]
     if not present:
         ax.text(0.5, 0.5, "keine Bilder – Konturband nicht verfügbar",
@@ -534,7 +506,7 @@ def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
                 lw=0.7, alpha=0.85)
     if hi is not None and geoms[hi] is not None:
         xy = np.vstack([geoms[hi].xy_mm, geoms[hi].xy_mm[:1]])
-        ax.plot(xy[:, 0], xy[:, 1], color=_OUTLIER_COLOR, lw=1.6,
+        ax.plot(xy[:, 0], xy[:, 1], color=OUTLIER, lw=1.6,
                 label=f"Shot {highlight_shot} (äußerster)")
         ax.legend(loc="upper right")
     ax.set_aspect("equal")
@@ -548,7 +520,7 @@ def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
 
 
 def _draw_profiles(ax, geoms, highlight_shot, n_total):
-    _panel(ax, "b")
+    panel_label(ax, "b")
     present = [(i, g) for i, g in enumerate(geoms) if g is not None]
     if not present:
         ax.text(0.5, 0.5, "keine Bilder – Breitenprofil nicht verfügbar",
@@ -562,7 +534,7 @@ def _draw_profiles(ax, geoms, highlight_shot, n_total):
         ax.plot(g.s_mm, g.w_mm, color=_shot_color(i, n_total), lw=0.7, alpha=0.85)
     if hi is not None and geoms[hi] is not None:
         g = geoms[hi]
-        ax.plot(g.s_mm, g.w_mm, color=_OUTLIER_COLOR, lw=1.6,
+        ax.plot(g.s_mm, g.w_mm, color=OUTLIER, lw=1.6,
                 label=f"Shot {highlight_shot}")
         ax.legend(loc="upper right")
     ax.axvline(0, color="0.9", lw=0.5, zorder=0)
@@ -572,14 +544,14 @@ def _draw_profiles(ax, geoms, highlight_shot, n_total):
 
 
 def _draw_value_over_shot(ax, m: SheetMetrics):
-    _panel(ax, "c")
+    panel_label(ax, "c")
     x = np.arange(1, m.n_shots + 1)
     has_ext = np.isfinite(m.ext_full_series).any()
     y = m.ext_full_series if has_ext else m.diameter_series
     label = "ext_full [mm]" if has_ext else "circle_diameter_mm [mm]"
     finite = np.isfinite(y)
     ax.plot(x, y, color="0.75", lw=0.8, zorder=2)
-    ax.scatter(x[finite], y[finite], c=x[finite], cmap=_SHOT_CMAP, vmin=1,
+    ax.scatter(x[finite], y[finite], c=x[finite], cmap=SEQ, vmin=1,
                vmax=m.n_shots, s=26, zorder=3, label=label)
     if finite.any():
         med = float(np.nanmedian(y))
@@ -588,7 +560,7 @@ def _draw_value_over_shot(ax, m: SheetMetrics):
     hi = m.highlight_shot
     if hi and finite[hi - 1]:
         ax.scatter([hi], [y[hi - 1]], s=90, facecolors="none",
-                   edgecolors=_OUTLIER_COLOR, linewidths=1.4, zorder=4,
+                   edgecolors=OUTLIER, linewidths=1.4, zorder=4,
                    label=f"äußerster Shot {hi}")
     ax.set_xlabel("Shot-Index (Aufnahmereihenfolge)")
     ax.set_ylabel(label)
@@ -610,7 +582,7 @@ def _draw_value_over_shot(ax, m: SheetMetrics):
 
 
 def _draw_table(ax, m: SheetMetrics):
-    _panel(ax, "d")
+    panel_label(ax, "d")
     ax.set_axis_off()
     cols = ["Merkmal", "Einh.", "n", "Mittel", "Std", "Min", "Max",
             "Spannw.", "Extrem-Shot", "z_klass", "z_rob", "Ref-σ"]
@@ -666,10 +638,10 @@ def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
     ax_s = fig.add_subplot(inner[0, 0])
     ax_v = fig.add_subplot(inner[0, 1])
     ax_c = fig.add_subplot(inner[0, 2])
-    _panel(ax_s, "e")
+    panel_label(ax_s, "e")
     row_by_key = {r.key: r for r in m.rows}
     yt = [f"S{i+1}" for i in range(m.n_shots)]
-    cmap_scalar = plt.get_cmap("RdBu_r").copy()
+    cmap_scalar = plt.get_cmap(DIV).copy()
     cmap_scalar.set_bad("0.85")          # maskierte Zelle (kein robustes Signal)
     cmap_vector = plt.get_cmap("Reds").copy()
     cmap_vector.set_bad("0.85")
@@ -718,7 +690,7 @@ def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
         ax_v.set_axis_off()
 
     # Auffaelligkeit je Shot als Balken (auffaellige ZEILE = schlechter Shot)
-    bar_colors = [_OUTLIER_COLOR if (m.highlight_shot == i + 1) else "0.45"
+    bar_colors = [OUTLIER if (m.highlight_shot == i + 1) else "0.45"
                   for i in range(m.n_shots)]
     ax_c.barh(range(m.n_shots), m.conspicuity, color=bar_colors, height=0.7)
     ax_c.set_yticks(range(m.n_shots))
@@ -731,7 +703,7 @@ def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
 
 def render_sheet(m: SheetMetrics, geoms: list, out_path: Path,
                  title: str, subnote: str = "") -> Path:
-    with plt.rc_context(_RC):
+    with style_context():
         fig = plt.figure(figsize=(13.5, 19.5))
         gs = fig.add_gridspec(4, 2, height_ratios=[3.0, 2.2, 2.8, 3.2],
                               hspace=0.5, wspace=0.24)

@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 from .config import resolve  # noqa: E402
+from .plotstyle import apply_style  # noqa: E402
 from .database import Database  # noqa: E402
 from .features import height_corrected_scale  # noqa: E402
 from .matcher import CHANNELS, CandidateReport, MatchReport, channel_scores  # noqa: E402, F401
@@ -78,7 +79,7 @@ def _finish(fig, path: Path, run_id: str) -> None:
     fig.text(0.99, 0.005, f"run: {run_id}", ha="right", va="bottom",
              fontsize=7, color="gray")
     fig.tight_layout(rect=(0, 0.02, 1, 1))
-    fig.savefig(path, dpi=130)
+    fig.savefig(path, dpi=200)   # >= 200 dpi (plotstyle-Vorgabe)
     plt.close(fig)
 
 
@@ -122,14 +123,13 @@ def _plot_confusion(mat: np.ndarray, gts: list, preds: list, title: str,
     ax.set_yticks(range(len(gts)), gts, fontsize=8)
     ax.set_xlabel("erkannt (Top-1)")
     ax.set_ylabel("ground truth")
-    ax.set_title(title, fontsize=10, wrap=True)
+    ax.set_title(title, wrap=True)
     vmax = mat.max() if mat.size else 1
     for i, gt in enumerate(gts):
         for j, pr in enumerate(preds):
             v = int(mat[i, j])
-            if gt == pr:  # Diagonale (korrekt) visuell absetzen
-                ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
-                                           edgecolor="#1a7f37", linewidth=2.2))
+            # Kein Rahmen auf der Diagonale: die blaue Fuellung traegt die
+            # Trefferinfo bereits, ein zweiter Kanal ist redundant.
             if v:
                 ax.text(j, i, str(v), ha="center", va="center", fontsize=8,
                         color="white" if v > 0.6 * vmax else "black")
@@ -227,7 +227,7 @@ def _analysis_scores(reports: list, out: Path, run_id: str, cfg: dict) -> _Secti
             ax.axvline(float(thr), color="black", linestyle="--",
                        label=f"{thr_key} = {thr}")
         ax.set_title(f"{name} (n={len(allv)})")
-        ax.set_xlabel(name + " [dimensionslos]")
+        ax.set_xlabel(name)   # dimensionslos: keine Einheit, Titel nennt die Groesse
         ax.set_ylabel("Anzahl Identifikationen")
         ax.legend(fontsize=8)
     _finish(fig, out / "score_distributions.png", run_id)
@@ -590,6 +590,7 @@ def run_analysis(cfg: dict, reports_dir: str | Path | None = None,
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
     out = resolve(cfg.get("analysis", {}).get("output_dir", "reports/analysis")) / run_id
     out.mkdir(parents=True, exist_ok=True)
+    apply_style()   # zentraler Plot-Stil (plotstyle) fuer alle 6 Artefakte
 
     loaded = load_reports(src)
     reports = [r for _, r in loaded]
