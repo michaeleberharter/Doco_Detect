@@ -133,12 +133,61 @@ def save_enrollment(cfg: dict, article_number: str,
     try:
         ts = int(datetime.now().timestamp() * 1000)
         for i, (img, feats) in enumerate(shots):
-            path = ref_dir / f"{ts}_{i}.jpg"
+            # Verlustloses PNG statt JPG: die Shots sollen kuenftige
+            # Kanten-/Streuungsanalysen tragen, und JPG-Artefakte sitzen genau
+            # an der Kontur. {i:02d} = Index in Aufnahmereihenfolge,
+            # nullgepadded, damit die lexikalische Dateinamen-Sortierung nicht
+            # bei zweistelligen Indizes kippt (_10 vor _2).
+            path = ref_dir / f"{ts}_{i:02d}.png"
             cv2.imwrite(str(path), img)
             pipe.save_reference(article_number, feats, str(path))
     finally:
         pipe.close()
     return len(shots)
+
+
+def enrollment_sheet_for_shots(cfg: dict, article_number: str, shots: list,
+                               out=None):
+    """UI-Fassade (STUFE 4): Enrollment-Diagnoseblatt aus den In-Memory-Shots
+    EINER Einlern-Session – VOR dem Speichern – rendern.
+    shots = [(frame_bgr, Features), ...] in Aufnahmereihenfolge. Die gesamte
+    Logik liegt in enrollment_sheet.build_enrollment_sheet; diese Fassade
+    existiert nur, damit die Qt-UI (wie vorgeschrieben) ausschliesslich
+    pipeline.py ruft. Gibt den Pfad des PNG zurueck."""
+    from .enrollment_sheet import build_enrollment_sheet
+    return build_enrollment_sheet(cfg, article_number=article_number,
+                                  shots=shots, out=out)
+
+
+def discard_enrollment(cfg: dict, article_number: str, shots: list,
+                       sheet_png=None):
+    """Ein im Einlerndialog VERWORFENES Enrollment sichern statt loeschen: die
+    aufgenommenen Frames (+ Diagnoseblatt + info.json) nach
+    <reference_dir>/../verworfen/<artikel>/<zeitstempel>/ schreiben.
+
+    Beruehrt bewusst WEDER die DB NOCH reference_dir: beim pre-commit-Verwerfen
+    war dort nie etwas gespeichert (kein Schema-/Pfad-Vertrag betroffen). Ein
+    verworfenes Enrollment ist das interessanteste Material fuer die Frage,
+    warum es verworfen wurde – genau die Daten, die der C-Serie fehlten. Gibt
+    den Zielordner zurueck."""
+    import json
+    import shutil
+    from pathlib import Path
+
+    ref_dir = resolve(cfg["paths"]["reference_dir"])
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    dest = ref_dir.parent / "verworfen" / article_number / ts
+    dest.mkdir(parents=True, exist_ok=True)
+    for i, (frame, _feats) in enumerate(shots):
+        cv2.imwrite(str(dest / f"{ts}_{i:02d}.png"), frame)
+    if sheet_png and Path(sheet_png).exists():
+        shutil.copy2(str(sheet_png), str(dest / "diagnoseblatt.png"))
+    (dest / "info.json").write_text(
+        json.dumps({"article_number": article_number, "timestamp": ts,
+                    "n_shots": len(shots),
+                    "grund": "im Einlerndialog verworfen (pre-commit, nie in DB)"},
+                   ensure_ascii=False, indent=2), encoding="utf-8")
+    return dest
 
 
 def confirm_result(report: MatchReport, article_number: str):

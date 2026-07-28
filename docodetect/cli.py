@@ -71,11 +71,12 @@ def _create_one(pipe, cfg, img, name, *, article_number=None, height_mm=0.0,
     prefix = cfg.get("create", {}).get("article_number_prefix", "")
     number = article_number or pipe.db.generate_article_number(name, prefix)
     # Foto erst NACH dem Anlegen schreiben, damit ein Fehlschlag kein
-    # verwaistes jpg hinterlässt (womöglich im Ordner eines anderen Artikels).
+    # verwaistes png hinterlässt (womöglich im Ordner eines anderen Artikels).
+    # Verlustloses PNG: Shots sollen kuenftige Kantenanalysen tragen.
     img_path = None
     if store_photo:
         ref_dir = resolve(cfg["paths"]["reference_dir"]) / number
-        img_path = str(ref_dir / f"{int(time.time() * 1000)}.jpg")
+        img_path = str(ref_dir / f"{int(time.time() * 1000)}.png")
 
     article, feats, _ = pipe.create_article(
         img, name, article_number=number, height_mm=height_mm,
@@ -254,13 +255,19 @@ def _enroll_shots(pipe, cfg, cam, article_number: str, shots: int) -> int:
 
     ref_dir = resolve(cfg["paths"]["reference_dir"]) / article_number
     ref_dir.mkdir(parents=True, exist_ok=True)
+    # Eine Aufnahme-Session = ein ts; {i:02d} = Index in Aufnahmereihenfolge
+    # (nur erfolgreiche Shots), nullgepadded wie save_enrollment. Damit traegt
+    # die lexikalische Dateinamen-Sortierung Feld (3) des Diagnoseblatts
+    # explizit und kippt nicht bei zweistelligen Indizes (_10 vor _2).
+    ts = int(time.time() * 1000)
     stored = 0
     i = 0
     while i < shots:
         if input(f"  shot {i + 1}/{shots} > ").strip().lower() == "q":
             break
         img = cam.capture()
-        img_path = ref_dir / f"{int(time.time() * 1000)}.jpg"
+        # Verlustloses PNG: Shots sollen kuenftige Kantenanalysen tragen.
+        img_path = ref_dir / f"{ts}_{i:02d}.png"
         try:
             feats, _ = pipe.enroll(img, article_number, str(img_path))
         except SegmentationError as e:
@@ -434,6 +441,14 @@ def cmd_analyze_floors(args, cfg):
     if o:
         print()
         print(o)
+
+
+def cmd_enrollment_sheet(args, cfg):
+    """Enrollment-Diagnoseblatt (PNG) aus den N Shots eines Artikels."""
+    from .enrollment_sheet import build_enrollment_sheet
+    out = build_enrollment_sheet(cfg, article_number=args.article_number,
+                                 out=args.out)
+    print(f"[enrollment-sheet] geschrieben: {out}")
 
 
 def cmd_corpus_build(args, cfg):
@@ -674,16 +689,21 @@ def main(argv=None):
     p.add_argument("--prefix", default="LOEFFEL",
                    help="Artikelnummern-Stamm (Default: LOEFFEL)")
     p.add_argument("--count", type=int, default=15, help="Anzahl (Default: 15)")
-    p.add_argument("--shots", type=int, default=8,
-                   help="Aufnahmen je Artikel (Default: 8)")
+    p.add_argument("--shots", type=int, default=12,
+                   help="Aufnahmen je Artikel (Default: 12)")
 
     p = sub.add_parser("delete-article", help="remove an article incl. its references")
     p.add_argument("article_number")
 
     p = sub.add_parser("enroll")
     p.add_argument("article_number")
-    p.add_argument("--shots", type=int, default=8)
+    p.add_argument("--shots", type=int, default=12)
     p.add_argument("--images", help="enroll from a folder of photos instead of live capture")
+
+    p = sub.add_parser("enrollment-sheet",
+                       help="Diagnoseblatt (PNG) aus den N Shots eines Artikels")
+    p.add_argument("article_number")
+    p.add_argument("--out", help="Ausgabepfad (Default: reports/enrollment/<nr>.png)")
 
     p = sub.add_parser("identify")
     p.add_argument("--image", help="use an image file instead of the camera")
@@ -818,6 +838,7 @@ def main(argv=None):
         "batch-enroll": cmd_batch_enroll,
         "delete-article": cmd_delete_article,
         "enroll": cmd_enroll,
+        "enrollment-sheet": cmd_enrollment_sheet,
         "identify": cmd_identify,
         "evaluate": cmd_evaluate,
         "list-cameras": cmd_list_cameras,

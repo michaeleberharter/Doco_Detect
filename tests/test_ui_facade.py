@@ -241,7 +241,7 @@ def test_measure_shot_and_save_enrollment_roundtrip(tmp_path):
     arts = {a.article_number: a for a in list_articles(cfg)}
     assert arts["T-270"].n_references == 2
     ref_dir = Path(cfg["paths"]["reference_dir"]) / "T-270"
-    assert len(list(ref_dir.glob("*.jpg"))) == 2  # Referenzfotos wie CLI/Streamlit
+    assert len(list(ref_dir.glob("*.png"))) == 2  # verlustlose Referenzfotos wie CLI
 
 
 def test_measure_shot_border_raises(tmp_path):

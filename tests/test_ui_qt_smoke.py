@@ -501,7 +501,13 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     assert "verworfen" in dlg.hint_label.text()
     assert len(dlg._shots) == 2
 
-    # Speichern -> Referenzen in der DB (1 vorhandene + 2 neue)
+    # Speichern -> STUFE 4: erst Diagnoseblatt + Review, dann DB. Den modalen
+    # Review-Dialog im Test automatisch auf "Übernehmen" stellen (sonst haengt
+    # exec()); der Render-Worker laeuft echt.
+    from docodetect.ui_qt.widgets.enrollment_sheet_dialog import \
+        EnrollmentSheetDialog
+    monkeypatch.setattr(EnrollmentSheetDialog, "exec",
+                        lambda self: EnrollmentSheetDialog.UEBERNEHMEN)
     win.demo_scene_box.setCurrentText("Teller 18")
     dlg._save()
     assert _wait_until(qapp, lambda: dlg.saved_count == 2)
@@ -516,6 +522,65 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     best = win._last_report.candidates[0]
     assert best.article_number == art.article_number
     assert best.n_shots == 3
+    win.close()
+
+
+def test_enroll_dialog_discard_flow(qapp, tmp_path, monkeypatch):
+    """STUFE 4: Verwerfen im Review sichert die Aufnahmen nach data/verworfen/
+    (NICHT in die DB) und leert den Dialog fuer einen neuen Versuch."""
+    from pathlib import Path
+
+    from docodetect.config import load_config
+    from docodetect.pipeline import (Pipeline, calibrate, capture_background,
+                                     list_articles)
+    from docodetect.ui_qt.demo_scenes import DEMO_ARTICLES, build_scene
+    from docodetect.ui_qt.main_window import MainWindow
+    from docodetect.ui_qt.widgets.enroll_dialog import EnrollDialog
+    from docodetect.ui_qt.widgets.enrollment_sheet_dialog import \
+        EnrollmentSheetDialog
+
+    cfg = load_config()
+    cfg["calibration"]["file"] = str(tmp_path / "calibration.json")
+    cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
+    cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
+                    "captures_dir": str(tmp_path / "captures"),
+                    "reference_dir": str(tmp_path / "reference")}
+    capture_background(build_scene(cfg, "Hintergrund"), cfg)
+    calibrate(build_scene(cfg, "Marker"), cfg)
+    art = DEMO_ARTICLES[0]
+    monkeypatch.setattr("docodetect.ui_qt.demo_seed.DEMO_ARTICLES", [art])
+    pipe = Pipeline(cfg)
+    pipe.db.init_schema()
+    pipe.create_article(build_scene(cfg, art.scene_name, 1), art.name,
+                        article_number=art.article_number,
+                        height_mm=art.height_mm, category=art.category)
+    pipe.close()
+    from docodetect.ui_qt.demo_seed import _write_fingerprint
+    _write_fingerprint(cfg)
+
+    win = MainWindow(cfg, demo=True)
+    win.demo_scene_box.setCurrentText("Teller 18")
+    dlg = EnrollDialog(cfg, win.ui, win.source, win)
+    dlg.shots_spin.setValue(2)
+    dlg._capture()
+    assert _wait_until(qapp, lambda: len(dlg._shots) == 1 and dlg._worker is None)
+    dlg._capture()
+    assert _wait_until(qapp, lambda: len(dlg._shots) == 2 and dlg._worker is None)
+
+    # Review automatisch auf "Verwerfen"
+    monkeypatch.setattr(EnrollmentSheetDialog, "exec",
+                        lambda self: EnrollmentSheetDialog.VERWERFEN)
+    dlg._save()
+    assert _wait_until(qapp, lambda: dlg._shots == [] and dlg._worker is None
+                       and "Verworfen" in dlg.hint_label.text())
+
+    # gesichert unter data/verworfen/<art>/, NICHT in der DB
+    verworfen = (Path(cfg["paths"]["reference_dir"]).parent / "verworfen"
+                 / art.article_number)
+    assert verworfen.exists() and any(verworfen.rglob("*.png"))
+    arts = {a.article_number: a for a in list_articles(cfg)}
+    assert arts[art.article_number].n_references == 1   # nur die vorhandene
+    assert dlg.saved_count == 0
     win.close()
 
 

@@ -133,7 +133,7 @@ ui:
   confirm_sound: true        # Ton bei accept
   window_min_width: 1280
   window_min_height: 800
-  enroll_shots: 8            # Default-Aufnahmen im Einlern-Dialog (dort aenderbar)
+  enroll_shots: 12           # Default-Aufnahmen im Einlern-Dialog (dort aenderbar)
   theme: dark                # dark | light – Farbwelt der Qt-App (Umschalter
                              # in der Icon-Schiene; dark ist die Boxen-Umgebung)
 

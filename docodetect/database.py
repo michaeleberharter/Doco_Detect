@@ -240,6 +240,19 @@ class Database:
         ).fetchall()
         return [Features.from_json(r["features_json"]) for r in rows]
 
+    def references_with_meta(self, article_number: str) -> list[tuple[str | None, Features]]:
+        """Wie references_for, aber mit image_path und IN AUFNAHMEREIHENFOLGE –
+        Grundlage fuers Enrollment-Diagnoseblatt (enrollment_sheet). Sortiert
+        nach created_unix (Session) und darin nach image_path: der nullgepaddete
+        Dateiname {ts}_{i:02d} traegt die Shot-Reihenfolge, Altbestand-Zeilen
+        (image_path NULL) sortieren zuerst."""
+        rows = self.conn.execute(
+            "SELECT image_path, features_json FROM reference_features "
+            "WHERE article_number = ? ORDER BY created_unix ASC, image_path ASC",
+            (article_number,),
+        ).fetchall()
+        return [(r["image_path"], Features.from_json(r["features_json"])) for r in rows]
+
     def articles_with_references(self) -> list[str]:
         rows = self.conn.execute(
             "SELECT DISTINCT article_number FROM reference_features"

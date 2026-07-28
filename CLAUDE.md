@@ -177,3 +177,26 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   Vorfilter-Kills 1→3 (die Messausreißer LOEFFEL-3/-6/-7).
 - Der Geometrie-Vorfilter nutzt **immer** die `articles`-Stammdaten, nie
   `reference_stats` — die Basis wechselt auch nach dem Einlernen nicht.
+
+## Enrollment-Diagnose (2026-07-28)
+
+- `enrollment-sheet <artikelnummer> [--out]` (`docodetect/enrollment_sheet.py`)
+  rendert aus den N Shots eines Artikels ein PNG mit fünf Feldern (Konturband,
+  Breitenprofil, Messwert/Shot, Streuungstabelle über ALLE Scoring-Merkmale mit
+  klassischem UND robustem Leave-one-out-z, Shot×Merkmal-Heatmap). Reine
+  **Konsumentenschicht** wie `analysis.py`, KEIN Messpfad; die Geometrie
+  (`ext_full`/`lat_p98`/`w(s)`) ist 1:1 aus den eingefrorenen C-Skripten
+  (`scripts/tail_*_check.py`) kopiert. Felder 1–3 brauchen die Kontur (also
+  gesetztes `reference_features.image_path`); 4–5 laufen rein auf features_json,
+  also auch für Altbestand.
+- Im Qt-Einlerndialog erscheint das Blatt VOR dem DB-Schreiben mit
+  Übernehmen/Verwerfen. **Verwerfen sichert** die Aufnahmen (+ Blatt) nach
+  `data/verworfen/<artikel>/<ts>/` (gitignored) statt sie zu löschen — kein
+  DB-/reference_dir-Eintrag, da pre-commit. Das ist das „warum verworfen"-
+  Material, das der C-Serie fehlte.
+- **Beim Neu-Einlernen beachten:** LOEFFEL-3 ist ein harter Fall (schon in der
+  C-Serie: Messausreißer LOEFFEL-3/-6/-7). Am 2026-07-28 aus den 9
+  Altbestands-Shots gemessen: **σ(Ø) = 1,87 mm**, ~2–4× die saubere
+  C-Serie-Bandbreite (0,43–0,92 mm), mit sichtbarer Drift über die Shots
+  (Diagnoseblatt Feld c/e: auffällig S9/S1/S8). Vor dem Vertrauen auf LOEFFEL-3
+  das Blatt prüfen.
