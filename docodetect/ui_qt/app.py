@@ -25,7 +25,7 @@ _UI_DEFAULTS = {
     "confirm_sound": True,
     "window_min_width": 1280,
     "window_min_height": 800,
-    "enroll_shots": 8,
+    "enroll_shots": 12,
     "theme": theme_mod.DEFAULT_THEME,     # "dark" | "light"
 }
 

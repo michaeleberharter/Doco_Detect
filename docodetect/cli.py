@@ -674,15 +674,15 @@ def main(argv=None):
     p.add_argument("--prefix", default="LOEFFEL",
                    help="Artikelnummern-Stamm (Default: LOEFFEL)")
     p.add_argument("--count", type=int, default=15, help="Anzahl (Default: 15)")
-    p.add_argument("--shots", type=int, default=8,
-                   help="Aufnahmen je Artikel (Default: 8)")
+    p.add_argument("--shots", type=int, default=12,
+                   help="Aufnahmen je Artikel (Default: 12)")
 
     p = sub.add_parser("delete-article", help="remove an article incl. its references")
     p.add_argument("article_number")
 
     p = sub.add_parser("enroll")
     p.add_argument("article_number")
-    p.add_argument("--shots", type=int, default=8)
+    p.add_argument("--shots", type=int, default=12)
     p.add_argument("--images", help="enroll from a folder of photos instead of live capture")
 
     p = sub.add_parser("identify")
