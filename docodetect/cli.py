@@ -71,11 +71,12 @@ def _create_one(pipe, cfg, img, name, *, article_number=None, height_mm=0.0,
     prefix = cfg.get("create", {}).get("article_number_prefix", "")
     number = article_number or pipe.db.generate_article_number(name, prefix)
     # Foto erst NACH dem Anlegen schreiben, damit ein Fehlschlag kein
-    # verwaistes jpg hinterlässt (womöglich im Ordner eines anderen Artikels).
+    # verwaistes png hinterlässt (womöglich im Ordner eines anderen Artikels).
+    # Verlustloses PNG: Shots sollen kuenftige Kantenanalysen tragen.
     img_path = None
     if store_photo:
         ref_dir = resolve(cfg["paths"]["reference_dir"]) / number
-        img_path = str(ref_dir / f"{int(time.time() * 1000)}.jpg")
+        img_path = str(ref_dir / f"{int(time.time() * 1000)}.png")
 
     article, feats, _ = pipe.create_article(
         img, name, article_number=number, height_mm=height_mm,
@@ -254,13 +255,19 @@ def _enroll_shots(pipe, cfg, cam, article_number: str, shots: int) -> int:
 
     ref_dir = resolve(cfg["paths"]["reference_dir"]) / article_number
     ref_dir.mkdir(parents=True, exist_ok=True)
+    # Eine Aufnahme-Session = ein ts; {i:02d} = Index in Aufnahmereihenfolge
+    # (nur erfolgreiche Shots), nullgepadded wie save_enrollment. Damit traegt
+    # die lexikalische Dateinamen-Sortierung Feld (3) des Diagnoseblatts
+    # explizit und kippt nicht bei zweistelligen Indizes (_10 vor _2).
+    ts = int(time.time() * 1000)
     stored = 0
     i = 0
     while i < shots:
         if input(f"  shot {i + 1}/{shots} > ").strip().lower() == "q":
             break
         img = cam.capture()
-        img_path = ref_dir / f"{int(time.time() * 1000)}.jpg"
+        # Verlustloses PNG: Shots sollen kuenftige Kantenanalysen tragen.
+        img_path = ref_dir / f"{ts}_{i:02d}.png"
         try:
             feats, _ = pipe.enroll(img, article_number, str(img_path))
         except SegmentationError as e:

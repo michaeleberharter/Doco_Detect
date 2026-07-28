@@ -133,7 +133,12 @@ def save_enrollment(cfg: dict, article_number: str,
     try:
         ts = int(datetime.now().timestamp() * 1000)
         for i, (img, feats) in enumerate(shots):
-            path = ref_dir / f"{ts}_{i}.jpg"
+            # Verlustloses PNG statt JPG: die Shots sollen kuenftige
+            # Kanten-/Streuungsanalysen tragen, und JPG-Artefakte sitzen genau
+            # an der Kontur. {i:02d} = Index in Aufnahmereihenfolge,
+            # nullgepadded, damit die lexikalische Dateinamen-Sortierung nicht
+            # bei zweistelligen Indizes kippt (_10 vor _2).
+            path = ref_dir / f"{ts}_{i:02d}.png"
             cv2.imwrite(str(path), img)
             pipe.save_reference(article_number, feats, str(path))
     finally:

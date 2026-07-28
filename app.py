@@ -607,6 +607,10 @@ with tab_enroll:
                 st.info(f"**Vorschau für {pending['article_number']} – noch nicht "
                         "gespeichert.** Nur eine Referenz mit korrekter Kontur "
                         "verbessert die Erkennung – eine falsche verschlechtert sie.")
+                st.caption("Hinweis: Dieser Streamlit-Pfad speichert nur die "
+                           "Merkmale, nicht das Roh-PNG des Shots (anders als "
+                           "Qt-Dialog und CLI). Für das Enrollment-Diagnoseblatt "
+                           "über diese Referenz zum Qt-Einlerndialog wechseln.")
                 col1, col2 = st.columns(2)
                 col1.image(resize_width(pending["frame"], 960), channels="BGR",
                            caption="Original")
