@@ -53,6 +53,32 @@ def _job_save(cfg: dict, article_number: str, shots: list) -> dict:
     return {"n": n, "article_number": article_number}
 
 
+def _job_sheet(cfg: dict, article_number: str, shots: list) -> dict:
+    """Diagnoseblatt aus den In-Memory-Shots rendern (Segmentierung je Shot –
+    darum im Worker). Ausgabe in eine Temp-PNG; die Entscheidung faellt danach
+    im Review-Dialog, VOR dem DB-Schreiben."""
+    import tempfile
+    from pathlib import Path
+
+    from docodetect.pipeline import enrollment_sheet_for_shots
+
+    out = Path(tempfile.mkdtemp(prefix="docodetect_sheet_")) / \
+        f"{article_number}_enrollment.png"
+    png = enrollment_sheet_for_shots(
+        cfg, article_number, [(s["frame"], s["feats"]) for s in shots], out=out)
+    return {"sheet": str(png), "article_number": article_number}
+
+
+def _job_discard(cfg: dict, article_number: str, shots: list,
+                 sheet_png: str) -> dict:
+    from docodetect.pipeline import discard_enrollment
+
+    dest = discard_enrollment(
+        cfg, article_number, [(s["frame"], s["feats"]) for s in shots],
+        sheet_png)
+    return {"dest": str(dest), "n": len(shots)}
+
+
 class EnrollDialog(DialogShell):
     """Nach Schließen: saved_count > 0 => Referenzen wurden angelegt
     (Aufrufer macht refresh_status())."""
@@ -247,10 +273,49 @@ class EnrollDialog(DialogShell):
         nr = self._current_article_number()
         if nr is None or not self._shots:
             return
-        self._start_worker(partial(_job_save, self.cfg, nr, list(self._shots)),
-                           self._save_done)
-        self.save_button.setEnabled(False)
+        # STUFE 4: erst das Diagnoseblatt rendern (Segmentierung je Shot laeuft
+        # im Worker, ~1 s/Aufnahme), dann VOR dem DB-Schreiben pruefen lassen.
+        self.hint_label.setText("Diagnoseblatt wird erstellt "
+                                "(Segmentierung je Aufnahme) …")
+        self._start_worker(partial(_job_sheet, self.cfg, nr, list(self._shots)),
+                           self._sheet_ready)
+
+    def _sheet_ready(self, result: dict) -> None:
+        """Blatt fertig -> Review-Dialog (voll aufloesend) modal zeigen. exec()
+        laeuft eine eigene Event-Schleife: der Render-Worker ist beim Rueckkehr
+        sauber abgeraeumt, das naechste _start_worker also unkritisch."""
+        from .enrollment_sheet_dialog import EnrollmentSheetDialog
+
+        nr = result["article_number"]
+        dlg = EnrollmentSheetDialog(result["sheet"], self)
+        decision = dlg.exec()
+        if decision == EnrollmentSheetDialog.UEBERNEHMEN:
+            self.hint_label.setText("Speichern …")
+            self._start_worker(
+                partial(_job_save, self.cfg, nr, list(self._shots)),
+                self._save_done)
+        elif decision == EnrollmentSheetDialog.VERWERFEN:
+            self.hint_label.setText("Verworfene Aufnahmen werden gesichert …")
+            self._start_worker(
+                partial(_job_discard, self.cfg, nr, list(self._shots),
+                        result["sheet"]),
+                self._discard_done)
+        else:
+            self.hint_label.setText(
+                "Prüfung abgebrochen – Aufnahmen bleiben, erneut „Speichern“.")
+            self._update_texts()
 
     def _save_done(self, result: dict) -> None:
         self.saved_count = result["n"]
         self.accept()
+
+    def _discard_done(self, result: dict) -> None:
+        """Verworfen: Aufnahmen sind gesichert (nicht in der DB). Dialog
+        zuruecksetzen, damit direkt neu aufgenommen werden kann."""
+        self._shots.clear()
+        self._retake_index = None
+        self._rebuild_thumbs()
+        self.hint_label.setText(
+            f"Verworfen – {result['n']} Aufnahmen + Blatt gesichert unter "
+            f"{result['dest']} (kein DB-Eintrag).")
+        self._update_texts()

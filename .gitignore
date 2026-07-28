@@ -13,6 +13,7 @@ data/captures
 data/reference
 data/demo
 data/testset-smoke
+data/verworfen
 # reports/ ist Arbeitsordner (ignoriert); reports/archive/ ist das
 # VERSIONIERTE Auswertungs-Archiv (analyze --publish). Die Muster-Kombination
 # ist Pflicht: Git steigt in komplett ignorierte Ordner nicht ab, erst
