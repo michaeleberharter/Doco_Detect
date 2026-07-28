@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """tail_extent_check.py — Diagnose des anisotropen Tail-Effekts (read-only).
 
+VERDIKT (2026-07-28): Ansatz GETRAGEN. Reproduziert die 8 Tails der Analyse
+bitgenau (is_tail via reference_stats faengt auch die vom Vorfilter
+verworfenen Ausreisser) und liefert die Extent-Messung, auf der C1-C7 aufbauen.
+Das Fundament der Serie — hier weiterarbeiten, nicht bei profile/overlay.
+
 Frage (siehe docs/2026-07-27-scoring-analyse.md, Abschnitt 5/9): Bei acht
 Korpus-Aufnahmen faellt die gemessene Laenge ~4 % unter das eigene
 Enrollment-Mittel, die Breite bleibt erhalten. Die Achsen-Flip-Hypothese ist

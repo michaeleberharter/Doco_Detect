@@ -2,6 +2,13 @@
 """tail_profile_check.py — Wo entlang der Objektachse geht das Tail-Defizit
 verloren? (read-only Diagnose)
 
+VERDIKT (2026-07-28): Ansatz GESCHEITERT am ~1-mm-Silhouetten-Rauschboden.
+Die Breitenprofil-Landmarken (Taille s_wmin, s_half) jittern in sauberen
+Gruppen 1-2 mm, d_mid bis 49 mm (Taille/Stielende-Tie-Flip) — keine Landmarke
+haelt die < 0,5 mm, die zum Aufloesen eines 5-mm-Defizits noetig waeren.
+NICHT erneut versuchen, bevor der Rauschboden am Rig gesenkt ist
+(Wiederholtest, Mittelung mehrerer Aufnahmen). Details: Modul-Gate unten.
+
 Ausgangslage (C3): der Tail ist ein echtes Phaenomen, aber nur fuer die
 harten Faelle — LOEFFEL-6, LOEFFEL-2, GABEL-1, LOEFFEL-3 und (grenzwertig)
 LOEFFEL-7. LOEFFEL-4-b und LOEFFEL-12 sind vom Bulk nicht trennbar und

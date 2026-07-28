@@ -2,6 +2,18 @@
 """tail_completion_check.py — Feuert die Auswaerts-Vervollstaendigung im Tail
 schwaecher als in der Referenz? (read-only, instrumentiert)
 
+VERDIKT (2026-07-28): Instrumentierung GETRAGEN, Hypothese WIDERLEGT. Der
+ext-Auswaertslauf (reach=48) feuert NIE (0/165 Bilder); die amodalen Zweige
+(_enclosed/_bridging/_notches) unterscheiden sich Tail vs. Referenz
+inkonsistent (3x weniger, 2x mehr) und sind flaechen-additiv, koennen also den
+Laengen-Defizit nicht treiben. Der zunaechst gefundene n_frozen-Unterschied
+war ein Normalisierungsartefakt (C7: frozen_frac = n_frozen/n_contour ~ 1.0
+fuer Tails UND Kontrollen). Keine am Schreibtisch festnagelbare Segmentierungs-
+Ursache. Einziger schwacher Lead: gmag auf der Kontur 5/5 niedriger im Tail
+(p=0,03), aber innerhalb 1 Sigma der Kontrollspanne -> Wiederholtest muss
+Beleuchtung/Kontrast variieren. Die Monkeypatch-Technik selbst ist
+wiederverwendbar (segmentation.py bleibt unangetastet).
+
 C5 hat den Verdaechtigen gewechselt: nicht Trunkierung nach innen, sondern
 unterschiedlich starke Vervollstaendigung nach AUSSEN — der ext-Auswaertslauf
 (reach=48 px) und die amodalen Zweige _enclosed_zones/_bridging_zones/

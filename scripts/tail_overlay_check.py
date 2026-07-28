@@ -2,6 +2,15 @@
 """tail_overlay_check.py — Wo sitzt das Tail-Defizit? Starre Ueberlagerung
 statt Landmarken. (read-only)
 
+VERDIKT (2026-07-28): Ansatz GESCHEITERT am ~1-mm-Silhouetten-Rauschboden.
+Die starre Schwerpunkt-/PCA-Ausrichtung hat ~1 mm axialen Restfehler, ueber
+die steilen Profilgradienten zu 2-9 mm Schein-Defizit verstaerkt — so gross
+wie das Signal selbst. Der Kontroll-Durchlauf (Referenz gegen Referenz) faellt
+in ALLEN Gruppen durch (paarweise = vs-Mean, also fundamental, keine
+Mittelungs-Unschaerfe). NICHT erneut versuchen, bevor der Rauschboden am Rig
+bekannt/gesenkt ist. Die Vorzeichenstruktur (woelben, C5b) ist rauschbodenfrei
+und traegt — der Betrag/die Lokalisierung nicht.
+
 C2 ist am Landmarkenrauschen gescheitert (Taille/s_half zu jittrig). C4 misst
 stattdessen ein Differenzmass, das ueber die GANZE Kontur mittelt: Tail-Kontur
 gegen die gemittelte Referenz desselben Artikels/derselben Session, starr auf
