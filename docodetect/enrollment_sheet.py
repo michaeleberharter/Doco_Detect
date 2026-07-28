@@ -841,3 +841,54 @@ def build_enrollment_sheet(cfg: dict, article_number: str | None = None,
         base = cfg.get("analysis", {}).get("output_dir", "reports/analysis")
         out = resolve(base) / "enrollment" / f"{article_number or 'session'}.png"
     return render_sheet(metrics, geoms, Path(out), title, subnote)
+
+
+def build_contour_band(cfg: dict, article_number: str, session: str | None = None,
+                       out=None):
+    """(11) Eigenständiges Konturband-Blatt eines Artikels: alle Konturen
+    ueberlagert (Schwerpunkt + PCA ausgerichtet) + Breitenprofil w(s) derselben
+    Aufnahmen. Separater CLI-Befehl (Segmentierung je Aufnahme kostet), nicht
+    Teil von `analyze`. `session` filtert die Referenzen ueber einen Teilstring
+    des image_path (der {ts}-Praefix je Einlern-Session). Braucht gesetzte
+    image_path (Felder brauchen die Kontur)."""
+    pipe = Pipeline(cfg)
+    try:
+        mmpp = float(pipe.cal.mm_per_px)
+        meta = pipe.db.references_with_meta(article_number)
+        if session:
+            meta = [(ip, f) for ip, f in meta if ip and session in Path(ip).name]
+        geoms = [_geometry_for(pipe, _load_image(ip, cfg), mmpp) for ip, _ in meta]
+    finally:
+        pipe.close()
+    present = [g for g in geoms if g is not None]
+    if len(present) < 2:
+        raise ValueError(
+            f"weniger als 2 segmentierbare Konturen für {article_number}"
+            + (f" (Session {session})" if session else "")
+            + " – ein Konturband braucht mehrere Aufnahmen mit gesetztem image_path.")
+    highlight, residual = _contour_outlier(geoms)
+    with style_context():
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 6))
+        _draw_contour_band(fig, ax1, geoms, highlight, residual, len(geoms), "a")
+        _draw_profiles(ax2, geoms, highlight, len(geoms), "b")
+        head = f"Konturband · {article_number}"
+        if session:
+            head += f" · Session {session}"
+        fig.suptitle(f"{head} · N={len(present)} Konturen", fontsize=12,
+                     fontweight="bold", y=1.0)
+        res = f"{residual:.2f} mm" if residual is not None else "n/a"
+        fig.text(0.5, 0.005,
+                 "PFLICHT-HINWEIS: die starre Schwerpunkt-/PCA-Registrierung hat "
+                 "laut C-Serie einen Boden von 2–9 mm – Unterschiede darunter sind "
+                 f"NICHT interpretierbar. Ausrichtungs-Restfehler {res}. "
+                 "Registrierungsfrei ist nur das Breitenprofil (b).",
+                 ha="center", va="bottom", fontsize=7.5, color="0.25", wrap=True)
+        if out is None:
+            base = cfg.get("analysis", {}).get("output_dir", "reports/analysis")
+            name = article_number + (f"_{session}" if session else "")
+            out = resolve(base) / "contour_band" / f"{name}.png"
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=220, bbox_inches="tight")
+        plt.close(fig)
+    return out

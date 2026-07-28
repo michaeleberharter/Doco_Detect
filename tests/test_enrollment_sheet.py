@@ -187,3 +187,34 @@ def test_discard_enrollment_saves_frames_not_db(tmp_path):
     assert (dest / "info.json").exists()
     # reference_dir des Artikels bleibt unberuehrt (kein Speichern in die DB-Welt)
     assert not (tmp_path / "reference" / "GABEL-9").exists()
+
+
+# ---------- (11) contour-band ----------
+
+def test_build_contour_band(tmp_path):
+    """Eigenständiges Konturband-Blatt: mehrere eingelernte Shots -> PNG."""
+    from docodetect.database import Article, Database
+    from docodetect.enrollment_sheet import build_contour_band
+    from docodetect.pipeline import (calibrate, capture_background, measure_shot,
+                                     save_enrollment)
+    from docodetect.ui_qt.demo_scenes import build_scene
+
+    cfg = _marker_cfg(tmp_path)
+    capture_background(build_scene(cfg, "Hintergrund"), cfg)
+    calibrate(build_scene(cfg, "Marker"), cfg)
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(
+        article_number="T-180", name="Teller flach 18", category="Teller",
+        diameter_mm=182.0, width_mm=None, depth_mm=None, height_mm=20.0,
+        color_desc=None, notes=None))
+    db.close()
+    shots = []
+    for v in range(1, 5):
+        img = build_scene(cfg, "Teller 18", v)
+        feats, _ = measure_shot(img, cfg)
+        shots.append((img, feats))
+    save_enrollment(cfg, "T-180", shots)
+
+    out = build_contour_band(cfg, "T-180", out=tmp_path / "cb.png")
+    assert out.exists() and out.stat().st_size > 3000
