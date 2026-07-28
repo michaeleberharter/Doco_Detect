@@ -489,8 +489,8 @@ def _shot_index_colorbar(fig, ax, n: int) -> None:
     cb.outline.set_linewidth(0.5)
 
 
-def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
-    panel_label(ax, "a")
+def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total, letter):
+    panel_label(ax, letter)
     present = [(i, g) for i, g in enumerate(geoms) if g is not None]
     if not present:
         ax.text(0.5, 0.5, "keine Bilder – Konturband nicht verfügbar",
@@ -519,8 +519,8 @@ def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
     _shot_index_colorbar(fig, ax, n_total)
 
 
-def _draw_profiles(ax, geoms, highlight_shot, n_total):
-    panel_label(ax, "b")
+def _draw_profiles(ax, geoms, highlight_shot, n_total, letter):
+    panel_label(ax, letter)
     present = [(i, g) for i, g in enumerate(geoms) if g is not None]
     if not present:
         ax.text(0.5, 0.5, "keine Bilder – Breitenprofil nicht verfügbar",
@@ -543,8 +543,8 @@ def _draw_profiles(ax, geoms, highlight_shot, n_total):
     ax.set_title("Breitenprofil w(s) · Farbe = Shot-Index")
 
 
-def _draw_value_over_shot(ax, m: SheetMetrics):
-    panel_label(ax, "c")
+def _draw_value_over_shot(ax, m: SheetMetrics, letter):
+    panel_label(ax, letter)
     x = np.arange(1, m.n_shots + 1)
     has_ext = np.isfinite(m.ext_full_series).any()
     y = m.ext_full_series if has_ext else m.diameter_series
@@ -581,8 +581,8 @@ def _draw_value_over_shot(ax, m: SheetMetrics):
     ax.legend(lines, labels, loc="best", ncol=2)
 
 
-def _draw_table(ax, m: SheetMetrics):
-    panel_label(ax, "d")
+def _draw_table(ax, m: SheetMetrics, letter):
+    panel_label(ax, letter)
     ax.set_axis_off()
     cols = ["Merkmal", "Einh.", "n", "Mittel", "Std", "Min", "Max",
             "Spannw.", "Extrem-Shot", "z_klass", "z_rob", "Ref-σ"]
@@ -631,14 +631,14 @@ def _draw_table(ax, m: SheetMetrics):
             va="center", ha="left")
 
 
-def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
+def _draw_heatmaps(fig, gs_slot, m: SheetMetrics, letter):
     inner = gs_slot.subgridspec(1, 3, width_ratios=[len(m.scalar_keys) + 1.4,
                                                     len(m.vector_keys) + 1.4, 2.2],
                                 wspace=0.7)
     ax_s = fig.add_subplot(inner[0, 0])
     ax_v = fig.add_subplot(inner[0, 1])
     ax_c = fig.add_subplot(inner[0, 2])
-    panel_label(ax_s, "e")
+    panel_label(ax_s, letter)
     row_by_key = {r.key: r for r in m.rows}
     yt = [f"S{i+1}" for i in range(m.n_shots)]
     cmap_scalar = plt.get_cmap(DIV).copy()
@@ -704,29 +704,43 @@ def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
 def render_sheet(m: SheetMetrics, geoms: list, out_path: Path,
                  title: str, subnote: str = "") -> Path:
     with style_context():
-        fig = plt.figure(figsize=(13.5, 19.5))
-        gs = fig.add_gridspec(4, 2, height_ratios=[3.0, 2.2, 2.8, 3.2],
-                              hspace=0.5, wspace=0.24)
-        _draw_contour_band(fig, fig.add_subplot(gs[0, 0]), geoms,
-                           m.highlight_shot, m.align_residual_mm, m.n_shots)
-        _draw_profiles(fig.add_subplot(gs[0, 1]), geoms, m.highlight_shot,
-                       m.n_shots)
-        _draw_value_over_shot(fig.add_subplot(gs[1, :]), m)
-        _draw_table(fig.add_subplot(gs[2, :]), m)
-        _draw_heatmaps(fig, gs[3, :], m)
+        # Ohne jedes Bild entfallen Konturband + Breitenprofil GANZ (statt zwei
+        # leere Panels ueber die halbe Blatthoehe): Blatt kuerzer, Panel-Labels
+        # neu durchbuchstabiert (a=Messwert, b=Tabelle, c=Heatmap).
+        has_img = m.n_with_image > 0
+        if has_img:
+            fig = plt.figure(figsize=(13.5, 19.5))
+            gs = fig.add_gridspec(4, 2, height_ratios=[3.0, 2.2, 2.8, 3.2],
+                                  hspace=0.5, wspace=0.24)
+            _draw_contour_band(fig, fig.add_subplot(gs[0, 0]), geoms,
+                               m.highlight_shot, m.align_residual_mm, m.n_shots, "a")
+            _draw_profiles(fig.add_subplot(gs[0, 1]), geoms, m.highlight_shot,
+                           m.n_shots, "b")
+            _draw_value_over_shot(fig.add_subplot(gs[1, :]), m, "c")
+            _draw_table(fig.add_subplot(gs[2, :]), m, "d")
+            _draw_heatmaps(fig, gs[3, :], m, "e")
+        else:
+            fig = plt.figure(figsize=(13.5, 13.5))
+            gs = fig.add_gridspec(3, 1, height_ratios=[2.2, 2.8, 3.2], hspace=0.5)
+            _draw_value_over_shot(fig.add_subplot(gs[0, 0]), m, "a")
+            _draw_table(fig.add_subplot(gs[1, 0]), m, "b")
+            _draw_heatmaps(fig, gs[2, 0], m, "c")
 
         miss = m.n_shots - m.n_with_image
         head = f"{title}   ·   N={m.n_shots} Shots"
         if miss:
-            head += f"   ·   {miss} ohne Bild (Felder a–c ausgelassen)"
-        fig.suptitle(head, fontsize=12.5, y=0.996, fontweight="bold")
-        caption = (
+            head += f"   ·   {miss} ohne Bild"
+        fig.suptitle(head, fontsize=12, y=0.996, fontweight="bold")
+        zdef = ("z_klass=(x−mean_{j≠i})/std, z_rob=(x−median)/(1.4826·MAD) "
+                "leave-one-out; Vektor-z über die Distanzmenge (0=Normalfall).")
+        # Der Registrierungs-Vorbehalt gilt nur den Kontur-Feldern – ohne Bild
+        # weglassen.
+        contour_note = (
             "Kein Messinstrument: die starre Schwerpunkt-/PCA-Registrierung hat "
             "laut C4 einen Boden von 2–9 mm – das Blatt zeigt die Bandbreite, "
-            "nicht lokalisierte Differenzen.  z_klass=(x−mean_{j≠i})/std, "
-            "z_rob=(x−median)/(1.4826·MAD) leave-one-out; Vektor-z über die "
-            "Distanzmenge (0=Normalfall).  Skala a–c: Bodenebene wie C-Serie, "
-            "kein Höhenausgleich.")
+            "nicht lokalisierte Differenzen.  Skala Kontur-Felder: Bodenebene "
+            "wie C-Serie, kein Höhenausgleich.  ") if has_img else ""
+        caption = contour_note + zdef
         if subnote:
             caption = subnote + "  " + caption
         fig.text(0.5, 0.005, caption, ha="center", va="bottom", fontsize=7,
@@ -822,5 +836,8 @@ def build_enrollment_sheet(cfg: dict, article_number: str | None = None,
 
     title = f"Enrollment-Diagnoseblatt · {article_number or 'Session'}"
     if out is None:
-        out = resolve("reports") / "enrollment" / f"{article_number or 'session'}.png"
+        # Neben die uebrigen Analyse-Artefakte, damit sie dieselbe Ablage/
+        # Archivierung erben (nicht mehr nach ~/Documents/tmp).
+        base = cfg.get("analysis", {}).get("output_dir", "reports/analysis")
+        out = resolve(base) / "enrollment" / f"{article_number or 'session'}.png"
     return render_sheet(metrics, geoms, Path(out), title, subnote)
