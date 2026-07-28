@@ -451,6 +451,15 @@ def cmd_enrollment_sheet(args, cfg):
     print(f"[enrollment-sheet] geschrieben: {out}")
 
 
+def cmd_contour_band(args, cfg):
+    """(11) Konturband + Breitenprofil eines Artikels – separat, weil die
+    Segmentierung je Aufnahme kostet (nicht Teil von `analyze`)."""
+    from .enrollment_sheet import build_contour_band
+    out = build_contour_band(cfg, args.article_number, session=args.session,
+                             out=args.out)
+    print(f"[contour-band] geschrieben: {out}")
+
+
 def cmd_corpus_build(args, cfg):
     """Regressions-Korpus aus Captures, archivierten Reports und Backups bauen."""
     from .corpus.build import build_corpus
@@ -705,6 +714,15 @@ def main(argv=None):
     p.add_argument("article_number")
     p.add_argument("--out", help="Ausgabepfad (Default: reports/enrollment/<nr>.png)")
 
+    p = sub.add_parser("contour-band",
+                       help="Konturband + Breitenprofil eines Artikels "
+                            "(Segmentierung je Aufnahme)")
+    p.add_argument("article_number")
+    p.add_argument("--session",
+                   help="nur Referenzen einer Einlern-Session (Teilstring des Dateinamens)")
+    p.add_argument("--out", help="Ausgabepfad (Default: "
+                                 "reports/analysis/contour_band/<nr>.png)")
+
     p = sub.add_parser("identify")
     p.add_argument("--image", help="use an image file instead of the camera")
 
@@ -839,6 +857,7 @@ def main(argv=None):
         "delete-article": cmd_delete_article,
         "enroll": cmd_enroll,
         "enrollment-sheet": cmd_enrollment_sheet,
+        "contour-band": cmd_contour_band,
         "identify": cmd_identify,
         "evaluate": cmd_evaluate,
         "list-cameras": cmd_list_cameras,

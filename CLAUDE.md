@@ -200,3 +200,29 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   C-Serie-Bandbreite (0,43–0,92 mm), mit sichtbarer Drift über die Shots
   (Diagnoseblatt Feld c/e: auffällig S9/S1/S8). Vor dem Vertrauen auf LOEFFEL-3
   das Blatt prüfen.
+
+## Aufgeschobene Messpfad-Runde (2026-07-28)
+
+- **Prefilter-Kills sind aus den Report-JSONs nicht rekonstruierbar** (nur die
+  überlebenden Kandidaten stehen drin). Laut C-Serie sitzt das
+  Falschakzept-Risiko konzentriert **genau dort** — kein Falschakzept war je ein
+  Nicht-Kill-Fall. Damit ist die risikotragende Größe **derzeit nicht messbar**;
+  der Vorfilter-Trichter der Analyse zeigt ehrlich „nicht im Kandidatenset".
+- Fix = Prefilter-Liste ins Report-JSON — Messpfad-Eingriff, bewusst
+  aufgeschoben. Gebündelt mit **lat_p98** (echte Breite statt Ø·aspect_ratio-
+  Proxy) und **µs-Auflösung im `timestamp`** (heute nur Sekunden, Analyse keyt
+  auf den ms-Basename des `report_path`). Drei Dinge am selben Ort → **eine**
+  Messpfad-Runde, nicht einzeln (je Runde ein Korpus-Re-Baselining). Details:
+  [docs/2026-07-28-messpfad-aufgeschoben.md](docs/2026-07-28-messpfad-aufgeschoben.md).
+
+- **Korpus tier1 flackert nichtdeterministisch** (`corpus-run --tier 1 --check`
+  auf `workers=8`): am 2026-07-28 einmal `FAIL` mit **1 Bild** (`a8d8c8d7…`,
+  Session phase-b, Artikel **LOEFFEL-3**), `error: "RuntimeError: vector"` —
+  ein Replay-**Absturz** (kein `raise` im Code, Delta-Median 0.0, keine Drift),
+  Re-Lauf sofort grün. Nicht code-verursacht: `corpus/runner.py` importiert
+  weder analysis/review/plotstyle noch ändert der Messpfad sich. **Vorgabe bei
+  Wiederkehr:** ist es DASSELBE Bild (`a8d8c8d7`/LOEFFEL-3) → bekanntes Grenzbild
+  eines harten Artikels, so dokumentieren; jedes Mal ein ANDERES → Harness-
+  Nichtdeterminismus, dann taugt der Korpus so nicht als Regressionsgate
+  (eigenes Thema). Erster dokumentierter sha: `a8d8c8d7` (der frühere Einzelfall
+  ging durch `| tail` verloren).

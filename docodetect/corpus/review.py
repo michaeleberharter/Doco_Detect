@@ -42,7 +42,7 @@ matplotlib.use("Agg")  # headless – nie ein Fenster oeffnen
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from ..analysis import _finish, _plot_confusion, _write_csv  # noqa: E402
+from ..analysis import _finish, _render_confusion, _write_csv  # noqa: E402
 from ..config import project_root, resolve  # noqa: E402
 from ..matcher import MatchReport  # noqa: E402
 from ..reporting import predicted_article  # noqa: E402
@@ -794,10 +794,10 @@ def write_confusion(out: Path, alt: Side, neu: Side, review_id: str) -> int:
     _write_csv(out / "confusion_matrix.csv", ["ground_truth"] + preds,
                [[g] + list(zeile) for g, zeile in zip(gts, mat)])
     n = int(mat.sum())
-    _plot_confusion(mat, gts, preds,
-                    f"Konfusionsmatrix – {neu.name} (n={n}); "
-                    f"ground truth aus {alt.name}",
-                    out / "confusion_matrix.png", review_id)
+    _render_confusion(mat, gts, preds,
+                      f"Konfusionsmatrix – {neu.name} (n={n}); "
+                      f"ground truth aus {alt.name}",
+                      out / "confusion_matrix.png", review_id, n)
 
     akzeptiert = Counter()
     for sha8, rep in neu.reports.items():
@@ -814,10 +814,10 @@ def write_confusion(out: Path, alt: Side, neu: Side, review_id: str) -> int:
                           for g in gts_a], dtype=int)
         _write_csv(out / "confusion_matrix_accept.csv", ["ground_truth"] + preds_a,
                    [[g] + list(zeile) for g, zeile in zip(gts_a, mat_a)])
-        _plot_confusion(mat_a, gts_a, preds_a,
-                        f"Konfusionsmatrix – nur ACCEPT (n={int(mat_a.sum())}) "
-                        f"– Fehler hier sind Fehlbuchungen",
-                        out / "confusion_matrix_accept.png", review_id)
+        _render_confusion(mat_a, gts_a, preds_a,
+                          f"Konfusionsmatrix – nur ACCEPT (n={int(mat_a.sum())}) "
+                          f"– Fehler hier sind Fehlbuchungen",
+                          out / "confusion_matrix_accept.png", review_id, int(mat_a.sum()))
     return n
 
 

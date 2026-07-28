@@ -59,6 +59,7 @@ from .features import Features, scalar_value  # noqa: E402
 # nicht dupliziert werden (CLAUDE.md). Nur-Lesen, features.py bleibt unberuehrt.
 from .features import _PROTO_SRC  # noqa: E402
 from .pipeline import Pipeline  # noqa: E402
+from .plotstyle import DIV, OUTLIER, SEQ, panel_label, style_context  # noqa: E402
 from .segmentation import SegmentationError  # noqa: E402
 
 # C-Serie saubere Gruppen: Streuung von ext_full lag bei 0,43-0,92 mm.
@@ -467,58 +468,29 @@ def _contour_outlier(geoms: list):
 
 
 # ============================================================ Rendering
-# NUR Darstellung – keine Kennzahl wird hier berechnet. Panel-Stil nach
-# Vorbild wissenschaftlicher Artikel: fette Panel-Labels ausserhalb der Achsen,
-# duenne Achsen ohne top/right-spine, kleine serifenlose Schrift, gedaempfte
-# Palette, Shot-Kurven sequenziell (viridis) nach Shot-Index, auffaelligster
-# Shot in kontrastierendem Rot.
-
-_RC = {
-    "font.family": "sans-serif",
-    "font.size": 8,
-    "axes.titlesize": 8.5,
-    "axes.labelsize": 8,
-    "axes.linewidth": 0.6,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "xtick.labelsize": 7,
-    "ytick.labelsize": 7,
-    "xtick.major.size": 2.5,
-    "ytick.major.size": 2.5,
-    "xtick.major.width": 0.6,
-    "ytick.major.width": 0.6,
-    "legend.fontsize": 6.5,
-    "legend.frameon": False,
-    "figure.dpi": 110,
-}
-_OUTLIER_COLOR = "#d62728"          # kontrastierendes Rot
-_SHOT_CMAP = "viridis"
-
-
-def _panel(ax, letter: str) -> None:
-    """Fettes Panel-Label oben links, ausserhalb der Achsen (Punkt-Offset,
-    robust gegen Panelbreite)."""
-    ax.annotate(letter, xy=(0, 1), xycoords="axes fraction",
-                xytext=(-22, 9), textcoords="offset points",
-                fontsize=11, fontweight="bold", va="bottom", ha="left")
+# NUR Darstellung – keine Kennzahl wird hier berechnet. Stil zentral aus
+# docodetect.plotstyle: Panel-Labels ausserhalb der Achsen, duenne Achsen ohne
+# top/right-spine, serifenlos; Shot-Kurven sequenziell (SEQ=viridis) nach
+# Shot-Index, auffaelligster Shot in kontrastierendem Rot (OUTLIER), skalare
+# z-Heatmap divergierend (DIV).
 
 
 def _shot_color(i: int, n: int):
-    return plt.get_cmap(_SHOT_CMAP)(i / max(1, n - 1))
+    return plt.get_cmap(SEQ)(i / max(1, n - 1))
 
 
 def _shot_index_colorbar(fig, ax, n: int) -> None:
     if n < 2:
         return
-    sm = ScalarMappable(norm=Normalize(1, n), cmap=plt.get_cmap(_SHOT_CMAP))
+    sm = ScalarMappable(norm=Normalize(1, n), cmap=plt.get_cmap(SEQ))
     cb = fig.colorbar(sm, ax=ax, fraction=0.045, pad=0.02)
     cb.set_label("Shot-Index", fontsize=7)
     cb.ax.tick_params(labelsize=6, width=0.5)
     cb.outline.set_linewidth(0.5)
 
 
-def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
-    _panel(ax, "a")
+def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total, letter):
+    panel_label(ax, letter)
     present = [(i, g) for i, g in enumerate(geoms) if g is not None]
     if not present:
         ax.text(0.5, 0.5, "keine Bilder – Konturband nicht verfügbar",
@@ -534,7 +506,7 @@ def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
                 lw=0.7, alpha=0.85)
     if hi is not None and geoms[hi] is not None:
         xy = np.vstack([geoms[hi].xy_mm, geoms[hi].xy_mm[:1]])
-        ax.plot(xy[:, 0], xy[:, 1], color=_OUTLIER_COLOR, lw=1.6,
+        ax.plot(xy[:, 0], xy[:, 1], color=OUTLIER, lw=1.6,
                 label=f"Shot {highlight_shot} (äußerster)")
         ax.legend(loc="upper right")
     ax.set_aspect("equal")
@@ -547,8 +519,8 @@ def _draw_contour_band(fig, ax, geoms, highlight_shot, residual, n_total):
     _shot_index_colorbar(fig, ax, n_total)
 
 
-def _draw_profiles(ax, geoms, highlight_shot, n_total):
-    _panel(ax, "b")
+def _draw_profiles(ax, geoms, highlight_shot, n_total, letter):
+    panel_label(ax, letter)
     present = [(i, g) for i, g in enumerate(geoms) if g is not None]
     if not present:
         ax.text(0.5, 0.5, "keine Bilder – Breitenprofil nicht verfügbar",
@@ -562,7 +534,7 @@ def _draw_profiles(ax, geoms, highlight_shot, n_total):
         ax.plot(g.s_mm, g.w_mm, color=_shot_color(i, n_total), lw=0.7, alpha=0.85)
     if hi is not None and geoms[hi] is not None:
         g = geoms[hi]
-        ax.plot(g.s_mm, g.w_mm, color=_OUTLIER_COLOR, lw=1.6,
+        ax.plot(g.s_mm, g.w_mm, color=OUTLIER, lw=1.6,
                 label=f"Shot {highlight_shot}")
         ax.legend(loc="upper right")
     ax.axvline(0, color="0.9", lw=0.5, zorder=0)
@@ -571,15 +543,15 @@ def _draw_profiles(ax, geoms, highlight_shot, n_total):
     ax.set_title("Breitenprofil w(s) · Farbe = Shot-Index")
 
 
-def _draw_value_over_shot(ax, m: SheetMetrics):
-    _panel(ax, "c")
+def _draw_value_over_shot(ax, m: SheetMetrics, letter):
+    panel_label(ax, letter)
     x = np.arange(1, m.n_shots + 1)
     has_ext = np.isfinite(m.ext_full_series).any()
     y = m.ext_full_series if has_ext else m.diameter_series
     label = "ext_full [mm]" if has_ext else "circle_diameter_mm [mm]"
     finite = np.isfinite(y)
     ax.plot(x, y, color="0.75", lw=0.8, zorder=2)
-    ax.scatter(x[finite], y[finite], c=x[finite], cmap=_SHOT_CMAP, vmin=1,
+    ax.scatter(x[finite], y[finite], c=x[finite], cmap=SEQ, vmin=1,
                vmax=m.n_shots, s=26, zorder=3, label=label)
     if finite.any():
         med = float(np.nanmedian(y))
@@ -588,7 +560,7 @@ def _draw_value_over_shot(ax, m: SheetMetrics):
     hi = m.highlight_shot
     if hi and finite[hi - 1]:
         ax.scatter([hi], [y[hi - 1]], s=90, facecolors="none",
-                   edgecolors=_OUTLIER_COLOR, linewidths=1.4, zorder=4,
+                   edgecolors=OUTLIER, linewidths=1.4, zorder=4,
                    label=f"äußerster Shot {hi}")
     ax.set_xlabel("Shot-Index (Aufnahmereihenfolge)")
     ax.set_ylabel(label)
@@ -609,8 +581,8 @@ def _draw_value_over_shot(ax, m: SheetMetrics):
     ax.legend(lines, labels, loc="best", ncol=2)
 
 
-def _draw_table(ax, m: SheetMetrics):
-    _panel(ax, "d")
+def _draw_table(ax, m: SheetMetrics, letter):
+    panel_label(ax, letter)
     ax.set_axis_off()
     cols = ["Merkmal", "Einh.", "n", "Mittel", "Std", "Min", "Max",
             "Spannw.", "Extrem-Shot", "z_klass", "z_rob", "Ref-σ"]
@@ -659,17 +631,17 @@ def _draw_table(ax, m: SheetMetrics):
             va="center", ha="left")
 
 
-def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
+def _draw_heatmaps(fig, gs_slot, m: SheetMetrics, letter):
     inner = gs_slot.subgridspec(1, 3, width_ratios=[len(m.scalar_keys) + 1.4,
                                                     len(m.vector_keys) + 1.4, 2.2],
                                 wspace=0.7)
     ax_s = fig.add_subplot(inner[0, 0])
     ax_v = fig.add_subplot(inner[0, 1])
     ax_c = fig.add_subplot(inner[0, 2])
-    _panel(ax_s, "e")
+    panel_label(ax_s, letter)
     row_by_key = {r.key: r for r in m.rows}
     yt = [f"S{i+1}" for i in range(m.n_shots)]
-    cmap_scalar = plt.get_cmap("RdBu_r").copy()
+    cmap_scalar = plt.get_cmap(DIV).copy()
     cmap_scalar.set_bad("0.85")          # maskierte Zelle (kein robustes Signal)
     cmap_vector = plt.get_cmap("Reds").copy()
     cmap_vector.set_bad("0.85")
@@ -718,7 +690,7 @@ def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
         ax_v.set_axis_off()
 
     # Auffaelligkeit je Shot als Balken (auffaellige ZEILE = schlechter Shot)
-    bar_colors = [_OUTLIER_COLOR if (m.highlight_shot == i + 1) else "0.45"
+    bar_colors = [OUTLIER if (m.highlight_shot == i + 1) else "0.45"
                   for i in range(m.n_shots)]
     ax_c.barh(range(m.n_shots), m.conspicuity, color=bar_colors, height=0.7)
     ax_c.set_yticks(range(m.n_shots))
@@ -731,30 +703,44 @@ def _draw_heatmaps(fig, gs_slot, m: SheetMetrics):
 
 def render_sheet(m: SheetMetrics, geoms: list, out_path: Path,
                  title: str, subnote: str = "") -> Path:
-    with plt.rc_context(_RC):
-        fig = plt.figure(figsize=(13.5, 19.5))
-        gs = fig.add_gridspec(4, 2, height_ratios=[3.0, 2.2, 2.8, 3.2],
-                              hspace=0.5, wspace=0.24)
-        _draw_contour_band(fig, fig.add_subplot(gs[0, 0]), geoms,
-                           m.highlight_shot, m.align_residual_mm, m.n_shots)
-        _draw_profiles(fig.add_subplot(gs[0, 1]), geoms, m.highlight_shot,
-                       m.n_shots)
-        _draw_value_over_shot(fig.add_subplot(gs[1, :]), m)
-        _draw_table(fig.add_subplot(gs[2, :]), m)
-        _draw_heatmaps(fig, gs[3, :], m)
+    with style_context():
+        # Ohne jedes Bild entfallen Konturband + Breitenprofil GANZ (statt zwei
+        # leere Panels ueber die halbe Blatthoehe): Blatt kuerzer, Panel-Labels
+        # neu durchbuchstabiert (a=Messwert, b=Tabelle, c=Heatmap).
+        has_img = m.n_with_image > 0
+        if has_img:
+            fig = plt.figure(figsize=(13.5, 19.5))
+            gs = fig.add_gridspec(4, 2, height_ratios=[3.0, 2.2, 2.8, 3.2],
+                                  hspace=0.5, wspace=0.24)
+            _draw_contour_band(fig, fig.add_subplot(gs[0, 0]), geoms,
+                               m.highlight_shot, m.align_residual_mm, m.n_shots, "a")
+            _draw_profiles(fig.add_subplot(gs[0, 1]), geoms, m.highlight_shot,
+                           m.n_shots, "b")
+            _draw_value_over_shot(fig.add_subplot(gs[1, :]), m, "c")
+            _draw_table(fig.add_subplot(gs[2, :]), m, "d")
+            _draw_heatmaps(fig, gs[3, :], m, "e")
+        else:
+            fig = plt.figure(figsize=(13.5, 13.5))
+            gs = fig.add_gridspec(3, 1, height_ratios=[2.2, 2.8, 3.2], hspace=0.5)
+            _draw_value_over_shot(fig.add_subplot(gs[0, 0]), m, "a")
+            _draw_table(fig.add_subplot(gs[1, 0]), m, "b")
+            _draw_heatmaps(fig, gs[2, 0], m, "c")
 
         miss = m.n_shots - m.n_with_image
         head = f"{title}   ·   N={m.n_shots} Shots"
         if miss:
-            head += f"   ·   {miss} ohne Bild (Felder a–c ausgelassen)"
-        fig.suptitle(head, fontsize=12.5, y=0.996, fontweight="bold")
-        caption = (
+            head += f"   ·   {miss} ohne Bild"
+        fig.suptitle(head, fontsize=12, y=0.996, fontweight="bold")
+        zdef = ("z_klass=(x−mean_{j≠i})/std, z_rob=(x−median)/(1.4826·MAD) "
+                "leave-one-out; Vektor-z über die Distanzmenge (0=Normalfall).")
+        # Der Registrierungs-Vorbehalt gilt nur den Kontur-Feldern – ohne Bild
+        # weglassen.
+        contour_note = (
             "Kein Messinstrument: die starre Schwerpunkt-/PCA-Registrierung hat "
             "laut C4 einen Boden von 2–9 mm – das Blatt zeigt die Bandbreite, "
-            "nicht lokalisierte Differenzen.  z_klass=(x−mean_{j≠i})/std, "
-            "z_rob=(x−median)/(1.4826·MAD) leave-one-out; Vektor-z über die "
-            "Distanzmenge (0=Normalfall).  Skala a–c: Bodenebene wie C-Serie, "
-            "kein Höhenausgleich.")
+            "nicht lokalisierte Differenzen.  Skala Kontur-Felder: Bodenebene "
+            "wie C-Serie, kein Höhenausgleich.  ") if has_img else ""
+        caption = contour_note + zdef
         if subnote:
             caption = subnote + "  " + caption
         fig.text(0.5, 0.005, caption, ha="center", va="bottom", fontsize=7,
@@ -850,5 +836,59 @@ def build_enrollment_sheet(cfg: dict, article_number: str | None = None,
 
     title = f"Enrollment-Diagnoseblatt · {article_number or 'Session'}"
     if out is None:
-        out = resolve("reports") / "enrollment" / f"{article_number or 'session'}.png"
+        # Neben die uebrigen Analyse-Artefakte, damit sie dieselbe Ablage/
+        # Archivierung erben (nicht mehr nach ~/Documents/tmp).
+        base = cfg.get("analysis", {}).get("output_dir", "reports/analysis")
+        out = resolve(base) / "enrollment" / f"{article_number or 'session'}.png"
     return render_sheet(metrics, geoms, Path(out), title, subnote)
+
+
+def build_contour_band(cfg: dict, article_number: str, session: str | None = None,
+                       out=None):
+    """(11) Eigenständiges Konturband-Blatt eines Artikels: alle Konturen
+    ueberlagert (Schwerpunkt + PCA ausgerichtet) + Breitenprofil w(s) derselben
+    Aufnahmen. Separater CLI-Befehl (Segmentierung je Aufnahme kostet), nicht
+    Teil von `analyze`. `session` filtert die Referenzen ueber einen Teilstring
+    des image_path (der {ts}-Praefix je Einlern-Session). Braucht gesetzte
+    image_path (Felder brauchen die Kontur)."""
+    pipe = Pipeline(cfg)
+    try:
+        mmpp = float(pipe.cal.mm_per_px)
+        meta = pipe.db.references_with_meta(article_number)
+        if session:
+            meta = [(ip, f) for ip, f in meta if ip and session in Path(ip).name]
+        geoms = [_geometry_for(pipe, _load_image(ip, cfg), mmpp) for ip, _ in meta]
+    finally:
+        pipe.close()
+    present = [g for g in geoms if g is not None]
+    if len(present) < 2:
+        raise ValueError(
+            f"weniger als 2 segmentierbare Konturen für {article_number}"
+            + (f" (Session {session})" if session else "")
+            + " – ein Konturband braucht mehrere Aufnahmen mit gesetztem image_path.")
+    highlight, residual = _contour_outlier(geoms)
+    with style_context():
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 6))
+        _draw_contour_band(fig, ax1, geoms, highlight, residual, len(geoms), "a")
+        _draw_profiles(ax2, geoms, highlight, len(geoms), "b")
+        head = f"Konturband · {article_number}"
+        if session:
+            head += f" · Session {session}"
+        fig.suptitle(f"{head} · N={len(present)} Konturen", fontsize=12,
+                     fontweight="bold", y=1.0)
+        res = f"{residual:.2f} mm" if residual is not None else "n/a"
+        fig.text(0.5, 0.005,
+                 "PFLICHT-HINWEIS: die starre Schwerpunkt-/PCA-Registrierung hat "
+                 "laut C-Serie einen Boden von 2–9 mm – Unterschiede darunter sind "
+                 f"NICHT interpretierbar. Ausrichtungs-Restfehler {res}. "
+                 "Registrierungsfrei ist nur das Breitenprofil (b).",
+                 ha="center", va="bottom", fontsize=7.5, color="0.25", wrap=True)
+        if out is None:
+            base = cfg.get("analysis", {}).get("output_dir", "reports/analysis")
+            name = article_number + (f"_{session}" if session else "")
+            out = resolve(base) / "contour_band" / f"{name}.png"
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=220, bbox_inches="tight")
+        plt.close(fig)
+    return out
