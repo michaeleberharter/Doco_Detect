@@ -301,3 +301,31 @@ def test_run_analysis_survives_unlabeled_only(tmp_path, monkeypatch):
     assert "Übersprungen" in md
     metrics = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["quotas"]["accuracy_top1"]["n"] == 0
+
+
+def test_confusion_focus_reduces_and_marks_zero_diagonal():
+    """STUFE B: die Fehler-Fokus-Reduktion behält nur Fehlerzeilen, markiert
+    nie-getroffene Artikel (Diagonale 0) und gibt None zurück, wenn alles sauber
+    ist (dann rendert der Aufrufer die Textzeile)."""
+    import numpy as np
+
+    from docodetect.analysis import _confusion_focus
+
+    gts = ["A", "B", "C", "D"]
+    preds = gts + ["kein"]
+    mat = np.zeros((4, 5), int)
+    for i in range(4):
+        mat[i, i] = 3
+    mat[0, 0], mat[0, 1] = 2, 1            # A einmal als B verwechselt
+    mat[2, 2], mat[2, 4] = 0, 3            # C nie getroffen (immer "kein")
+    res = _confusion_focus(mat, gts, preds)
+    assert res is not None
+    m2, g2, p2, zero = res
+    assert set(g2) == {"A", "C"}          # nur Zeilen mit Fehlern
+    assert zero == {"C"}                  # Diagonale-0 markiert
+    assert "kein" in p2 and "B" in p2     # beteiligte Spalten dabei
+
+    clean = np.zeros((3, 3), int)
+    for i in range(3):
+        clean[i, i] = 3
+    assert _confusion_focus(clean, gts[:3], gts[:3]) is None
