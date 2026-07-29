@@ -49,6 +49,9 @@ class Features:
     perimeter_mm: float
     circularity: float            # 4*pi*A / P^2
     aspect_ratio: float           # short/long side of minAreaRect, in (0,1]
+    lat_p98_mm: float = 0.0       # 1-99 pctl width of the minor axis (contour-derived,
+                                  # C-series); 0.0 = reference enrolled before lat_p98.
+                                  # Diagnostic/analysis only – NOT a scoring feature.
     # color (global – backward compatible with pre-ring-zone references)
     mean_hsv: list = field(default_factory=list)       # [h, s, v]
     hue_hist: list = field(default_factory=list)       # HUE_BINS floats, sums to 1
@@ -90,6 +93,62 @@ def min_area_rect_mm(contour: np.ndarray, cal: Calibration,
     long_mm = height_corrected_scale(max(rw, rh) * cal.mm_per_px, object_height_mm, z)
     short_mm = height_corrected_scale(min(rw, rh) * cal.mm_per_px, object_height_mm, z)
     return round(long_mm, 2), round(short_mm, 2)
+
+
+# --- lateral extent via PCA (contour-derived width, independent of the
+#     minEnclosingCircle diameter). Primitives 1:1 aus den eingefrorenen
+#     C-Skripten scripts/tail_extent_check.py / tail_profile_check.py; sie
+#     liegen hier (Messpfad), das Diagnoseblatt (enrollment_sheet.py) IMPORTIERT
+#     sie von hier – Messlogik wird nicht dupliziert (CLAUDE.md). ---
+
+def _densify(poly: np.ndarray, step: float = 0.5) -> np.ndarray:
+    """Geschlossenes Polygon bogenlaengen-gleichmaessig nachsamplen
+    (step 0.5 px, tail_profile_check.py:99)."""
+    p = poly.astype(np.float64)
+    n = len(p)
+    out = []
+    for i in range(n):
+        a, b = p[i], p[(i + 1) % n]
+        d = float(np.hypot(*(b - a)))
+        k = max(1, int(d / step))
+        for j in range(k):
+            out.append(a + (b - a) * (j / k))
+    return np.asarray(out, dtype=np.float64)
+
+
+def _pca_axes(points: np.ndarray):
+    """Haupt- und Nebenachse (Einheitsvektoren) plus Schwerpunkt."""
+    center = points.mean(axis=0)
+    cov = np.cov((points - center).T)
+    vals, vecs = np.linalg.eigh(cov)          # aufsteigend
+    order = np.argsort(vals)[::-1]
+    main = vecs[:, order[0]]
+    minor = vecs[:, order[1]]
+    return center, main / np.linalg.norm(main), minor / np.linalg.norm(minor)
+
+
+def _proj(points: np.ndarray, axis: np.ndarray) -> np.ndarray:
+    """Skalarprojektion der Punkte auf eine Achse (einsum vermeidet eine
+    spuriose divide-by-zero-Warnung des matmul-SIMD-Pfads)."""
+    return np.einsum("ij,j->i", points, axis)
+
+
+def _pctl(a: np.ndarray, lo: float, hi: float) -> float:
+    return float(np.percentile(a, hi) - np.percentile(a, lo))
+
+
+def lateral_extent_p98_mm(contour, mm_per_px: float) -> float:
+    """1-99-Perzentilspanne der Nebenachsen-Projektion einer Kontur, in mm —
+    die 'echte Breite' (Nebenachse), unabhaengig vom minEnclosingCircle-Ø.
+    Densify -> PCA -> Projektion auf die Nebenachse -> Perzentilspanne, 1:1 wie
+    enrollment_sheet._shot_geometry. 0.0 fuer entartete Konturen (< 5 Punkte)."""
+    pts = np.asarray(contour, dtype=np.float64).reshape(-1, 2)
+    if len(pts) < 5:
+        return 0.0
+    dense = _densify(pts)
+    center, _main, minor = _pca_axes(dense)
+    proj_minor = _proj(dense - center, minor)
+    return float(_pctl(proj_minor, 1.0, 99.0)) * mm_per_px
 
 
 def describe_color_hsv(mean_hsv: list) -> str:
@@ -181,6 +240,11 @@ def extract(image: np.ndarray, seg: SegmentationResult, cal: Calibration,
     hu = cv2.HuMoments(cv2.moments(c)).flatten()
     hu_log = [-math.copysign(1.0, v) * math.log10(abs(v)) if v != 0 else 0.0 for v in hu]
 
+    # Kontur-abgeleitete Breite (Nebenachse). Append-only: beruehrt keine der
+    # obigen Messgroessen, damit die bestehenden round()-Werte bit-identisch
+    # bleiben (Korpus-Auflage: kein Umordnen bestehender Arithmetik).
+    lat_p98_mm = lateral_extent_p98_mm(c, s)
+
     return Features(
         equiv_diameter_mm=round(equiv_d_mm, 2),
         circle_diameter_mm=round(circle_d_mm, 2),
@@ -188,6 +252,7 @@ def extract(image: np.ndarray, seg: SegmentationResult, cal: Calibration,
         perimeter_mm=round(perim_mm, 2),
         circularity=round(circularity, 4),
         aspect_ratio=round(aspect, 4),
+        lat_p98_mm=round(lat_p98_mm, 2),
         mean_hsv=[round(v, 2) for v in mean_hsv],
         hue_hist=[round(v, 6) for v in hue_hist],
         mean_saturation=round(mean_hsv[1], 2),

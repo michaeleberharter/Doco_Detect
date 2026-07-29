@@ -39,7 +39,17 @@ in `matcher.py`.
 
 ## Warum gebündelt
 
-Alle drei berühren den Messpfad (matcher/reporting/features) und würden zusammen
-ein Re-Baselining des Regressions-Korpus auslösen (`config_fingerprint` bzw.
-`code_fingerprint`). Darum in **einer** Messpfad-Runde mit Datenbegründung,
-nicht einzeln — jede einzelne Runde zahlt die Re-Baselining-Kosten erneut.
+Alle drei berühren den Messpfad (`matcher.py`/`features.py`, beide in
+`corpus/runner.py::CODE_DATEIEN`). Eine Byte-Änderung dort ändert den
+`code_fingerprint` und damit den Cache-Key — der Regressions-Korpus rechnet
+**einmal komplett neu** (kalter Cache).
+
+Das ist ein **Cache-Recompute, kein Baseline-Update** (frühere Fassung sagte
+hier „Re-Baselining" — ungenau): die drei Zusätze (`prefiltered`-Feld,
+`lat_p98_mm`, µs-`timestamp`) liegen alle NEBEN der Vergleichsfläche von
+`corpus/compare.py` (Tier-1-Allowlist `_TIER1_SKALARE`/`_TIER1_VEKTOREN`; Tier-2:
+`decision`/`top_k`/`gate_passed`/`llr_margin`/`max_z_winner`), und
+`config_fingerprint` bleibt unberührt (kein `features`/`matching`-Config-Eintrag
+ändert sich). `--check` läuft deshalb gegen die **unveränderte** `baseline.json`
+und muss grün bleiben — `--update-baseline` wäre hier falsch. Gebündelt lohnt es
+sich trotzdem: der einmalige Voll-Recompute fällt so nur einmal an, nicht dreimal.

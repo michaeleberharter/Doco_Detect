@@ -19,8 +19,8 @@ import cv2
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (QComboBox, QCompleter, QHBoxLayout, QLabel,
-                               QListWidget, QListWidgetItem, QPushButton,
-                               QSpinBox)
+                               QListWidget, QListWidgetItem, QMessageBox,
+                               QPushButton, QSpinBox)
 
 from docodetect.pipeline import list_articles
 
@@ -45,12 +45,23 @@ def _job_measure(frame, cfg: dict) -> dict:
             "d_mm": feats.circle_diameter_mm}
 
 
-def _job_save(cfg: dict, article_number: str, shots: list) -> dict:
-    from docodetect.pipeline import save_enrollment
+def _job_save(cfg: dict, article_number: str, shots: list,
+              sheet_png: str | None = None) -> dict:
+    from docodetect.pipeline import persist_enrollment_sheet, save_enrollment
 
     n = save_enrollment(cfg, article_number,
                         [(s["frame"], s["feats"]) for s in shots])
-    return {"n": n, "article_number": article_number}
+    # Diagnoseblatt best-effort dauerhaft ablegen. Der DB-Eintrag steht bereits
+    # (oben) — ein Kopierfehler darf ihn nicht rueckgaengig machen oder das
+    # Uebernehmen abbrechen, nur warnen.
+    sheet_dest = warn = None
+    if sheet_png:
+        try:
+            sheet_dest = str(persist_enrollment_sheet(cfg, article_number, sheet_png))
+        except Exception as exc:                       # noqa: BLE001
+            warn = f"Diagnoseblatt nicht gesichert: {exc}"
+    return {"n": n, "article_number": article_number,
+            "sheet_dest": sheet_dest, "warn": warn}
 
 
 def _job_sheet(cfg: dict, article_number: str, shots: list) -> dict:
@@ -292,7 +303,8 @@ class EnrollDialog(DialogShell):
         if decision == EnrollmentSheetDialog.UEBERNEHMEN:
             self.hint_label.setText("Speichern …")
             self._start_worker(
-                partial(_job_save, self.cfg, nr, list(self._shots)),
+                partial(_job_save, self.cfg, nr, list(self._shots),
+                        result["sheet"]),
                 self._save_done)
         elif decision == EnrollmentSheetDialog.VERWERFEN:
             self.hint_label.setText("Verworfene Aufnahmen werden gesichert …")
@@ -307,6 +319,10 @@ class EnrollDialog(DialogShell):
 
     def _save_done(self, result: dict) -> None:
         self.saved_count = result["n"]
+        if result.get("warn"):
+            # DB-Eintrag steht; nur das Blatt-Kopieren ging schief. Nicht
+            # blockieren — sichtbar machen und trotzdem schliessen.
+            QMessageBox.warning(self, "Diagnoseblatt", result["warn"])
         self.accept()
 
     def _discard_done(self, result: dict) -> None:

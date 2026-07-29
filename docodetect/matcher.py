@@ -138,6 +138,10 @@ class MatchReport:
     report_path: str | None = None                      # Ablageort dieses JSONs (für Feedback-Updates)
     centroid_px: list | None = None                     # Objektschwerpunkt [x, y] in px (Positionsanalyse)
     image_size: list | None = None                      # [Breite, Höhe] des Frames in px
+    prefiltered: list = field(default_factory=list)     # vom Geometrie-Vorfilter verworfene
+                                                        # Kandidaten (dict je Kill: reason +
+                                                        # Abstand zur Toleranz). [] = keiner /
+                                                        # historischer Report vor diesem Feld.
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -211,6 +215,27 @@ def _feature_rows(measured: Features, stats: EnrollmentStats | None,
     return rows
 
 
+def _prefilter_kill(article: Article, reason: str, geo_err: float,
+                    tol_mm: float, area_error_pct: float | None = None) -> dict:
+    """Report-Eintrag fuer einen vom Geometrie-Vorfilter verworfenen Kandidaten.
+
+    reason = 'diameter' | 'area'. `over_tolerance_mm` ist der Abstand des
+    Durchmesserfehlers zur Toleranz: > 0 bei Durchmesser-Kills (genau die
+    Groesse, die 'knapp ausserhalb 6 mm' von 'weit daneben' trennt); <= 0 bei
+    Flaechen-Kills, die den Durchmesser-Gate passiert hatten. `area_error_pct`
+    ist nur bei Flaechen-Kills gesetzt (prozentuale Flaechenabweichung)."""
+    return {
+        "article_number": article.article_number,
+        "name": article.name,
+        "reason": reason,
+        "geometry_error_mm": round(geo_err, 2),
+        "tolerance_mm": round(tol_mm, 2),
+        "over_tolerance_mm": round(geo_err - tol_mm, 2),
+        "area_error_pct": (round(area_error_pct, 1)
+                           if area_error_pct is not None else None),
+    }
+
+
 def match(measured: Features, db: Database, cal: Calibration, cfg: dict,
           image_path: str | None = None, label: str | None = None,
           contour: list | None = None,
@@ -225,14 +250,19 @@ def match(measured: Features, db: Database, cal: Calibration, cfg: dict,
     min_llr = float(m.get("min_llr_margin", 2.0))
     thresholds = {"max_z_accept": max_z_accept, "min_llr_margin": min_llr,
                   "softmax_temperature": temperature, "top_k": int(m.get("top_k", 3))}
-    now = datetime.now().isoformat(timespec="seconds")
+    now = datetime.now().isoformat(timespec="microseconds")
 
     w_cfg = m["feature_weights"]
     w_sum = sum(float(w_cfg.get(f, 0.0)) for f in ALL_FEATURES)
     w_global = {f: float(w_cfg.get(f, 0.0)) / w_sum for f in ALL_FEATURES}
 
     # ---- Vorfilter (hart, höhenkompensiert pro Kandidat – wie gehabt) ----
+    # prefiltered protokolliert JEDEN Kill (Grund + Abstand zur Toleranz), ohne
+    # die Kandidatenauswahl zu veraendern: reine Anhaengung auf den continue-
+    # Pfaden. `area_rel` ist nur das benannte Zwischenergebnis der bestehenden
+    # Flaechenpruefung — Wert und Verzweigung bleiben unveraendert.
     prelim: list[tuple[Article, float, float, float, EnrollmentStats | None, dict]] = []
+    prefiltered: list = []
     for art in db.all_articles():
         nominal = _nominal_size_mm(art)
         if nominal is None:
@@ -243,13 +273,17 @@ def match(measured: Features, db: Database, cal: Calibration, cfg: dict,
             measured.circle_diameter_mm, h, cal.camera_height_mm)
         geo_err = abs(corrected_d - nominal)
         if geo_err > tol_mm:
+            prefiltered.append(_prefilter_kill(art, "diameter", geo_err, tol_mm))
             continue
 
         # secondary area plausibility check (same height correction, area ~ scale^2)
         corr = (cal.camera_height_mm - min(h, 0.8 * cal.camera_height_mm)) / cal.camera_height_mm
         corrected_area = measured.area_mm2 * corr * corr
         nominal_area = np.pi * (nominal / 2.0) ** 2
-        if art.diameter_mm and abs(corrected_area - nominal_area) / nominal_area > area_tol * 2:
+        area_rel = abs(corrected_area - nominal_area) / nominal_area
+        if art.diameter_mm and area_rel > area_tol * 2:
+            prefiltered.append(_prefilter_kill(art, "area", geo_err, tol_mm,
+                                               area_error_pct=area_rel * 100.0))
             continue
 
         stats = db.stats_for(art.article_number)
@@ -266,7 +300,7 @@ def match(measured: Features, db: Database, cal: Calibration, cfg: dict,
             alpha=alpha, gate_passed=False, thresholds=thresholds,
             measured=asdict(measured), contour=contour,
             touches_border=touches_border, timestamp=now,
-            image_path=image_path, label=label)
+            image_path=image_path, label=label, prefiltered=prefiltered)
 
     # ---- adaptive Gewichte: Fisher-Ratio über das Kandidatenset ----
     # D_f = Varianz der Kandidaten-Lagen / mittlere Messvarianz. Skalare
@@ -371,4 +405,4 @@ def match(measured: Features, db: Database, cal: Calibration, cfg: dict,
         alpha=alpha, llr_margin=llr, max_z_winner=best.max_abs_z,
         gate_passed=gate, thresholds=thresholds, measured=asdict(measured),
         contour=contour, touches_border=touches_border, timestamp=now,
-        image_path=image_path, label=label)
+        image_path=image_path, label=label, prefiltered=prefiltered)

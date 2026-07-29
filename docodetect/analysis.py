@@ -884,23 +884,39 @@ def _analysis_z_per_feature(reports, out: Path, run_id: str, cfg: dict) -> _Sect
 
 
 def _analysis_prefilter(reports, out: Path, run_id: str, cfg: dict) -> _Section:
-    """(4) Vorfilter-Trichter: wahrer Artikel Rang 1 / im Set (schlechter) /
-    NICHT im Set. Prefilter-Kill ist aus den Reports NICHT von "unter Top-k
-    gescored" trennbar – deshalb die ehrliche dritte Kategorie (siehe
-    docs/2026-07-28-messpfad-aufgeschoben.md)."""
+    """(4) Vorfilter-Trichter je Artikel: wo landet der WAHRE Artikel?
+    Rang 1 / im Set (schlechter) / vom Vorfilter gekillt (Durchmesser knapp
+    bzw. weit über der Toleranz / Fläche) / nicht im Set. Die Kill-Gründe
+    kommen aus report.prefiltered (Messpfad-Runde 2026-07-29); Reports ohne das
+    Feld (Altbestand) zeigen Kills als „nicht im Set", weil der Grund fehlt."""
     sec = _Section("K) Vorfilter-Trichter (wahrer Artikel im Kandidatenset?)")
     labeled = [r for r in reports if r.label]
     if not labeled:
         sec.skipped = "keine Reports mit Label."
         return sec
-    cats = ["Rang 1", "im Set (schlechter)", "nicht im Set"]
+    cats = ["Rang 1", "im Set (schlechter)", "Kill Ø (knapp)", "Kill Ø (weit)",
+            "Kill Fläche", "nicht im Set"]
     colors = {"Rang 1": "#1baf7a", "im Set (schlechter)": "#eda100",
-              "nicht im Set": "#e34948"}
+              "Kill Ø (knapp)": "#e34948",     # rot: knapp = riskant (fast Kandidat)
+              "Kill Ø (weit)": "#f4a9a6",      # blass: weit = klar anderer Artikel
+              "Kill Fläche": "#8c6d31", "nicht im Set": "#9aa0a6"}
 
     def cat(r):
         rk = _true_rank(r)
-        return "nicht im Set" if rk is None else ("Rang 1" if rk == 1
-                                                  else "im Set (schlechter)")
+        if rk == 1:
+            return "Rang 1"
+        if rk is not None:
+            return "im Set (schlechter)"
+        # Nicht unter den Kandidaten: Kill-Grund aus prefiltered nachschlagen.
+        kill = next((e for e in (r.prefiltered or [])
+                     if e.get("article_number") == r.label), None)
+        if kill is None:
+            return "nicht im Set"        # Altbestand ohne Feld o. Sondersize
+        if kill.get("reason") == "area":
+            return "Kill Fläche"
+        over = kill.get("over_tolerance_mm") or 0.0
+        tol = kill.get("tolerance_mm") or 0.0
+        return "Kill Ø (knapp)" if over <= tol else "Kill Ø (weit)"
 
     per: dict = {}
     for r in labeled:
@@ -908,10 +924,13 @@ def _analysis_prefilter(reports, out: Path, run_id: str, cfg: dict) -> _Section:
     _write_csv(out / "prefilter_funnel.csv", ["article"] + cats,
                [[a] + [per[a].get(k, 0) for k in cats] for a in sorted(per)])
     sec.artifacts.append(out / "prefilter_funnel.csv")
-    sec.notes.append("„nicht im Set“ umfasst Prefilter-Kills UND unter Top-k "
-                     "gescored – aus den Reports nicht trennbar.")
+    sec.notes.append(
+        "Kill-Gründe (Durchmesser knapp/weit, Fläche) stammen aus "
+        "report.prefiltered; „knapp\" = over_tolerance_mm ≤ Toleranz (fast noch "
+        "Kandidat, risikonah). Reports ohne das Feld (Altbestand) zählen Kills "
+        "als „nicht im Set\".")
     arts = sorted(per, key=lambda a: -per[a].get("Rang 1", 0) / max(1, sum(per[a].values())))
-    fig, ax = plt.subplots(figsize=(max(7, 0.5 * len(arts) + 2), 4.6))
+    fig, ax = plt.subplots(figsize=(max(7, 0.5 * len(arts) + 2), 4.8))
     x = np.arange(len(arts))
     bottom = np.zeros(len(arts))
     for k in cats:
@@ -921,11 +940,11 @@ def _analysis_prefilter(reports, out: Path, run_id: str, cfg: dict) -> _Section:
     ax.set_xticks(x, arts, rotation=45, ha="right")
     ax.set_ylabel("Anzahl Identifikationen")
     ax.set_title(f"Vorfilter-Trichter je Artikel (n={len(arts)})")
-    ax.legend()
-    fig.text(0.5, 0.005, "Vorbehalt: „nicht im Set\" umfasst Prefilter-Kills UND "
-             "unter Top-k gescored – aus den Reports nicht trennbar (Prefilter-"
-             "Liste im JSON = aufgeschobener Messpfad-Eingriff).",
-             ha="center", va="bottom", fontsize=7, color="0.3")
+    ax.legend(fontsize=7, ncol=2)
+    fig.text(0.5, 0.005, "Kill-Gründe aus report.prefiltered: Durchmesser knapp "
+             "(over ≤ Toleranz, risikonah) vs. weit, oder Fläche.  „nicht im "
+             "Set\" = kein Kandidat und kein Kill-Eintrag (u.a. Altbestand vor "
+             "dem Feld).", ha="center", va="bottom", fontsize=7, color="0.3")
     _finish(fig, out / "prefilter_funnel.png", run_id)
     sec.artifacts.insert(0, out / "prefilter_funnel.png")
     return sec
@@ -979,10 +998,22 @@ def _analysis_test_vs_enroll(reports, out: Path, run_id: str, cfg: dict) -> _Sec
     return sec
 
 
+def _drift_breite(m: dict) -> tuple:
+    """(Breite_mm, gemessen?): lat_p98 wenn im Report vorhanden und > 0
+    (echte Nebenachsen-Messung), sonst der Ø·aspect_ratio-Proxy (an Ø
+    gekoppelt, keine unabhängige Messung → abgeleitet)."""
+    lat = m.get("lat_p98_mm") or 0.0
+    if lat > 0:
+        return float(lat), True
+    return float(m["circle_diameter_mm"]) * (m.get("aspect_ratio") or 0.0), False
+
+
 def _analysis_drift(reports, out: Path, run_id: str, cfg: dict) -> _Section:
     """(9) Drift ueber die Session: zwei gestapelte Panels (Ø, Breite) mit
     GEMEINSAMER x-Achse (Identifikationsreihenfolge), keine zweite y-Achse.
-    Auffaellige Artikel (hohe Ø-Streuung) farbig, Rest grau."""
+    Auffaellige Artikel (hohe Ø-Streuung) farbig, Rest grau. Breite = lat_p98
+    (gemessen, gefuellte Marker) wo im Report vorhanden, sonst Ø·aspect_ratio-
+    Proxy (abgeleitet, hohle Marker)."""
     sec = _Section("M) Drift über die Testsession")
     rows = sorted([r for r in reports
                    if r.label and (r.measured or {}).get("circle_diameter_mm") is not None],
@@ -991,11 +1022,16 @@ def _analysis_drift(reports, out: Path, run_id: str, cfg: dict) -> _Section:
         sec.skipped = "zu wenige Messungen für einen Drift-Verlauf."
         return sec
     per: dict = {}
+    points: list = []               # je Zeile (i, dia, wid, gemessen?), fuer die CSV
+    n_measured = 0
     for i, r in enumerate(rows):
         m = r.measured
         dia = m["circle_diameter_mm"]
-        wid = dia * (m.get("aspect_ratio") or 0.0)      # Breite-Proxy
-        per.setdefault(r.label, []).append((i, dia, wid))
+        wid, is_meas = _drift_breite(m)
+        n_measured += is_meas
+        points.append((i, dia, wid, is_meas))
+        per.setdefault(r.label, []).append((i, dia, wid, is_meas))
+    n_derived = len(rows) - n_measured
     stds = {a: float(np.std([p[1] for p in v], ddof=1)) if len(v) >= 2 else 0.0
             for a, v in per.items()}
     pos = [s for s in stds.values() if s > 0]
@@ -1004,25 +1040,48 @@ def _analysis_drift(reports, out: Path, run_id: str, cfg: dict) -> _Section:
                      key=lambda a: -stds[a])[:4]
     cmap = {a: PALETTE[i] for i, a in enumerate(conspic)}
     _write_csv(out / "drift.csv",
-               ["order", "report", "article", "diameter_mm", "breite_proxy_mm"],
+               ["order", "report", "article", "diameter_mm", "breite_mm",
+                "breite_quelle"],
                [[i, Path(r.report_path).stem if r.report_path else "", r.label,
-                 round(r.measured["circle_diameter_mm"], 2),
-                 round(r.measured["circle_diameter_mm"] * (r.measured.get("aspect_ratio") or 0), 2)]
-                for i, r in enumerate(rows)])
+                 round(dia, 2), round(wid, 2), "lat_p98" if meas else "proxy"]
+                for (i, dia, wid, meas), r in zip(points, rows)])
     sec.artifacts.append(out / "drift.csv")
+    sec.notes.append(
+        f"Breite Panel b: lat_p98 gemessen (gefüllte Marker, N={n_measured}) wo "
+        f"im Report vorhanden, sonst Ø·aspect_ratio-Proxy (abgeleitet, hohle "
+        f"Marker, N={n_derived}). Reports vor dem lat_p98-Feld sind Proxy.")
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(max(8, len(rows) * 0.22 + 3), 7),
                                    sharex=True)
     for a, v in per.items():
         v = sorted(v)
         xs = [p[0] for p in v]
-        if a in cmap:
-            ax1.plot(xs, [p[1] for p in v], "-o", color=cmap[a], ms=4, lw=1, label=a)
-            ax2.plot(xs, [p[2] for p in v], "-o", color=cmap[a], ms=4, lw=1)
+        dias = [p[1] for p in v]
+        wids = [p[2] for p in v]
+        meas = [p[3] for p in v]
+        colored = a in cmap
+        color = cmap[a] if colored else "0.7"
+        ms = 4 if colored else 3
+        alpha = 1.0 if colored else 0.6
+        # Panel a (Ø): wie gehabt – farbige mit Linie, graue nur Marker.
+        if colored:
+            ax1.plot(xs, dias, "-o", color=color, ms=ms, lw=1, label=a)
         else:
-            ax1.plot(xs, [p[1] for p in v], "o", color="0.7", ms=3, alpha=0.6)
-            ax2.plot(xs, [p[2] for p in v], "o", color="0.7", ms=3, alpha=0.6)
+            ax1.plot(xs, dias, "o", color=color, ms=ms, alpha=alpha)
+        # Panel b (Breite): Linie nur fuer farbige; Marker gefuellt=gemessen
+        # (lat_p98), hohl=abgeleitet (Proxy).
+        if colored:
+            ax2.plot(xs, wids, "-", color=color, lw=1)
+        mkw = {"ms": ms} if colored else {"ms": ms, "alpha": alpha}
+        fx = [x for x, mm in zip(xs, meas) if mm]
+        fw = [w for w, mm in zip(wids, meas) if mm]
+        hx = [x for x, mm in zip(xs, meas) if not mm]
+        hw = [w for w, mm in zip(wids, meas) if not mm]
+        if fx:
+            ax2.plot(fx, fw, "o", color=color, **mkw)
+        if hx:
+            ax2.plot(hx, hw, "o", mfc="none", mec=color, **mkw)
     ax1.set_ylabel("Ø [mm]")
-    ax2.set_ylabel("Breite ≈ Ø·aspect_ratio [mm]")
+    ax2.set_ylabel("Breite [mm]")
     ax2.set_xlabel("Identifikation in Aufnahmereihenfolge")
     ax1.set_title(f"Drift über die Testsession (n={len(rows)}) – "
                   "auffällige Artikel farbig, Rest grau")
@@ -1032,7 +1091,8 @@ def _analysis_drift(reports, out: Path, run_id: str, cfg: dict) -> _Section:
     panel_label(ax1, "a")
     panel_label(ax2, "b")
     fig.text(0.5, 0.02, "x = Identifikationsreihenfolge (report_path-ms), NICHT "
-             "Auslösezeitpunkt.  Breite = Proxy Ø·aspect_ratio (kein lat_p98).",
+             "Auslösezeitpunkt.  Breite Panel b: lat_p98 gemessen (gefüllt) / "
+             "Ø·aspect_ratio-Proxy abgeleitet (hohl).",
              ha="center", va="bottom", fontsize=7, color="0.3")
     _finish(fig, out / "drift.png", run_id)
     sec.artifacts.insert(0, out / "drift.png")
