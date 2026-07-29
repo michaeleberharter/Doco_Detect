@@ -328,7 +328,7 @@ class Pipeline:
                 decision=DECISION_REJECT, message=f"Segmentierung: {e}",
                 contour=_thin_contour(seg_err),
                 touches_border=getattr(seg_err, "touches_border", None),
-                timestamp=datetime.now().isoformat(timespec="seconds"),
+                timestamp=datetime.now().isoformat(timespec="microseconds"),
                 image_path=source_path, label=label,
                 centroid_px=_centroid_px(seg_err),
                 image_size=[image.shape[1], image.shape[0]] if image is not None else None)

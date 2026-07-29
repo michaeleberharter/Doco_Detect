@@ -54,10 +54,12 @@ import numpy as np  # noqa: E402
 
 from .config import resolve  # noqa: E402
 from .features import Features, scalar_value  # noqa: E402
-# _PROTO_SRC = kanonische (Attribut, Distanzfunktion) je Vektor-Merkmal. Bewusst
-# der private Name aus features.py: die Distanzabbildung ist Messlogik und darf
-# nicht dupliziert werden (CLAUDE.md). Nur-Lesen, features.py bleibt unberuehrt.
-from .features import _PROTO_SRC  # noqa: E402
+# _PROTO_SRC = kanonische (Attribut, Distanzfunktion) je Vektor-Merkmal;
+# _densify/_pca_axes/_proj/_pctl = Kontur-Geometrie-Primitive. Beide bewusst die
+# privaten Namen aus features.py (Messpfad): Messlogik wird nicht dupliziert
+# (CLAUDE.md). Nur-Lesen, features.py bleibt die Quelle der Wahrheit.
+from .features import (_PROTO_SRC, _densify, _pca_axes, _pctl,  # noqa: E402
+                       _proj)
 from .pipeline import Pipeline  # noqa: E402
 from .plotstyle import DIV, OUTLIER, SEQ, panel_label, style_context  # noqa: E402
 from .segmentation import SegmentationError  # noqa: E402
@@ -65,46 +67,9 @@ from .segmentation import SegmentationError  # noqa: E402
 # C-Serie saubere Gruppen: Streuung von ext_full lag bei 0,43-0,92 mm.
 C_SERIES_EXT_STD_MM = (0.43, 0.92)
 Z_CAP = 4.0                        # Betrag der z-Werte in der Heatmap gedeckelt
-_DENSIFY_STEP_PX = 0.5             # tail_profile_check.py:99 (feiner, fuellt 1-mm-Bins;
-                                   # ext_full nutzt ohnehin die Rohkontur-Extrema)
 
-
-# ============================================================ Geometrie-Helfer
-# --- 1:1 aus scripts/tail_extent_check.py / tail_profile_check.py (eingefroren) ---
-
-def _densify(poly: np.ndarray, step: float = _DENSIFY_STEP_PX) -> np.ndarray:
-    """Geschlossenes Polygon bogenlaengen-gleichmaessig nachsamplen."""
-    p = poly.astype(np.float64)
-    n = len(p)
-    out = []
-    for i in range(n):
-        a, b = p[i], p[(i + 1) % n]
-        d = float(np.hypot(*(b - a)))
-        k = max(1, int(d / step))
-        for j in range(k):
-            out.append(a + (b - a) * (j / k))
-    return np.asarray(out, dtype=np.float64)
-
-
-def _pca_axes(points: np.ndarray):
-    """Haupt- und Nebenachse (Einheitsvektoren) plus Schwerpunkt."""
-    center = points.mean(axis=0)
-    cov = np.cov((points - center).T)
-    vals, vecs = np.linalg.eigh(cov)          # aufsteigend
-    order = np.argsort(vals)[::-1]
-    main = vecs[:, order[0]]
-    minor = vecs[:, order[1]]
-    return center, main / np.linalg.norm(main), minor / np.linalg.norm(minor)
-
-
-def _proj(points: np.ndarray, axis: np.ndarray) -> np.ndarray:
-    """Skalarprojektion der Punkte auf eine Achse (einsum vermeidet eine
-    spuriose divide-by-zero-Warnung des matmul-SIMD-Pfads)."""
-    return np.einsum("ij,j->i", points, axis)
-
-
-def _pctl(a: np.ndarray, lo: float, hi: float) -> float:
-    return float(np.percentile(a, hi) - np.percentile(a, lo))
+# Die Geometrie-Primitive (_densify/_pca_axes/_proj/_pctl) liegen jetzt im
+# Messpfad (features.py) und sind oben importiert — hier NICHT duplizieren.
 
 
 # ============================================================ Shot-Geometrie

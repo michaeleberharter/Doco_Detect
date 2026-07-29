@@ -390,3 +390,92 @@ def test_border_clipped_erzeugt_kein_match_ergebnis(cfg, cal, tmp_path):
         assert out.report.touches_border is True
     finally:
         pipe.db.close()
+
+
+# ---------- Messpfad-Runde: Prefilter-Liste (A) + µs-timestamp (C) ----------
+
+def test_prefilter_diameter_kill_recorded(cfg, cal, tmp_path):
+    """Ein durch den Durchmesserfilter verworfener Artikel steht mit Grund
+    'diameter' und positivem Abstand zur Toleranz in report.prefiltered."""
+    db = make_db(cfg, [("ZIEL", 200.0, 0.0, [fake(d=200.0)]),
+                       ("FERN", 140.0, 0.0, [fake(d=140.0)])])
+    try:
+        rep = match(fake(d=200.0), db, cal, cfg)
+    finally:
+        db.close()
+    killed = {e["article_number"]: e for e in rep.prefiltered}
+    assert "FERN" in killed
+    e = killed["FERN"]
+    assert e["reason"] == "diameter"
+    assert e["geometry_error_mm"] == pytest.approx(60.0, abs=0.5)
+    assert e["over_tolerance_mm"] > 0            # jenseits der 6-mm-Toleranz
+    assert e["area_error_pct"] is None
+    assert "ZIEL" not in killed                  # der Treffer wurde NICHT gekillt
+
+
+def test_prefilter_area_kill_recorded(cfg, cal, tmp_path):
+    """Durchmesser in Toleranz, aber die gemessene Flaeche ist grob zu klein
+    -> der Flaechenfilter greift; Grund 'area', over_tolerance_mm <= 0."""
+    db = make_db(cfg, [("ZIEL", 200.0, 0.0, [fake(d=200.0)])])
+    measured = fake(d=200.0)
+    measured.area_mm2 = measured.area_mm2 * 0.5  # 50 % zu klein -> weit > 24 %
+    try:
+        rep = match(measured, db, cal, cfg)
+    finally:
+        db.close()
+    killed = {e["article_number"]: e for e in rep.prefiltered}
+    assert "ZIEL" in killed
+    e = killed["ZIEL"]
+    assert e["reason"] == "area"
+    assert e["over_tolerance_mm"] <= 0           # Durchmesser war in Toleranz
+    assert e["area_error_pct"] == pytest.approx(50.0, abs=1.0)
+
+
+def test_prefilter_populated_even_when_all_candidates_killed(cfg, cal, tmp_path):
+    """Fallen ALLE Artikel durch den Vorfilter (leeres Kandidatenset, reject),
+    traegt der Report sie trotzdem in prefiltered — der frueh zurueckgebende
+    Pfad darf die Liste nicht verlieren."""
+    db = make_db(cfg, [("A", 100.0, 0.0, [fake(d=100.0)]),
+                       ("B", 300.0, 0.0, [fake(d=300.0)])])
+    try:
+        rep = match(fake(d=200.0), db, cal, cfg)
+    finally:
+        db.close()
+    assert rep.decision == "reject"
+    assert rep.candidates == []
+    assert {e["article_number"] for e in rep.prefiltered} == {"A", "B"}
+    assert all(e["reason"] == "diameter" for e in rep.prefiltered)
+
+
+def test_prefilter_list_survives_json_roundtrip(cfg, cal, tmp_path):
+    from docodetect.matcher import MatchReport
+    db = make_db(cfg, [("ZIEL", 200.0, 0.0, [fake(d=200.0)]),
+                       ("FERN", 140.0, 0.0, [fake(d=140.0)])])
+    try:
+        rep = match(fake(d=200.0), db, cal, cfg)
+    finally:
+        db.close()
+    rep2 = MatchReport.from_json(rep.to_json())
+    assert rep2.prefiltered == rep.prefiltered
+    assert rep2.prefiltered                       # nicht leer
+
+
+def test_old_report_json_without_prefiltered_field_loads():
+    """Historische Reports ohne prefiltered-Feld bleiben lesbar (Default [])."""
+    from docodetect.matcher import MatchReport
+    alt = '{"decision": "reject", "message": "alt"}'
+    rep = MatchReport.from_json(alt)
+    assert rep.prefiltered == []
+
+
+def test_report_timestamp_has_microsecond_resolution(cfg, cal, tmp_path):
+    """(C) Das timestamp-Feld traegt Mikrosekunden (6 Nachkommastellen), damit
+    zwei Aufnahmen derselben Sekunde ueber das Feld ordenbar sind."""
+    db = make_db(cfg, [("ZIEL", 200.0, 0.0, [fake(d=200.0)])])
+    try:
+        rep = match(fake(d=200.0), db, cal, cfg)
+    finally:
+        db.close()
+    assert "." in rep.timestamp
+    frac = rep.timestamp.split(".")[1]
+    assert len(frac) == 6, f"erwarte 6 Nachkommastellen (µs), bekam {rep.timestamp!r}"

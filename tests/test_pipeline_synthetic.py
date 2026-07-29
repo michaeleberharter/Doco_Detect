@@ -547,3 +547,66 @@ def test_weak_evidence_border_crossing_still_flagged():
     img = _add_sensor_noise(img)
     seg = segment(img, bg)
     assert seg.touches_border, "clipped object with weak tail escaped the border flag"
+
+
+# ---------- Messpfad-Runde: lat_p98 als gemessenes Feld (B) ----------
+
+def draw_ellipse_plate(bg, major_mm, minor_mm, center=(960, 540),
+                       color=(250, 250, 250)):
+    img = bg.copy()
+    axes = (int(round(major_mm / MM_PER_PX / 2)), int(round(minor_mm / MM_PER_PX / 2)))
+    cv2.ellipse(img, center, axes, 0, 0, 360, color, thickness=-1)
+    cv2.ellipse(img, center, axes, 0, 0, 360, (150, 150, 150), thickness=3)
+    return img
+
+
+def test_lateral_extent_p98_measures_the_minor_axis():
+    """lat_p98 = 1-99-Perzentilspanne der Nebenachsen-Projektion. Auf einer
+    analytischen Ellipse muss das die KURZE Achse liefern, nicht die lange."""
+    from docodetect.features import lateral_extent_p98_mm
+    theta = np.linspace(0, 2 * np.pi, 720, endpoint=False)
+    a_px, b_px = 500.0, 200.0                      # Haupt-/Nebenhalbachse in px
+    contour = np.column_stack([960 + a_px * np.cos(theta),
+                               540 + b_px * np.sin(theta)]).astype(np.int32)
+    lat = lateral_extent_p98_mm(contour, MM_PER_PX)
+    true_minor_mm = 2 * b_px * MM_PER_PX           # 400 px * 0,2 = 80 mm
+    assert lat == pytest.approx(true_minor_mm, rel=0.10)
+
+
+def test_lateral_extent_p98_too_small_contour_is_zero():
+    from docodetect.features import lateral_extent_p98_mm
+    assert lateral_extent_p98_mm(np.array([[0, 0], [1, 1]]), MM_PER_PX) == 0.0
+
+
+def test_extract_reports_lat_p98_of_the_minor_axis():
+    bg = make_background()
+    img = draw_ellipse_plate(bg, major_mm=240.0, minor_mm=120.0)
+    seg = segment(img, bg)
+    assert not seg.touches_border
+    feats = extract(img, seg, CAL)
+    # circle_diameter (min enclosing circle) folgt der LANGEN Achse,
+    # lat_p98 der KURZEN -> deutlich kleiner und nahe 120 mm.
+    assert feats.lat_p98_mm == pytest.approx(120.0, rel=0.10)
+    assert feats.lat_p98_mm < feats.circle_diameter_mm - 40
+
+
+def test_features_json_without_lat_p98_defaults_to_zero():
+    """Alt-Referenz-JSON von vor lat_p98: from_json darf nicht crashen
+    (Splat-Load), lat_p98_mm faellt auf den Default 0.0 zurueck."""
+    import json
+
+    from docodetect.features import Features
+    alt = {"equiv_diameter_mm": 190.5, "circle_diameter_mm": 192.0,
+           "area_mm2": 2850.0, "perimeter_mm": 600.0, "circularity": 0.95,
+           "aspect_ratio": 0.99}
+    f = Features.from_json(json.dumps(alt))
+    assert f.lat_p98_mm == 0.0
+
+
+def test_features_roundtrip_preserves_lat_p98_mm():
+    from docodetect.features import Features
+    f = Features(equiv_diameter_mm=1.0, circle_diameter_mm=1.0, area_mm2=1.0,
+                 perimeter_mm=1.0, circularity=1.0, aspect_ratio=1.0,
+                 lat_p98_mm=73.4)
+    f2 = Features.from_json(f.to_json())
+    assert f2.lat_p98_mm == 73.4
