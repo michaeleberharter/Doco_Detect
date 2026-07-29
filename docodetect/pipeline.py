@@ -190,6 +190,29 @@ def discard_enrollment(cfg: dict, article_number: str, shots: list,
     return dest
 
 
+def persist_enrollment_sheet(cfg: dict, article_number: str, sheet_png):
+    """Ein beim „Übernehmen" angenommenes Enrollment-Diagnoseblatt dauerhaft
+    neben die übrigen Analyse-Artefakte legen: Kopie nach
+    analysis.output_dir/enrollment/<artikelnummer>.png. Gibt den Zielpfad
+    zurück; wirft bei fehlender Quelle oder Schreibfehler.
+
+    Bewusst OHNE eigenes Fehler-Schlucken: das Kopieren ist eine Nebenausgabe,
+    der Aufrufer (Einlerndialog) behandelt einen Fehler best-effort — der
+    DB-Eintrag steht zu dem Zeitpunkt bereits, das Übernehmen darf NIE an einer
+    fehlgeschlagenen Kopie scheitern (nur warnen)."""
+    import shutil
+    from pathlib import Path
+
+    src = Path(sheet_png)
+    if not src.is_file():
+        raise FileNotFoundError(f"Diagnoseblatt nicht gefunden: {src}")
+    dest_dir = resolve(cfg["analysis"]["output_dir"]) / "enrollment"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"{article_number}.png"
+    shutil.copy2(str(src), str(dest))
+    return dest
+
+
 def confirm_result(report: MatchReport, article_number: str):
     """Manuelle Bestätigung einer AMBIGUOUS-Auswahl (Karten-Klick in der UI):
     Top-1 bestätigt = korrekt, anderer Kandidat = falsch mit wahrem Artikel.

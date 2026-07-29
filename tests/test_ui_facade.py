@@ -359,3 +359,74 @@ def test_reject_result_without_article_marks_wrong_no_label(tmp_path):
     saved = json.loads(p.read_text(encoding="utf-8"))
     assert saved["verdict"] == "wrong"
     assert saved.get("label") is None
+
+
+# ---------- (D) Enrollment-Blatt-Autosave beim „Übernehmen" ----------
+
+def test_persist_enrollment_sheet_copies_to_analysis_dir(tmp_path):
+    from docodetect.pipeline import persist_enrollment_sheet
+
+    src = tmp_path / "tmp_sheet.png"
+    src.write_bytes(b"\x89PNG\r\n\x1a\n fake sheet")
+    cfg = {"analysis": {"output_dir": str(tmp_path / "reports")}}
+    dest = persist_enrollment_sheet(cfg, "LOEFFEL-3", src)
+    assert dest == tmp_path / "reports" / "enrollment" / "LOEFFEL-3.png"
+    assert dest.is_file()
+    assert dest.read_bytes() == src.read_bytes()
+
+
+def test_persist_enrollment_sheet_missing_source_raises(tmp_path):
+    from docodetect.pipeline import persist_enrollment_sheet
+
+    cfg = {"analysis": {"output_dir": str(tmp_path / "reports")}}
+    with pytest.raises(FileNotFoundError):
+        persist_enrollment_sheet(cfg, "X-1", tmp_path / "does_not_exist.png")
+
+
+def _enroll_shots(cfg):
+    """Zwei vermessene Shots + fertig eingerichtete cfg (bg + Kalibrierung)."""
+    from docodetect.pipeline import calibrate, capture_background, measure_shot
+    from docodetect.ui_qt.demo_scenes import build_scene
+
+    capture_background(build_scene(cfg, "Hintergrund"), cfg)
+    calibrate(build_scene(cfg, "Marker"), cfg)
+    _seed_db(cfg, with_reference=False)
+    shots = []
+    for v in (1, 2):
+        img = build_scene(cfg, "Teller 18", v)
+        feats, _ = measure_shot(img, cfg)
+        shots.append({"frame": img, "feats": feats})
+    return shots
+
+
+def test_job_save_copies_sheet_on_uebernehmen(tmp_path):
+    from docodetect.ui_qt.widgets.enroll_dialog import _job_save
+
+    cfg = _marker_cfg(tmp_path)
+    cfg["analysis"] = {"output_dir": str(tmp_path / "reports")}
+    shots = _enroll_shots(cfg)
+    sheet = tmp_path / "tmp_sheet.png"
+    sheet.write_bytes(b"\x89PNG fake sheet")
+
+    result = _job_save(cfg, "T-270", shots, str(sheet))
+    assert result["n"] == 2
+    assert result["warn"] is None
+    dest = Path(cfg["analysis"]["output_dir"]) / "enrollment" / "T-270.png"
+    assert dest.is_file()
+    assert result["sheet_dest"] == str(dest)
+
+
+def test_job_save_copy_failure_does_not_block_db_write(tmp_path):
+    """Schlägt das Blatt-Kopieren fehl, wird trotzdem in die DB geschrieben
+    (n korrekt, Referenzen da) und nur gewarnt — kein Abbruch."""
+    from docodetect.ui_qt.widgets.enroll_dialog import _job_save
+
+    cfg = _marker_cfg(tmp_path)
+    cfg["analysis"] = {"output_dir": str(tmp_path / "reports")}
+    shots = _enroll_shots(cfg)
+
+    result = _job_save(cfg, "T-270", shots, str(tmp_path / "gibt_es_nicht.png"))
+    assert result["n"] == 2                               # DB-Schreiben NICHT blockiert
+    assert result["sheet_dest"] is None
+    assert result["warn"] and "nicht gesichert" in result["warn"]
+    assert get_status(cfg).articles_with_references == 1  # Referenzen sind da
