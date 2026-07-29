@@ -35,14 +35,16 @@ def _cand(nr, log_score, posterior=0.5, feats=None):
 
 
 def _rep(decision="accept", label=None, verdict=None, cands=(), margin=None,
-         max_z=1.0, centroid=None, measured=None, ts="2026-07-17T10:00:00"):
+         max_z=1.0, centroid=None, measured=None, ts="2026-07-17T10:00:00",
+         prefiltered=()):
     return MatchReport(decision=decision, message="", candidates=list(cands),
                        llr_margin=margin, max_z_winner=max_z,
                        gate_passed=decision != "reject",
                        thresholds=dict(MATCHING), measured=measured or {},
                        timestamp=ts, label=label, verdict=verdict,
                        centroid_px=centroid,
-                       image_size=[1920, 1080] if centroid else None)
+                       image_size=[1920, 1080] if centroid else None,
+                       prefiltered=list(prefiltered))
 
 
 def test_wilson_closed_form():
@@ -329,3 +331,94 @@ def test_confusion_focus_reduces_and_marks_zero_diagonal():
     for i in range(3):
         clean[i, i] = 3
     assert _confusion_focus(clean, gts[:3], gts[:3]) is None
+
+
+# ---------- (9) Drift-Breite: lat_p98 gemessen vs. Proxy abgeleitet ----------
+
+def _graph_cfg():
+    return {"matching": dict(MATCHING), "analysis": {},
+            "geometry": {"camera_height_mm": 300.0}}
+
+
+def test_drift_width_uses_lat_p98_when_present_else_proxy(tmp_path):
+    from docodetect.analysis import _analysis_drift
+
+    reports = [
+        _rep(label="A", ts="2026-07-17T10:00:01",
+             measured={"circle_diameter_mm": 200.0, "aspect_ratio": 0.5,
+                       "lat_p98_mm": 88.0}),                       # gemessen
+        _rep(label="A", ts="2026-07-17T10:00:02",
+             measured={"circle_diameter_mm": 200.0, "aspect_ratio": 0.5}),  # -> Proxy 100.0
+    ]
+    _analysis_drift(reports, tmp_path, "t", _graph_cfg())
+    lines = (tmp_path / "drift.csv").read_text(encoding="utf-8").splitlines()
+    assert "breite_quelle" in lines[0]
+    body = lines[1:]
+    assert any(",88.0," in ln and ln.strip().endswith("lat_p98") for ln in body)
+    assert any(",100.0," in ln and ln.strip().endswith("proxy") for ln in body)
+
+
+def test_drift_caption_marks_measured_and_derived(tmp_path):
+    """Die Bildunterschrift muss lat_p98 (gemessen) und Proxy (abgeleitet)
+    benennen — sonst ist nicht erkennbar, welche Punkte echt sind."""
+    from docodetect.analysis import _analysis_drift
+
+    reports = [
+        _rep(label="A", ts="2026-07-17T10:00:01",
+             measured={"circle_diameter_mm": 200.0, "aspect_ratio": 0.5,
+                       "lat_p98_mm": 88.0}),
+        _rep(label="A", ts="2026-07-17T10:00:02",
+             measured={"circle_diameter_mm": 200.0, "aspect_ratio": 0.5}),
+    ]
+    sec = _analysis_drift(reports, tmp_path, "t", _graph_cfg())
+    caption = " ".join(sec.notes)
+    assert "lat_p98" in caption and "Proxy" in caption
+
+
+# ---------- (4) Vorfilter-Trichter: Kill-Gruende + knapp/weit ----------
+
+def _funnel_row(tmp_path, article):
+    lines = (tmp_path / "prefilter_funnel.csv").read_text(
+        encoding="utf-8").splitlines()
+    header = lines[0].split(",")
+    for ln in lines[1:]:
+        cells = ln.split(",")
+        if cells[0] == article:
+            return dict(zip(header, cells))
+    raise AssertionError(f"{article} nicht in prefilter_funnel.csv")
+
+
+def _killed(reason, over, tol=6.0):
+    """Report, dessen wahrer Artikel 'Z' NICHT unter den Kandidaten ist,
+    aber im prefiltered-Feld mit gegebenem Grund/Abstand steht."""
+    return _rep(label="Z", verdict="wrong", cands=[_cand("OTHER", -0.5)],
+                prefiltered=[{"article_number": "Z", "name": "Z", "reason": reason,
+                              "geometry_error_mm": tol + over, "tolerance_mm": tol,
+                              "over_tolerance_mm": over,
+                              "area_error_pct": 50.0 if reason == "area" else None}])
+
+
+def test_prefilter_funnel_splits_kill_reasons_near_and_far(tmp_path):
+    from docodetect.analysis import _analysis_prefilter
+
+    reports = [_killed("diameter", 1.0),    # knapp (over <= tol)
+               _killed("diameter", 40.0),   # weit
+               _killed("area", -6.0)]       # Flaeche (Durchmesser passte)
+    _analysis_prefilter(reports, tmp_path, "t", _graph_cfg())
+    row = _funnel_row(tmp_path, "Z")
+    assert int(row["Kill Ø (knapp)"]) == 1
+    assert int(row["Kill Ø (weit)"]) == 1
+    assert int(row["Kill Fläche"]) == 1
+    assert int(row["nicht im Set"]) == 0
+
+
+def test_prefilter_funnel_legacy_report_without_field_is_nicht_im_set(tmp_path):
+    """Historischer Report ohne prefiltered: der Kill-Grund ist unbekannt,
+    faellt also in 'nicht im Set' (Fallback), kein Crash."""
+    from docodetect.analysis import _analysis_prefilter
+
+    legacy = _rep(label="Z", verdict="wrong", cands=[_cand("OTHER", -0.5)])
+    _analysis_prefilter([legacy], tmp_path, "t", _graph_cfg())
+    row = _funnel_row(tmp_path, "Z")
+    assert int(row["nicht im Set"]) == 1
+    assert int(row["Kill Ø (knapp)"]) == 0
