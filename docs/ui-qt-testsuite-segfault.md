@@ -26,6 +26,18 @@ Beim vollen Smoke-Lauf zusätzlich beobachtet:
 - Folge: die UI-Suite läuft in der Praxis nie am Stück — CI/lokal müssen die
   Module einzeln aufgerufen werden, sonst maskiert der Crash echte Fehler.
 
+## Datenpunkt 2026-07-31
+
+Ein vollständiger serieller Lauf (`pytest -q -rs`, 641 gesammelt, alle
+UI-Module in einem Aufruf, Mac/Python 3.9/PySide6) lief **ohne Segfault**
+durch: 639 passed, 2 skipped, Exit 0, vollständige Zusammenfassung. Die
+Teardown-Meldung war vorhanden — `QThread: Destroyed while thread '' is still
+running`, davor `Error calling Python override of QThread::run(): KeyError:
+'index'` (`camera_worker.py:73` → `camera.py:93`), beides nach dem Summary.
+Einzeln reproduzierbar mit `pytest tests/test_ui_qt_smoke.py -k
+status_bar_calibrated`, das `MainWindow(cfg)` mit `demo=False` und einer
+Test-Config ohne `camera.index` baut.
+
 ## Vermutete Ursache
 
 Jedes UI-Modul bringt sein **eigenes `qapp`-Fixture** mit (kein gemeinsames

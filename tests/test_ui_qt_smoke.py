@@ -682,3 +682,72 @@ def test_result_card_shows_helper_strings_and_channel_bars(qapp):
     bars = card.channel_bars()  # dict Kanal -> QProgressBar|None
     assert bars["geometry"] is not None
     assert bars["color"] is None and bars["shape"] is None
+
+
+# ---------- Sandbox: Kalibrieren und Hintergrund sind gesperrt ----------
+
+def _sandbox_cfg_ready(tmp_path):
+    """Wie make_cfg, aber mit vollstaendiger Einrichtung UND aktuellem
+    Demo-Stand: sonst waeren die Setup-Knoepfe schon aus Zustandsgruenden aus
+    (BUSY waehrend des Auto-Seeds) und der Test bewiese nichts. OHNE
+    Sandbox-Marker – den setzen die Tests selbst, damit die Gegenprobe
+    dieselbe Einrichtung benutzt."""
+    import cv2
+    import numpy as np
+
+    from docodetect.calibration import Calibration
+
+    cfg = make_cfg(tmp_path)
+    Calibration(mm_per_px=0.2, camera_height_mm=300.0, image_width=1920,
+                image_height=1080, marker_size_mm=136.0,
+                created_unix=time.time()).save(cfg["calibration"]["file"])
+    cv2.imwrite(cfg["calibration"]["background_file"],
+                np.full((10, 10, 3), 200, dtype=np.uint8))
+    mark_demo_seed_current(cfg)
+    return cfg
+
+
+def test_sandbox_sperrt_setup_knoepfe(qapp, tmp_path):
+    """Gegenprobe zuerst OHNE Marker: dieselbe Einrichtung laesst beide
+    Knoepfe zu. Mit Marker sind beide aus – sonst wuerde der Test auch dann
+    gruen, wenn die Knoepfe aus einem ganz anderen Grund gesperrt sind."""
+    from docodetect.ui_qt.main_window import MainWindow
+
+    from docodetect.ui_qt.state import UiState
+
+    cfg = _sandbox_cfg_ready(tmp_path)
+    win_ohne = MainWindow(cfg, demo=True)
+    assert win_ohne.state is UiState.READY        # Vorbedingung, sonst vakuum
+    assert win_ohne.background_button.isEnabled()
+    assert win_ohne.calibrate_button.isEnabled()
+
+    win = MainWindow(dict(cfg, sandbox="testlauf1"), demo=True)
+    assert win.state is UiState.READY             # nur die Sperre unterscheidet
+    assert not win.background_button.isEnabled()
+    assert not win.calibrate_button.isEnabled()
+    assert "Sandbox" in win.background_button.toolTip()
+    assert "Sandbox" in win.calibrate_button.toolTip()
+
+
+def test_sandbox_backstop_hinter_den_knoepfen(qapp, tmp_path):
+    """Die Icon-Schiene loest dieselben Aktionen aus wie die Leiste. Ein
+    ausgegrauter Knopf allein ist deshalb kein Schutz – beide Einstiege
+    muessen selbst abbrechen."""
+    from docodetect.ui_qt.main_window import MainWindow
+
+    from docodetect.ui_qt.state import UiState
+
+    cfg = dict(_sandbox_cfg_ready(tmp_path), sandbox="testlauf1")
+    win = MainWindow(cfg, demo=True)
+    # Vorbedingungen: ohne sie wuerden beide Aktionen aus ANDEREN Gruenden
+    # abbrechen und der Test bewiese nichts.
+    assert win.state is UiState.READY
+    assert win.source is not None and win.camera_ok
+
+    win._open_calibrate_dialog()
+    assert win._calibrate_dialog is None       # kein Dialog geoeffnet
+    assert "gesperrt" in win.result_area.text()
+
+    win._start_capture_action("background")
+    assert win._pending is None                # kein Frame angefordert
+    assert not win._busy
