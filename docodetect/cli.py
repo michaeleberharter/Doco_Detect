@@ -25,7 +25,7 @@ from pathlib import Path
 
 from .calibration import run_calibration, save_background
 from .camera import BoxCamera, load_image
-from .config import load_config, resolve
+from .config import load_config, resolve, sandbox_cfg
 from .database import Database
 from .pipeline import Pipeline
 from .segmentation import SegmentationError
@@ -659,9 +659,65 @@ def cmd_corpus_triage(args, cfg):
     print(f"[corpus-triage] Befunde: {out}")
 
 
+# ---------- Sandbox-Sperren ----------
+
+# Befehle, die AUSSERHALB der fünf umgelenkten Sandbox-Pfade schreiben. Sie
+# unter --sandbox durchzulassen hiesse, dass ein Testlauf Produktivzustand
+# mutiert — genau das, was die Sandbox verhindern soll. Klartext-Abbruch mit
+# Exit 1, in derselben Härte wie `--check` auf einem gefilterten Korpus-Lauf.
+_GETEILTE_KALIBRIERUNG = (
+    "Kalibrierung und Hintergrund sind in der Sandbox bewusst GETEILT: ein "
+    "Test-Enrollment muss gegen dieselbe Skala messen wie die Produktion, "
+    "sonst misst es nichts. Damit bleiben beide Dateien produktiver Zustand "
+    "und dürfen aus einer Sandbox heraus nicht überschrieben werden.")
+
+SANDBOX_GESPERRT = {
+    "calibrate": _GETEILTE_KALIBRIERUNG,
+    "capture-background": _GETEILTE_KALIBRIERUNG,
+    "make-smoke-testset":
+        "make-smoke-testset verschiebt calibration.file, background_file UND "
+        "db_file beiseite und schreibt sie neu. Zwei der drei Ziele sind "
+        "nicht umgelenkt — der Befehl würde die produktive Kalibrierung "
+        "wegrotieren.",
+    "corpus-build":
+        "Der Regressions-Korpus liest und schreibt ausserhalb der Sandbox "
+        "(paths.corpus_dir, corpus/baseline.json, reports/corpus/). Ein "
+        "Korpus, der aus einem Testbestand gebaut oder gegen ihn geprüft "
+        "wird, ist kein Gate mehr.",
+}
+SANDBOX_GESPERRT.update({
+    cmd: SANDBOX_GESPERRT["corpus-build"]
+    for cmd in ("corpus-run", "corpus-diff", "corpus-report", "corpus-triage")
+})
+
+
+def pruefe_sandbox_sperre(cmd: str, args) -> None:
+    """Beendet den Prozess mit Exit 1, wenn `cmd` unter --sandbox verboten ist.
+
+    Zwei Klassen: ganze Befehle (SANDBOX_GESPERRT) und ein einzelner Schalter
+    (`analyze --publish`), dessen Ziel analysis.publish_dir VERSIONIERT ist
+    (.gitignore nimmt reports/archive/ ausdrücklich von reports/* aus) — ein
+    Sandbox-Lauf landete dort im Commit."""
+    grund = SANDBOX_GESPERRT.get(cmd)
+    if grund:
+        sys.exit(f"[sandbox] '{cmd}' ist unter --sandbox gesperrt. {grund}\n"
+                 f"[sandbox] Ohne --sandbox ausführen.")
+    if cmd == "analyze" and getattr(args, "publish", False):
+        sys.exit(
+            "[sandbox] 'analyze --publish' ist unter --sandbox gesperrt: "
+            "analysis.publish_dir (reports/archive) ist versioniert, ein "
+            "Sandbox-Lauf würde dort im Commit landen.\n"
+            "[sandbox] 'analyze' ohne --publish läuft in der Sandbox.")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="docodetect")
     parser.add_argument("--config", default=None, help="path to config.yaml")
+    parser.add_argument("--sandbox", default=None, metavar="NAME",
+                        help="isolierter Stand unter data/sandbox/NAME "
+                             "(DB, Referenzen, Verworfene, Captures, "
+                             "Berichte). Kalibrierung und Hintergrund "
+                             "bleiben geteilt. Name ist Pflicht.")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init-db")
@@ -845,6 +901,13 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
+
+    if args.sandbox is not None:
+        pruefe_sandbox_sperre(args.cmd, args)
+        try:
+            cfg = sandbox_cfg(cfg, args.sandbox)
+        except ValueError as e:
+            sys.exit(f"[sandbox] {e}")
 
     {
         "init-db": cmd_init_db,

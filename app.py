@@ -496,6 +496,12 @@ with tab_new:
                     "Segmentierung prüfen: Ist das **ganze** Objekt erfasst "
                     "(z. B. Löffelstiel mit Spitze)? Dann übernehmen – sonst "
                     "verwerfen, Objekt ggf. neu positionieren und erneut aufnehmen.")
+            st.caption("Hinweis: Dieser Streamlit-Pfad speichert nur die "
+                       "Merkmale, nicht das Roh-PNG des Shots (anders als "
+                       "CLI create-article). Die erste Referenz dieses "
+                       "Artikels trägt damit kein Bild – für das "
+                       "Enrollment-Diagnoseblatt zum Qt-Einlerndialog oder "
+                       "zur CLI wechseln.")
             col1, col2 = st.columns(2)
             col1.image(resize_width(pending["frame"], 960), channels="BGR",
                        caption="Original")

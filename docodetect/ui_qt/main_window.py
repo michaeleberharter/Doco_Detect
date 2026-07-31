@@ -59,6 +59,10 @@ _BUSY_TEXTS = {
     "seed": "Demo-Artikel werden eingelernt…",
 }
 
+_SANDBOX_SETUP_TOOLTIP = (
+    "In der Sandbox gesperrt: Kalibrierung und Hintergrund sind bewusst "
+    "geteilt und bleiben produktiver Zustand. Ohne --sandbox ausführen.")
+
 
 # ---------- Jobs: laufen KOMPLETT im Worker-Thread ----------
 # Die Pipeline wird IM Job konstruiert (SQLite-Thread-Affinität) und das
@@ -118,6 +122,10 @@ class MainWindow(QMainWindow):
         self._diagnose_label = None          # Rohmesswert-Diagnose (reject)
         self._verdict_bar = None             # Richtig/Falsch (accept, reject)
         self._calibrate_dialog = None        # offener Kalibrier-Dialog
+        # Sandbox-Marker (config.sandbox_cfg). Kalibrierung und Hintergrund
+        # bleiben in der Sandbox GETEILT und damit produktiver Zustand – beide
+        # Aktionen sind deshalb hier gesperrt, nicht nur in der CLI.
+        self._sandbox = cfg.get("sandbox")
         self.state: UiState | None = None
         self.setWindowTitle("Doco Detect" + (" – Demo" if demo else ""))
         self.setMinimumSize(self.ui["window_min_width"],
@@ -376,8 +384,13 @@ class MainWindow(QMainWindow):
         self.identify_button.setEnabled(state is UiState.READY)
         self.identify_button.setToolTip(_IDENTIFY_TOOLTIPS[state])
         setup_ok = state in (UiState.NOT_READY, UiState.READY)
+        if self._sandbox:
+            setup_ok = False
         self.background_button.setEnabled(setup_ok)
         self.calibrate_button.setEnabled(setup_ok)
+        if self._sandbox:
+            self.background_button.setToolTip(_SANDBOX_SETUP_TOOLTIP)
+            self.calibrate_button.setToolTip(_SANDBOX_SETUP_TOOLTIP)
         self.enroll_button.setEnabled(state is UiState.READY)
         self.enroll_button.setToolTip(
             "" if state is UiState.READY
@@ -460,6 +473,12 @@ class MainWindow(QMainWindow):
         """Frischen Voll-Frame anfordern; der Frame löst dann den Job aus."""
         if self._busy or self.source is None or not self.camera_ok:
             return
+        # Backstop hinter der ausgegrauten Schaltfläche: die Icon-Schiene löst
+        # dieselbe Aktion aus, und _rail_actions ist von aussen aufrufbar.
+        if action == "background" and self._sandbox:
+            self._set_headline("Hintergrund in der Sandbox gesperrt.", "reject")
+            self._set_guide(_SANDBOX_SETUP_TOOLTIP)
+            return
         self._pending = action
         self._busy = True
         self.update_state()
@@ -518,6 +537,10 @@ class MainWindow(QMainWindow):
         auflaufen – der Dialog braucht sie aber. Nebeneffekt: der Ablauf
         bleibt von aussen steuerbar und damit testbar."""
         if self.state not in (UiState.NOT_READY, UiState.READY):
+            return
+        if self._sandbox:   # Backstop wie bei "background"
+            self._set_headline("Kalibrieren in der Sandbox gesperrt.", "reject")
+            self._set_guide(_SANDBOX_SETUP_TOOLTIP)
             return
         from .widgets.calibrate_dialog import CalibrateDialog
 

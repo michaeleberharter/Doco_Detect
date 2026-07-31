@@ -14,6 +14,9 @@ data/reference
 data/demo
 data/testset-smoke
 data/verworfen
+# Isolierte Testbestände (--sandbox NAME): DB, Referenzen, Verworfene,
+# Captures und Berichte eines Laufs, der die Produktion nicht anfassen soll.
+data/sandbox
 # reports/ ist Arbeitsordner (ignoriert); reports/archive/ ist das
 # VERSIONIERTE Auswertungs-Archiv (analyze --publish). Die Muster-Kombination
 # ist Pflicht: Git steigt in komplett ignorierte Ordner nicht ab, erst

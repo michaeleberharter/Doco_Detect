@@ -39,6 +39,15 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   wie der Matcher nutzt.
 - **2026-07-24** — [Arbeitsplan ab 2026-07-24](arbeitsplan-2026-07-24.md):
   aktueller Plan (Mac-first, Windows-Tag, Blöcke 1–5) — der lebende Fahrplan.
+- **2026-07-31** — [`reference_stats` kennt keinen Session-Begriff](2026-07-31-reference-stats-keine-sessions.md):
+  zwei Einlern-Sessions desselben Artikels verschmelzen still zu einem σ
+  (Basis für `sigma_eff`) — vor dem Neu-Einlernen ALLE Altreferenzen löschen.
+- **2026-07-31** — [Baseline trägt `code_fingerprint` von vor der Messpfad-Runde](2026-07-31-baseline-code-fingerprint.md):
+  Befund — ohne Wirkung auf `--check`, aber `--changed-only` rechnet mehr neu
+  als nötig. Nichts geändert, kein Re-Baselining.
+- **2026-07-31** — [Isolierter Testbestand `--sandbox NAME`](2026-07-31-sandbox-isolierter-db-stand.md):
+  fünf Schreibpfade nach `data/sandbox/<name>/`, Kalibrierung bleibt geteilt
+  (daher Sperren); enthält die bekannte Einschränkung `corpus/build.py:117`.
 
 ## Referenz (nicht chronologisch)
 
