@@ -53,11 +53,11 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   (daher Sperren); enthält die bekannte Einschränkung `corpus/build.py:117`.
 - **2026-08-01** — [Fixpunkt-Test: trennt das Scoring ohne Positionseffekt?](2026-08-01-fixpunkt-test-scoring.md):
   15/15 Top-1 korrekt, aber nur 3 ACCEPT — der Margin bricht mit der
-  Kandidatensetgröße ein, nicht mit der Artikelähnlichkeit. Der Hebel ist der
-  Vorfilter (`diameter_tolerance_mm`), NICHT `min_llr_margin`.
+  Kandidatensetgröße ein, nicht mit der Artikelähnlichkeit.
   **Zwei Nachträge:** MESSER-2 UND MESSER-6 sind Duplikate von MESSER-5
   (physisch geprüft) — der Bestand hatte **13 statt 15** Objekte; die Duplikate
-  kosteten aber keinen einzigen ACCEPT.
+  kosteten aber keinen einzigen ACCEPT. Befund 2 („Hebel ist der Vorfilter")
+  ist **widerlegt** — siehe Simulation vom selben Tag.
 - **2026-08-01** — [NEGATIVBEFUND: Breitenprofil w(s) wird NICHT gebaut](2026-08-01-wprofil-negativbefund.md):
   w(s) trennt hervorragend (Median 16,1 σ gegen 1,3–1,8 σ der Farbmerkmale),
   rettet aber nur 4 der 12 AMBIGUOUS — und 0 ab σ_floor 1,0 mm, wo der
@@ -68,6 +68,17 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   MESSER-5 und MESSER-6 sind DASSELBE Objekt — die „Entartung des Trios" war
   vollständig ein Datenfehler, es bleibt kein entartetes Paar. Kernaussage
   unberührt.
+- **2026-08-01** — [Drei widerlegte Thesen zum Scoring (Simulation)](2026-08-01-scoring-simulation-widerlegte-thesen.md):
+  169 Leave-one-out-Fälle über 13 echte Artikel, 103 Varianten. **Keine
+  Scoring-Änderung.**
+  `log_score` IST bereits eine gewichtete Summe, solange alle Kandidaten alle
+  Merkmale tragen (im Produktivbestand mit Altreferenzen gilt das NICHT, und
+  eine unnormierte Summe bevorzugt dort Kandidaten mit LÜCKEN). Vorfilter-
+  Verschärfung tötet den wahren Artikel und erzeugt konkurrenzlose
+  Falschsieger (k_safe 166 → 35). Farbe ist kein toter Ballast. Ergebnis der
+  Runde ist `scripts/simulate_scoring.py` — reproduziert `matcher.match()`
+  bit-identisch. Offen bleibt der Kern: 127 von 169 Fällen AMBIGUOUS, neun von
+  dreizehn Artikeln ohne ein einziges ACCEPT.
 - **2026-08-01** — [Duplikatprüfung gehört VOR jede Analyse](2026-08-01-duplikatpruefung-methode.md):
   Methodenempfehlung nach zwei übersehenen Duplikaten. Profildistanz-Scan über
   w(s), Kennzahl `d/σ` (nicht `d`), **Schwelle d/σ < 2,0 = physisch prüfen** —
