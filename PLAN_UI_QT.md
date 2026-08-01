@@ -1,5 +1,20 @@
 # Plan: Native Desktop-UI mit PySide6 (`docodetect/ui_qt/`)
 
+> **HISTORISCH — Stand 2026-08-01.** Dieser Plan ist umgesetzt; die Qt-UI ist
+> die Bedien-UI des Projekts. Der Inhalt unten bleibt **unverändert** als
+> Beleg, wie und warum sie gebaut wurde.
+>
+> **Was darin nicht mehr gilt:** Der Plan behandelt die Streamlit-UI
+> durchgehend als lebendes System und als Randbedingung — „bleibt
+> unangetastet", „unverändert lauffähig", „Kein Streamlit-Code kopieren",
+> „Alle Erweiterungen müssen von der bestehenden Streamlit-UI und CLI
+> mitbenutzt werden". Diese Vorgaben waren zur Bauzeit richtig und sind
+> **hinfällig**: die Streamlit-UI wurde am 2026-08-01 vollständig entfernt
+> (Commit `07586b5`, Anlass:
+> [docs/2026-08-01-streamlit-config-tab-schreibt-config-yaml.md](docs/2026-08-01-streamlit-config-tab-schreibt-config-yaml.md)).
+> Wer hier eine Randbedingung für neue Arbeit sucht, liest die falsche Datei —
+> die gelten in [CLAUDE.md](CLAUDE.md).
+
 Umsetzungsplan für Claude Code. Ziel: eine native Desktop-App (Windows + macOS) als
 Bedienoberfläche für Doco_Detect — Ersatz bzw. Ergänzung der Streamlit-UI. Die App
 ist das, was der Bediener an der Fotobox sieht: Live-Vorschau, ein großer

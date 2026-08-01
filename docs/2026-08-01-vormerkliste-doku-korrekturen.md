@@ -310,31 +310,29 @@ jetzt die Qt-UI und markiert Streamlit als entfernt; die beiden 08-01-Dokumente
 verbliebenen Erwähnungen in `cli.py`, `display.py` und `neural_seg.py` sind
 historische Kommentare und richtig so.
 
-Es bleiben vier Kleinigkeiten:
+Es blieben vier Kleinigkeiten. **Drei davon sind am 2026-08-01 erledigt:**
 
-**a) `docs/architektur.md` trägt die Überschrift `# CLAUDE.md`.** Ein Rest aus
-der Zeit, als die Datei aus CLAUDE.md herauskopiert wurde. Verwirrend, weil
-CLAUDE.md daneben existiert und etwas anderes ist. *(~2 min)*
+- ✅ **a)** `docs/architektur.md` trug die Überschrift `# CLAUDE.md` — ein Rest
+  aus der Zeit, als die Datei dort herausgelöst wurde. Jetzt „Architektur", mit
+  Abgrenzung zu CLAUDE.md und README und einer Notiz, woher die alte
+  Überschrift kam.
+- ✅ **b)** `PLAN_UI_QT.md` beschrieb Streamlit als lebend **und als
+  Randbedingung** („bleibt unangetastet", „unverändert lauffähig", „Kein
+  Streamlit-Code kopieren"). Datierter Kopf-Marker gesetzt, Inhalt unangetastet
+  — historische Dokumente rückwirkend zu ändern macht sie unzuverlässig.
+- ✅ **c)** [Plan](superpowers/plans/2026-07-20-multi-candidate-decision-ui.md)
+  und [Spec](superpowers/specs/2026-07-20-multi-candidate-decision-ui-design.md)
+  zur Streamlit-Entscheidungs-UI: datierte Marker, Inhalt unangetastet. Bei der
+  Spec mit dem ausdrücklichen Zusatz, dass ihre Layout-Entscheidungen Beleg
+  einer Abwägung sind, keine geltende Vorgabe.
 
-**b) `PLAN_UI_QT.md` beschreibt Streamlit als lebend — und als Randbedingung.**
-„Ersatz bzw. Ergänzung der Streamlit-UI", „**Kein Streamlit-Code kopieren.** Die
-Streamlit-UI bleibt unangetastet", „Alle Erweiterungen müssen von der
-bestehenden Streamlit-UI und CLI mitbenutzt werden", „Streamlit-UI und CLI
-unverändert lauffähig". Das liest sich wie geltende Vorgaben, ist aber der
-Umsetzungsplan eines abgeschlossenen Vorhabens. Ein Kopf-Marker „historisch,
-umgesetzt; Streamlit am 2026-08-01 entfernt" genügt. *(~5 min)*
-
-**c) Die archivierten Pläne/Specs zur Streamlit-Entscheidungs-UI**
-([plan](superpowers/plans/2026-07-20-multi-candidate-decision-ui.md),
-[spec](superpowers/specs/2026-07-20-multi-candidate-decision-ui-design.md))
-beschreiben eine UI, die es nicht mehr gibt. Als Pläne sind sie ihrer Natur nach
-historisch; ein Ein-Zeilen-Marker schadet trotzdem nicht, weil die Specs
-Layout-Entscheidungen enthalten, die man sonst für gültig hält. *(~5 min)*
-
-**d) Nicht Streamlit, aber dieselbe Datei:
-`docs/architektur.md:54` zeigt `enroll ART-NR --shots 8`**, ebenso
-`README.md:340`. Der Default steht seit `fc656ba` auf **12**
-(`config.yaml: enroll_shots: 12`). *(~5 min)*
+**Offen — d) `--shots 8` gegen den Default 12** (`fc656ba`,
+`config.yaml: enroll_shots: 12`): in `docs/architektur.md` **korrigiert**, in
+**`README.md`** (Zeile ~382, Beispielblock) **noch nicht**. Grund: die Datei
+trug beim Bearbeiten uncommittete Fremdarbeit (Konsolen-Entrypoints, die auf
+ein noch nicht committetes `pyproject.toml` verweisen). Ein Commit hätte diese
+Änderung mitgenommen und damit ein Feature dokumentiert, dessen Code nicht im
+Repo ist. Nachzuziehen, sobald `README.md` frei ist. *(~2 min)*
 
 ---
 

@@ -1,6 +1,12 @@
-# CLAUDE.md
+# Architektur
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Modulgrenzen, Datenfluss und die Invarianten, die den Code erklären. Die
+**Dauerregeln** für die Arbeit am Projekt stehen nicht hier, sondern in
+[../CLAUDE.md](../CLAUDE.md); Setup und Bedienung im [../README.md](../README.md).
+
+*(Diese Datei trug bis 2026-08-01 die Überschrift „CLAUDE.md" — ein Rest aus
+der Zeit, als sie aus jener Datei herausgelöst wurde. Der Inhalt ist
+unverändert Architektur-Dokumentation, keine Regelsammlung.)*
 
 ## What this is
 
@@ -51,7 +57,7 @@ python -m docodetect.cli init-db
 python -m docodetect.cli import-articles data/articles_example.csv
 python -m docodetect.cli capture-background      # empty box
 python -m docodetect.cli calibrate               # ArUco marker in box
-python -m docodetect.cli enroll ART-NR --shots 8
+python -m docodetect.cli enroll ART-NR --shots 12   # Default seit fc656ba: 12
 python -m docodetect.cli identify [--image foto.jpg]
 python -m docodetect.cli evaluate data/testset/   # accuracy + confusion pairs
 

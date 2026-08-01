@@ -1,5 +1,12 @@
 # Mehrkandidaten-Entscheidungspfad (beide UIs) — Implementation Plan
 
+> **HISTORISCH — Marker gesetzt 2026-08-01.** Inhalt unverändert. „Beide UIs"
+> meint Qt **und Streamlit**; die Streamlit-UI wurde am 2026-08-01 entfernt
+> (Commit `07586b5`). Die hier beschriebenen Streamlit-Schritte und
+> -Layouts sind damit gegenstandslos, die Qt-Seite ist umgesetzt. Der
+> Entscheidungspfad selbst (Kandidatenliste, Korrekturdialog) gilt
+> unverändert — nur eben in einer UI statt in zweien.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Die bestehende Dreiwege-Entscheidung (accept/ambiguous/reject) in beiden UIs vollständig sichtbar machen: zentrale Format-Helfer, Teilscore-Anzeige, „Keiner davon"-Korrekturpfad, knappe Demo-Szenarien und Schwellen-Randfall-Tests.

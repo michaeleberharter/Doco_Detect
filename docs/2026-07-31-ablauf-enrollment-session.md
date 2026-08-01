@@ -16,9 +16,14 @@ ausgeschrieben.
 >    Duplikat-Scan über den fertigen Bestand (Schritt 5). Ohne den zweiten
 >    waren drei von fünfzehn „Artikeln" dasselbe Messer.
 > 4. Schritt 1 nennt das `init-db`-Verhalten bei fehlenden Verzeichnissen.
+> 5. **Nachtrag am selben Tag: die Rasterfahrt als Schritt 0a**, vor der
+>    Kalibrierung. Der Positionseffekt ist inzwischen aus den Rohdaten belegt
+>    (r = −0,997); steckt eine mechanische Ursache dahinter, werden sonst alle
+>    Artikel gegen ein schiefes Feld eingelernt.
 >
-> Ablauf jetzt: 0 Einrichtung · 1 Sandbox · 2 Artikel anlegen · 3 Einlernen ·
-> **4 σ/Floor** · **5 Duplikat-Scan** · 6 Stichprobe · 7 Danach.
+> Ablauf jetzt: **0a Rasterfahrt** · 0b Hintergrund/Kalibrierung · 1 Sandbox ·
+> 2 Artikel anlegen · 3 Einlernen · **4 σ/Floor** · **5 Duplikat-Scan** ·
+> 6 Stichprobe · 7 Danach.
 
 Sandbox-Name in diesem Zettel: **`neuenroll-2026-08`**. Er steht in jedem
 Kommando; wer einen anderen nimmt, muss ihn überall gleich ersetzen — ein
@@ -48,10 +53,53 @@ Die produktive `doco_detect.sqlite3` und `data/reference/` bleiben unangetastet.
 
 ---
 
-## Schritt 0 — Einrichtung prüfen (OHNE `--sandbox`)
+## Schritt 0 — Rig vorbereiten (OHNE `--sandbox`)
+
+### 0a — PFLICHT am neuen Rig: Rasterfahrt, VOR der Kalibrierung
+
+**Einmalig je Rig, und nach jeder mechanischen Änderung.** Nicht je Session.
+
+Dasselbe Objekt an **5 × 3 Positionen** über das Feld legen, je 2–3 Aufnahmen,
+Positionen notieren. Auswertung mit `scripts/positionsdrift_check.py` als
+Vorlage (das Skript rechnet heute auf einer Serie aus `data/reference/`).
+
+**Warum das vor allem anderen steht:** Am Mac-Rig wurde am 2026-07-28 gemessen,
+dass die **gemessene Länge von der Position im Bild abhängt** — 8,56 mm über
+109 mm Weg, r = −0,997
+([2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md)).
+Steckt dahinter eine mechanische Ursache (schief stehende Kamera), dann werden
+**alle** danach eingelernten Artikel gegen ein schiefes Feld gemessen. Vierzig
+Artikel neu einzulernen und den Fehler danach zu finden, ist der teuerste
+denkbare Ablauf.
+
+Die halbe Stunde beantwortet drei Fragen auf einmal:
+
+1. **Ist der Gradient mechanisch behebbar?** Linear über das Feld = Kamera
+   steht schief (richten). Radialsymmetrisch = Objektivverzeichnung
+   (Intrinsic-Kalibrierung). Keins von beidem = weitersuchen. **Eine Linie kann
+   das nicht trennen, ein Raster sofort.**
+2. **Wie groß ist der Betriebs-Floor wirklich?** Er entscheidet allein über
+   w(s), und an derselben Zahl hängen D7 und D8. Heute ist er *geschätzt* und
+   sein plausibler Bereich (0,40–1,41 mm) umspannt die Entscheidungsgrenze von
+   1,0 mm. Drei offene Scoring-Fragen hängen an einer halben Stunde Messung.
+3. **Warum fällt die Breite schneller als die Länge?** `lat_p98` reagiert
+   **2,66× stärker** auf Position als `ext_full`, monoton über alle zwölf
+   Shots. Eine reine Vergrößerungsänderung würde beide gleich skalieren — sie
+   tut es nicht, und niemand weiß warum. Das ist nicht bloß Neugier:
+   `lat_p98` erklärt 72 % der Profildistanz von w(s), die Floor-Abschätzung
+   stammt aber aus der **Länge**. Ist die Breite dreimal empfindlicher, ist die
+   Abschätzung womöglich nach unten verzerrt — in genau die Richtung, die die
+   w(s)-Absage stützt.
+
+**Ergebnis vor der Kalibrierung auswerten.** Ist eine mechanische Ursache
+erkennbar, erst richten, dann kalibrieren — sonst friert die Kalibrierung den
+schiefen Zustand ein.
+
+### 0b — Hintergrund und Kalibrierung
 
 Nur nötig, wenn die Box seit der letzten Kalibrierung bewegt wurde oder die
-Beleuchtung sich geändert hat. Sonst überspringen.
+Beleuchtung sich geändert hat. Nach einer Rasterfahrt mit Korrektur (0a) ist es
+**immer** nötig.
 
 ```
 docodetect capture-background
