@@ -15,6 +15,16 @@ Config, keine Baseline geändert.
 > 0,25 und für σ_floor ≥ 1,50 mm**. Für den Bereich **Gewicht 0,60 bei floor
 > 0,5–1,0** ist die Absage **nicht belegt** — dort wurde nie gerechnet. Wer die
 > Frage in diesem Bereich aufmacht, macht sie zu Recht auf.
+>
+> **ZWEITE PRÄZISIERUNG 2026-08-01 (Ende Abschnitt 11), betrifft Abschnitt 6:**
+> Die Floor-Abschätzung „0,50–0,89 mm" ist im Wert richtig, aber falsch
+> beschriftet — die 8,56 mm Drift stehen über **64 %** der Feldhöhe, nicht über
+> die halbe. Als Rate gerechnet spannt der plausible Betriebs-Floor
+> **0,40–1,41 mm**, je nachdem, wie weit die Auflage im Betrieb streut, und
+> umspannt damit die Entscheidungsgrenze von 1,0 mm. **Die Absage bleibt, ihre
+> Begründung ist ausgetauscht:** nicht „der Floor liegt zu hoch", sondern „der
+> Floor ist unbekannt". Messung:
+> [2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md).
 
 ---
 
@@ -264,6 +274,15 @@ Floor-Empfindlichkeit der Trennschärfe:
 Enrollment-Format, Matcher-Merkmal, Korpus-Re-Baselining — für einen Gewinn, der
 bei realistischer Positionsstreuung verschwindet.
 
+> **→ Diese Herleitung ist am 2026-08-01 korrigiert worden (Ende Abschnitt 11).**
+> Der Text hier bleibt unverändert, aber wer nur diesen Abschnitt liest, bekommt
+> eine zu schmale Zahl: die 8,56 mm Drift stehen über **64 %** der Feldhöhe,
+> nicht über die halbe. Als Rate gerechnet spannt der Floor **0,40–1,41 mm** je
+> nach unterstellter Auflage-Streuung — er umspannt die Entscheidungsgrenze von
+> 1,0 mm, statt darüber zu liegen. Der Effekt selbst ist inzwischen aus den
+> Rohdaten belegt (r = −0,997):
+> [2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md).
+
 ---
 
 ## 7. Entscheidung
@@ -464,8 +483,12 @@ Abschnitt 3 prüfte Gewichte von 0,10 bis 0,25. In Block D7 wurden 0,40, 0,60 un
 
 Bei Gewicht 0,60 und floor 1,00 liegt die ACCEPT-Rate bei 38 % (Testaufnahme-
 Konstruktion) bzw. 43 % (Leave-one-out) gegen eine Baseline von 23 % / 24 %.
-Der geschätzte Betriebs-Floor war 0,5–0,9 mm (Abschnitt 6) — **dieser Bereich
-liegt vollständig innerhalb der Zone, in der ein hohes Gewicht noch wirkt.**
+~~Der geschätzte Betriebs-Floor war 0,5–0,9 mm (Abschnitt 6) — dieser Bereich
+liegt vollständig innerhalb der Zone, in der ein hohes Gewicht noch wirkt.~~
+
+> **Durchgestrichen am 2026-08-01 nach der Positionsmessung.** Der Bereich
+> liegt **nicht** vollständig in der Wirkzone — er umspannt deren Grenze. Siehe
+> die Präzisierung am Ende dieses Abschnitts.
 
 Ab floor 1,50 ist der Gewinn in beiden Konstruktionen und bei jedem geprüften
 Gewicht vollständig weg. Die Absage gilt dort unverändert.
@@ -506,8 +529,56 @@ Lücke im geprüften Parameterbereich.
   168). Die Befürchtung, ein hohes w(s)-Gewicht ziehe `diameter_mm` herunter und
   schade dem Ranking, bestätigt sich nicht.
 
-**Handlungsfolge:** unverändert nicht bauen — aber der Grund ist jetzt
-ausschließlich der unbekannte Betriebs-Floor, nicht mehr „der Gewinn ist zu
-klein". Sobald die Windows-Box einen **gemessenen** Floor liefert, ist die Frage
-neu zu stellen. Fällt er unter 1,0 mm, ist w(s) mit hohem Gewicht ein ernsthafter
-Kandidat.
+### PRÄZISIERUNG 2026-08-01: die Floor-Herleitung aus Abschnitt 6 war falsch beschriftet
+
+Die Positionsmessung, auf der Abschnitt 6 beruht, ist inzwischen aus den
+Rohdaten ausgewertet
+([2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md)).
+Sie **bestätigt den Effekt deutlicher als zuvor** (r = −0,997 über eine
+Positionsleiter von 109 mm) und korrigiert zugleich die Herleitung:
+
+**Die 8,56 mm stehen über 64 % der Feldhöhe, nicht über die halbe.** Abschnitt 6
+hat die *beobachtete Spanne* verwendet und sie „halbe Bildhöhe" genannt. Als
+Rate gerechnet (−0,0374 % je mm Verschiebung) hängt der Floor daran, wie weit
+die Auflage im Betrieb streut:
+
+| unterstellte Auflage-Streuung | Drift | relativ | → Floor |
+|---|---|---|---|
+| halbe Feldhöhe (85 mm) | 6,73 mm | 3,18 % | **0,40–0,71 mm** |
+| beobachtete Leiter (109 mm) | 8,66 mm | 4,09 % | 0,52–0,91 mm |
+| volle Feldhöhe (170 mm) | 13,47 mm | 6,36 % | **0,80–1,41 mm** |
+
+Die dokumentierten 0,50–0,89 mm entsprechen der mittleren Zeile — der **Wert**
+stimmt, die **Begründung** war ungenau.
+
+**Das tauscht die Begründung der Absage aus.** Bisher stand hier: der Gewinn
+verschwindet, weil der Betriebs-Floor in der Zone liegt, in der w(s) nicht mehr
+wirkt. Richtig ist:
+
+> Der plausible Bereich des Betriebs-Floors ist **0,40–1,41 mm** und umspannt
+> damit die Entscheidungsgrenze von **1,0 mm** auf beiden Seiten. Der Faktor
+> zwischen den Extremen ist **3,5**, und er hängt nicht an der Messung, sondern
+> an einer **unbeobachteten Betriebsannahme** — wie weit die Objekte in der Box
+> tatsächlich streuen. Diese Streuung ist nicht gemessen.
+
+Die Absage bleibt, aber ihr Grund ist schmaler als bisher beschrieben: **nicht
+„der Floor liegt zu hoch", sondern „der Floor ist unbekannt, und sein
+plausibler Bereich umspannt die Entscheidungsgrenze".** Wer w(s) wieder
+aufmacht, muss deshalb nicht die Trennschärfe und nicht die Floor-Abschätzung
+angreifen — er muss den Floor **messen**.
+
+**Praktische Folge, die nichts kostet:** eine engere Auflage-Zone verkleinert
+den Floor. Wer die Objekte auf ein mittiges Feld beschränkt statt über die volle
+Feldhöhe zu streuen, drückt den Beitrag dieses Effekts in Richtung der ersten
+Tabellenzeile — und damit unter die Entscheidungsgrenze. Das ist eine
+Bedienregel wie „mittig auflegen", keine Codeänderung. Sie steht im Konflikt
+mit der Enrollment-Forderung nach *breiter* Positionsstreuung
+([Ablaufzettel](2026-07-31-ablauf-enrollment-session.md), Schritt 3): das
+Enrollment muss die Streuung sehen, der Betrieb sollte sie klein halten. Beides
+zusammen ist kein Widerspruch, aber es gehört bewusst entschieden.
+
+**Handlungsfolge:** unverändert nicht bauen. Sobald die Windows-Box einen
+**gemessenen** Floor liefert — die Rasterfahrt aus
+[positionsdrift-messung, Abschnitt 7](2026-08-01-positionsdrift-messung.md)
+liefert ihn nebenbei —, ist die Frage neu zu stellen. Fällt er unter 1,0 mm,
+ist w(s) mit hohem Gewicht ein ernsthafter Kandidat.

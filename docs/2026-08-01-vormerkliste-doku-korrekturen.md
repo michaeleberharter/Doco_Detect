@@ -11,6 +11,62 @@ Aufwand, damit er ohne erneute Analyse ausführbar ist.
 > **Reihenfolge-Hinweis:** Punkt 1 und 2 sind die einzigen, bei denen ein
 > Zuwarten Schaden anrichten kann — sie stehen in Dateien, die jede Sitzung
 > ungefragt liest bzw. die als Auftragsliste gelesen werden.
+>
+> **Punkt 0 ist keine Doku-Arbeit, sondern die wertvollste halbe Stunde auf
+> dieser Liste** und gehört auf die Windows-Tagesordnung, nicht hierher in die
+> Reihenfolge.
+
+---
+
+## 0. PRIORITÄT — Rasterfahrt an der Windows-Box (30 min, beantwortet drei offene Fragen)
+
+**Fundstelle:** [2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md),
+Abschnitte 4 und 7 · **Aufwand:** ~30 min an der Box, plus ~15 min Auswertung
+· **Werkzeug existiert:** `scripts/positionsdrift_check.py`
+
+Dasselbe Objekt an **5 × 3 Positionen** über das Feld, je 2–3 Aufnahmen. Eine
+halbe Stunde, die gleichzeitig drei Dinge liefert, die heute alle offen sind:
+
+**1. Den gemessenen Betriebs-Floor.** Er entscheidet allein über w(s) — und
+sein plausibler Bereich ist heute **0,40–1,41 mm**, umspannt also die
+Entscheidungsgrenze von 1,0 mm mit Faktor 3,5 zwischen den Extremen. An
+derselben Zahl hängen D7 und D8 (ohne w(s) im Pool fällt D8 auf fünf
+Fehlentscheidungen zurück). **Drei der offenen Scoring-Fragen hängen an einer
+Größe, die eine halbe Stunde Messung kostet.**
+
+**2. Die Ursache des Gradienten.** Ist er linear (Keystone/Kameraneigung),
+radialsymmetrisch (Verzeichnung) oder keins von beidem? Eine Linie kann das
+nicht trennen, ein Raster sofort. Davon hängt ab, ob eine Intrinsic-Kalibrierung
+oder eine mechanische Korrektur die richtige Antwort ist.
+
+**3. Den unerklärten `lat_p98`-Befund — und der ist neu.** Über die
+Positionsleiter fällt die **Breite relativ 2,66× schneller als die Länge**
+(−0,0996 gegen −0,0374 % je mm), monoton über alle zwölf Shots, also kein
+Rauschen:
+
+| Größe | relative Steigung | über die Leiter |
+|---|---|---|
+| `ext_full` (Länge) | −0,0374 % je mm | −3,97 % |
+| `lat_p98` (Breite) | **−0,0996 % je mm** | **−10,31 %** |
+
+**Eine reine Vergrößerungsänderung würde beide gleich skalieren.** Sie tut es
+nicht — der Effekt ist also kein reiner Maßstabsfehler, und keine der
+vorliegenden Erklärungen (Keystone, schräge Sicht auf ein Objekt mit Höhe,
+positionsabhängige Kantenlage der Segmentierung) ist damit belegt oder
+ausgeschlossen.
+
+**Warum das über die Neugier hinausgeht:** `lat_p98` ist heute Diagnose, kein
+Scoring-Merkmal — aber es erklärt **72 % der Profildistanz** von w(s)
+([w(s)-Negativbefund §5a](2026-08-01-wprofil-negativbefund.md)). Wenn die
+Breite dreimal so positionsempfindlich ist wie die Länge, dann ist die
+Positionsempfindlichkeit von w(s) **größer als die aus `ext_full` abgeleitete
+Floor-Abschätzung unterstellt** — und die ist genau die Zahl, an der die
+Absage hängt. Die heutige Abschätzung könnte also nach unten verzerrt sein.
+Das ist mit einer Achse nicht entscheidbar.
+
+**Reihenfolge:** vor dem Komplett-Neu-Enrollment, nicht danach. Ergibt das
+Raster eine mechanische Ursache, will man sie beheben, bevor 40 Artikel gegen
+das schiefe Feld eingelernt werden.
 
 ---
 
@@ -240,38 +296,54 @@ steht in **keinem** INDEX-Eintrag — es ist nur aus CLAUDE.md verlinkt.
 
 ---
 
-## 13. Streamlit-Restpunkte — erst nach Abschluss der Entfernung
+## 13. Streamlit-Restpunkte — nach Abschluss der Entfernung aufgestellt
 
-**Aufwand:** unbekannt, erst dann bestimmbar
+**Stand:** Entfernung abgeschlossen (`07586b5`, `70ca30c`, Suite grün).
+**Aufwand gesamt:** ~30 min
 
-Die Streamlit-UI wird in einer parallelen Sitzung entfernt (`07586b5` und
-Folgende). Betroffen sind unter anderem `README.md`, `docs/architektur.md`
-sowie Streamlit-Erwähnungen in
-[duplikatpruefung-methode](2026-08-01-duplikatpruefung-methode.md) („im
-Streamlit-Anlegepfad noch nicht") und
-[Fixpunkt](2026-08-01-fixpunkt-test-scoring.md) (offener Punkt zum
-Streamlit-Create-Pfad).
+**Die Entfernung selbst ist sauber.** `app.py`, `pages/`, `ui_common.py` und
+`requirements-ui.txt` sind weg; `README.md` hat einen Abschnitt „Die
+Streamlit-Test-UI wurde entfernt" mit Ersatzpfaden; `architektur.md` beschreibt
+jetzt die Qt-UI und markiert Streamlit als entfernt; die beiden 08-01-Dokumente
+([duplikatpruefung](2026-08-01-duplikatpruefung-methode.md),
+[Fixpunkt](2026-08-01-fixpunkt-test-scoring.md)) haben datierte Nachträge. Die
+verbliebenen Erwähnungen in `cli.py`, `display.py` und `neural_seg.py` sind
+historische Kommentare und richtig so.
 
-Eine Restpunktliste vor Abschluss dieser Arbeit wäre sofort veraltet. Nach
-Abschluss zu prüfen: trägt `architektur.md` noch die Streamlit-Datenflüsse,
-und ist die Qt-UI dort überhaupt beschrieben (bisher kommt sie nicht vor).
+Es bleiben vier Kleinigkeiten:
+
+**a) `docs/architektur.md` trägt die Überschrift `# CLAUDE.md`.** Ein Rest aus
+der Zeit, als die Datei aus CLAUDE.md herauskopiert wurde. Verwirrend, weil
+CLAUDE.md daneben existiert und etwas anderes ist. *(~2 min)*
+
+**b) `PLAN_UI_QT.md` beschreibt Streamlit als lebend — und als Randbedingung.**
+„Ersatz bzw. Ergänzung der Streamlit-UI", „**Kein Streamlit-Code kopieren.** Die
+Streamlit-UI bleibt unangetastet", „Alle Erweiterungen müssen von der
+bestehenden Streamlit-UI und CLI mitbenutzt werden", „Streamlit-UI und CLI
+unverändert lauffähig". Das liest sich wie geltende Vorgaben, ist aber der
+Umsetzungsplan eines abgeschlossenen Vorhabens. Ein Kopf-Marker „historisch,
+umgesetzt; Streamlit am 2026-08-01 entfernt" genügt. *(~5 min)*
+
+**c) Die archivierten Pläne/Specs zur Streamlit-Entscheidungs-UI**
+([plan](superpowers/plans/2026-07-20-multi-candidate-decision-ui.md),
+[spec](superpowers/specs/2026-07-20-multi-candidate-decision-ui-design.md))
+beschreiben eine UI, die es nicht mehr gibt. Als Pläne sind sie ihrer Natur nach
+historisch; ein Ein-Zeilen-Marker schadet trotzdem nicht, weil die Specs
+Layout-Entscheidungen enthalten, die man sonst für gültig hält. *(~5 min)*
+
+**d) Nicht Streamlit, aber dieselbe Datei:
+`docs/architektur.md:54` zeigt `enroll ART-NR --shots 8`**, ebenso
+`README.md:340`. Der Default steht seit `fc656ba` auf **12**
+(`config.yaml: enroll_shots: 12`). *(~5 min)*
 
 ---
 
-## 14. Aus dem Positionsbefund: ein Raster statt einer Linie
+## 14. — verschoben nach Punkt 0
 
-**Fundstelle:** [2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md),
-Abschnitt 7 · **Aufwand:** ~30 min an der Box
-
-Kein Doku-Punkt, sondern eine Messung, die an der Windows-Box in dieselbe
-Session gehört wie das Neu-Enrollment: dasselbe Objekt an 5 × 3 Positionen über
-das Feld. Daraus fällt ab, ob der Gradient linear (Keystone), radialsymmetrisch
-(Verzeichnung) oder keins von beidem ist — und der **gemessene** Betriebs-Floor,
-an dem w(s), D7 und D8 hängen. Deren plausibler Bereich spannt heute
-0,40–1,41 mm und liegt damit auf beiden Seiten der Entscheidungsgrenze.
-
-Offen bleibt daneben die Anisotropie: die Breite fällt **2,66× schneller** als
-die Länge. Eine reine Vergrößerungsänderung erklärt das nicht.
+Die Rasterfahrt stand hier zunächst als Nebenpunkt. Sie steht jetzt als
+**Punkt 0** ganz oben: eine halbe Stunde, die den gemessenen Betriebs-Floor,
+die Ursache des Gradienten und den offenen `lat_p98`-Befund zugleich
+beantwortet.
 
 ---
 

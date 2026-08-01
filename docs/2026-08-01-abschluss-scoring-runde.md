@@ -159,13 +159,30 @@ Formalie — es ist der Grund, warum keine Änderung erfolgt.
 | **n ≈ 13 Artikel** | 169 Fälle sind 13 Aufnahmeserien. Rule of Three: Fehlerrate < 21 %. „false_accept = 0" belegt nichts. | **≥ 40 Artikel**, möglichst mit den engen Größenclustern des Produktivbestands |
 | **Fixpunkt-Referenzen** | σ_enroll enthält keine Positionsstreuung. Absolute Margins sind optimistisch; die Streuungs-Asymmetrie, an der Block D hängt, könnte im Betrieb gar nicht bestehen. | **Enrollment mit echter Positionsstreuung** — Artikel bewusst verteilt statt am Fixpunkt |
 | **Leave-one-out** | Messung stammt aus derselben Aufnahmeserie wie die Referenz. Keine unabhängige Prüfung. | **Getrennte Testaufnahmen**, mindestens n ≥ 5 je Artikel |
-| **Betriebs-Floor geschätzt** | 0,5–0,9 mm aus der Positionsdrift abgeleitet, nicht gemessen. Entscheidet allein über w(s). | **Gemessener Floor** aus wiederholten Auflagen an realen Positionen |
+| **Betriebs-Floor geschätzt** | **0,40–1,41 mm** je nach unterstellter Auflage-Streuung, nicht gemessen — der Bereich umspannt die Entscheidungsgrenze von 1,0 mm (Korrektur 2026-08-01, siehe Fussnote). Entscheidet allein über w(s). | **Gemessener Floor** aus wiederholten Auflagen an realen Positionen — die Rasterfahrt liefert ihn nebenbei |
 | **Kein Fokus-Lock (Mac)** | Kameraverbindung brach mehrfach ab, Fokus über die Session nicht garantiert. | **Windows-Box mit Fokus-Lock** |
 
 Alle fünf laufen auf denselben Schritt hinaus: **das Komplett-Neu-Enrollment an
 der Windows-Box**, mit verteilten statt fixierten Auflagen und getrennten
 Testaufnahmen. Danach — und erst danach — sind die drei Wiederaufnahme-Kandidaten
 entscheidbar.
+
+> **Fussnote zum Betriebs-Floor (Korrektur 2026-08-01).** Die Runde führte hier
+> „0,5–0,9 mm". Die zugrunde liegende Positionsmessung ist inzwischen aus den
+> Rohdaten ausgewertet
+> ([2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md)):
+> der Effekt ist **deutlicher belegt als angenommen** (r = −0,997 über eine
+> Positionsleiter von 109 mm), aber die Drift von 8,56 mm steht über **64 %**
+> der Feldhöhe, nicht über die halbe. Als Rate gerechnet spannt der Floor
+> **0,40–1,41 mm**, je nachdem wie weit die Auflage im Betrieb streut.
+>
+> Das verschiebt keine Entscheidung dieser Runde, aber es verschärft den
+> Befund: die Größe, die allein über w(s) entscheidet, hängt nicht nur an einer
+> fehlenden Messung, sondern an einer **unbeobachteten Betriebsannahme** mit
+> Faktor 3,5 zwischen den Extremen — und die Entscheidungsgrenze von 1,0 mm
+> liegt mittendrin. Die Rasterfahrt an der Windows-Box (5 × 3 Positionen, eine
+> halbe Stunde) liefert beides: den gemessenen Floor und die Ursache des
+> Gradienten.
 
 Vorher ist der Simulator (`scripts/simulate_scoring.py`, reproduziert
 `matcher.match()` bit-identisch) ein Werkzeug zum **Ausschließen** von Thesen,
