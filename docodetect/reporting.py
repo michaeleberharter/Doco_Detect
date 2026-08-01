@@ -1,10 +1,10 @@
 """Batch-Aggregation über MatchReport-JSONs.
 
-EINE Implementierung für beide Konsumenten: der CLI-Befehl `evaluate` und
-der Batch-Tab der Streamlit-Seite "Scoring-Analyse" rechnen exakt dieselben
-Kennzahlen (Accuracy, Verwechslungspaare, Entscheidungsanteile, Posterior-
-Verteilungen korrekt vs. falsch). Labels kommen aus `MatchReport.label`
-(gesetzt von `evaluate` bzw. beim Identify mit bekannter Wahrheit).
+EINE Implementierung für alle Konsumenten: `evaluate`, `analyze`, `ab-report`
+und die Korpus-Auswertung rechnen exakt dieselben Kennzahlen (Accuracy,
+Verwechslungspaare, Entscheidungsanteile, Posterior-Verteilungen korrekt vs.
+falsch). Labels kommen aus `MatchReport.label` (gesetzt von `evaluate` bzw.
+beim Identify mit bekannter Wahrheit).
 """
 
 from __future__ import annotations

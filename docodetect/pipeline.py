@@ -125,7 +125,7 @@ def save_enrollment(cfg: dict, article_number: str,
                     shots: list) -> int:
     """Zweite Hälfte des Einlern-Ablaufs: alle bestätigten Shots
     [(image, Features), ...] auf einmal persistieren – Referenzfoto nach
-    paths.reference_dir/<artikel>/ (wie CLI und Streamlit) + Features in die
+    paths.reference_dir/<artikel>/ (wie die CLI) + Features in die
     DB (Enrollment-Statistik wird dabei aktualisiert)."""
     ref_dir = resolve(cfg["paths"]["reference_dir"]) / article_number
     ref_dir.mkdir(parents=True, exist_ok=True)

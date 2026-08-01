@@ -111,7 +111,8 @@ def test_accept_zeigt_karte_toleranzbalken_und_bewertung(win):
 
 
 def test_accept_karte_zeigt_weiter_die_zentralen_helferstrings(win):
-    """Architekturregel: Qt und Streamlit zeigen denselben mm-Text."""
+    """Architekturregel: die mm-Strings kommen aus den zentralen Helfern,
+    nie aus der Karte selbst — damit UI und CLI denselben Text zeigen."""
     from docodetect.pipeline import format_delta, format_diameter
     from docodetect.ui_qt.widgets.result_card import ResultCard
 

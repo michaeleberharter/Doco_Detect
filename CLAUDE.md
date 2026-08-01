@@ -18,9 +18,10 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   dort findet (`corpus/runner.py::pruefe_lokale_overrides`).
 - Ausnahme by design: `segmentation.py` hat **keine** Config-Keys, sie
   selbstkalibriert auf dem Bildpaar. Keine Segmentierungs-Knöpfe hinzufügen.
-- UI-Schichten (Streamlit `app.py`, `docodetect/ui_qt`) und CLI-Helfer rufen
-  nur `pipeline.py` / `calibration.py` / `camera.py` / `database.py` —
-  Messlogik wird nirgends dupliziert.
+- UI-Schichten (`docodetect/ui_qt`) und CLI-Helfer rufen nur `pipeline.py` /
+  `calibration.py` / `camera.py` / `database.py` — Messlogik wird nirgends
+  dupliziert. (Die zweite UI, Streamlit `app.py`/`pages/`, ist am 2026-08-01
+  entfernt worden, Commit `07586b5` — Begründung und Ersatzwege im README.)
 - Messpfad = `pipeline.py`, `segmentation.py`, `features.py`, `matcher.py`:
   Änderungen nur bei explizitem Auftrag, nie beiläufig „mitverbessern".
 - Schwellen/Gewichte (`max_z_accept`, `min_llr_margin`, `feature_weights`,

@@ -313,3 +313,6 @@ der AMBIGUOUS-Quote — er hat sie nur mit erklärt.
   Wartezeit oder Schärfeprüfung vor dem ersten Shot wäre sinnvoll.
 - `reference_features.image_path` wird von CLI und Qt inzwischen befüllt; der
   Streamlit-Create-Pfad noch nicht (Phase 2 offen).
+  > **Erledigt 2026-08-01:** Der Streamlit-Pfad ist entfernt (Commit
+  > `07586b5`) — damit gibt es keinen Schreibweg mehr, der `image_path` leer
+  > lässt. „Phase 2" ist gegenstandslos.

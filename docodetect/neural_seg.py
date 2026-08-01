@@ -53,8 +53,10 @@ _MIN_CHECKPOINT_BYTES = 30_000_000  # sanity floor against truncated downloads
 _predictors: dict = {}      # model name -> predictor, loaded once per process
 _unavailable_reason = None  # remember why loading failed – warn only once
 # One lock for load AND inference: SamPredictor.set_image mutates shared
-# state, and Streamlit serves every browser session from a thread of the
-# same process – unlocked concurrent predicts corrupt each other's masks.
+# state, and the UI runs the pipeline off the GUI thread (pipeline_worker) –
+# unlocked concurrent predicts corrupt each other's masks. The lock predates
+# the Qt UI (it was written for Streamlit's thread-per-session model), but
+# the reason is unchanged: more than one thread can reach this predictor.
 _lock = threading.Lock()
 
 
@@ -109,7 +111,7 @@ def _load_predictor(ncfg: dict):
     """Load the configured SAM variant once per process. NEVER raises: every
     failure sets _unavailable_reason and returns None so the caller falls back
     to the classical refinement. A missing/failed checkpoint is re-checked
-    when the file appears later (long-lived Streamlit process); a missing
+    when the file appears later (the UI is a long-lived process); a missing
     package is latched for the process lifetime."""
     global _unavailable_reason
     name = ncfg.get("model", "hq_tiny")

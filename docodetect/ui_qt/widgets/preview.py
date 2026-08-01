@@ -27,9 +27,8 @@ class Detection:
     Vorschaubilds zeichnen kann.
 
     Bewusst hier statt in `pipeline.render_report_overlay()`: jenes Overlay
-    wird mit der Streamlit-UI und der CLI geteilt und bleibt unverändert –
-    Qt zeichnet seinen Rahmen selbst und braucht das Bild dafür nicht
-    anzufassen."""
+    wird mit der CLI geteilt und bleibt unverändert – Qt zeichnet seinen
+    Rahmen selbst und braucht das Bild dafür nicht anzufassen."""
     bbox: tuple                       # (x, y, w, h), je 0..1
     tone: str = "accept"              # accept | ambiguous | border | reject
     chips: list = field(default_factory=list)   # ["Ø 141,0 mm", "87 %"]

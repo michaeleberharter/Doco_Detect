@@ -40,7 +40,7 @@ against an article database. Two stages:
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # stage 1 (opencv, numpy, PyYAML)
 pip install -r requirements-stage2.txt   # optional: stage 2 (torch, faiss)
-pip install -r requirements-ui.txt       # optional: Streamlit test UI
+pip install -r requirements-ui-qt.txt    # optional: native Qt UI
 
 # tests (synthetic, no camera/hardware needed)
 python -m pytest tests/ -v
@@ -55,8 +55,8 @@ python -m docodetect.cli enroll ART-NR --shots 8
 python -m docodetect.cli identify [--image foto.jpg]
 python -m docodetect.cli evaluate data/testset/   # accuracy + confusion pairs
 
-# Streamlit test UI (live camera, no CLI typing)
-streamlit run app.py
+# native Qt UI (live camera, no CLI typing)
+python -m docodetect.ui_qt
 
 # generate the printable ArUco calibration marker
 python scripts/generate_marker.py
@@ -66,7 +66,7 @@ There is no configured linter/formatter in this repo — don't invent one.
 
 ## Architecture
 
-**`pipeline.py` is the single entry point every caller (CLI, `app.py`,
+**`pipeline.py` is the single entry point every caller (CLI, `ui_qt`,
 future services) must go through.** It orchestrates
 `segmentation.py` → `features.py` → `matcher.py`/`database.py` and nothing
 else should reimplement that flow — new UIs/scripts call
@@ -88,11 +88,10 @@ image (BGR ndarray)
 Every `identify()` also writes the `MatchReport` JSON to
 `paths.captures_dir`, plus a capture JPG when no `source_path` was given
 (skipped entirely when the config key is absent, e.g. in synthetic tests).
-The Streamlit UI passes the raw `save_captures` PNG as `source_path`, so
-the report references that file instead of duplicating it. The page
-`pages/1_Scoring_Analyse.py` renders ONLY these reports (live or loaded
-from disk) — it never re-implements scoring; batch aggregation lives in
-`docodetect/reporting.py`, shared by CLI `evaluate` and the UI.
+A caller that already has the raw PNG on disk can pass it as `source_path`,
+so the report references that file instead of duplicating it. Batch
+aggregation lives in `docodetect/reporting.py`, shared by CLI `evaluate`,
+`analyze` and the corpus review — no consumer ever re-implements scoring.
 
 Key invariants that explain a lot of the code:
 
@@ -152,11 +151,16 @@ Key invariants that explain a lot of the code:
   stage 1 works without those packages installed; it's a standalone
   optional module, not yet called from `pipeline.py`.
 
-## Test UI (`app.py`)
+## UI (`docodetect/ui_qt`)
 
-Streamlit app that drives the exact same `Pipeline`/`calibration`/
+Native Qt app that drives the exact same `Pipeline`/`calibration`/
 `camera`/`database` calls as the CLI — no separate image-processing logic.
-It exclusively uses the real `BoxCamera` (never `st.camera_input`, which
-has the wrong resolution and no focus lock); every action shoots a fresh
-frame through the shared, lazily-opened/closed camera object in
-`st.session_state` so the device isn't left locked open between actions.
+It exclusively uses the real `BoxCamera`; frames come from a single
+`CameraWorker` thread, and every action requests a fresh full-resolution
+frame through it, so the device is neither reopened per action nor left
+locked open.
+
+A second, browser-based test UI (Streamlit: `app.py`, `pages/`,
+`ui_common.py`) existed until 2026-08-01 and was removed in commit
+`07586b5` — see the README section "Die Streamlit-Test-UI wurde entfernt"
+for the replacement paths.

@@ -101,11 +101,11 @@ Posterior, Gate-Status) unter `data/captures/` ab. Unter jedem Ergebnis
 (Identify-Tab und Einzel-Report) kann per **Richtig/Falsch** bewertet werden,
 bei „Falsch" optional mit dem wahren Artikel — das Urteil wird ins Report-JSON
 zurückgeschrieben und fließt in Erfolgsrate, Fehlerliste und
-Verwechslungsmatrix des Batch-Tabs ein. Die Streamlit-Seite
-**📊 Scoring-Analyse** schlüsselt jeden Report auf (Kandidatentabelle,
-Log-Beitrags-Chart, Top-1-vs-Top-2-Kontrast) und aggregiert ganze Ordner zu
+Verwechslungsmatrix ein. Ganze Ordner aggregiert `analyze` zu
 Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
-(`docodetect/reporting.py`).
+(`docodetect/reporting.py`). Eine interaktive Aufschlüsselung des EINZELNEN
+Reports gibt es derzeit nicht mehr (siehe
+[Nachbau-Notiz](docs/2026-08-01-einzelreport-ansicht-nachbau.md)).
 
 ### sigma_floors aus einer echten Messreihe bestimmen
 
@@ -201,7 +201,6 @@ Leitplanken beim Lesen der Ergebnisse:
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # Stufe 1
 pip install -r requirements-stage2.txt   # optional: Stufe 2 (torch, faiss)
-pip install -r requirements-ui.txt       # optional: Streamlit-Test-UI
 pip install -r requirements-ui-qt.txt    # optional: native Qt-Bedien-UI
 ```
 
@@ -353,24 +352,31 @@ python -m docodetect.cli identify --image foto.jpg
 python -m docodetect.cli evaluate data/testset/
 ```
 
-## Test-UI (Streamlit)
+## Die Streamlit-Test-UI wurde entfernt (2026-08-01)
 
-Browser-Oberfläche für denselben Workflow (Hintergrund, Kalibrieren,
-Identifizieren, Neuer Artikel, Einlernen) mit Live-Kamera-Vorschau – praktisch zum Testen,
-ohne jeden Schritt über die CLI einzutippen. Nutzt intern ausschließlich
-`docodetect/pipeline.py`, `calibration.py`, `camera.py` und `database.py`
-(kein Bild-Upload, keine synthetischen Testbilder – jede Aktion löst die
-echte `BoxCamera` aus).
+`app.py`, `pages/`, `ui_common.py` und `requirements-ui.txt` sind mit Commit
+**`07586b5`** entfernt worden. `git revert 07586b5` holt alles auf einmal
+zurück; `git show 07586b5^:app.py` zeigt eine einzelne Datei an.
 
-```bash
-pip install -r requirements-ui.txt   # einmalig: streamlit, pandas
-streamlit run app.py
-```
+Gründe: die beiden Einlernpfade schrieben Referenzen ohne Roh-PNG (`image_path`
+leer) und blockierten damit zweimal die Forensik, und der Config-Tab konnte
+`min_llr_margin` per Schieberegler setzen und die gemergte Config in die
+geteilte `config.yaml` zurückschreiben
+([Befund](docs/2026-08-01-streamlit-config-tab-schreibt-config-yaml.md)).
 
-Öffnet auf http://localhost:8501. Die Kamera wird nur geöffnet, während die
-Live-Vorschau läuft oder eine Aufnahme passiert, und danach wieder
-freigegeben (Sidebar-Button "🔌 Kamera freigeben" schließt sie auch manuell) –
-so blockiert die UI das Kamera-Device nicht dauerhaft für die CLI.
+**Wo die Funktionen jetzt liegen:**
+
+| früher in Streamlit | heute |
+|---|---|
+| Hintergrund · Kalibrieren · Identifizieren | Qt-UI (`python -m docodetect.ui_qt`) oder CLI |
+| Einlernen | Qt-Einlerndialog (n Shots, Diagnoseblatt) oder `enroll` / `batch-enroll` |
+| Neuer Artikel per Kamera | `create-article`, `batch-create` |
+| Artikeltabelle mit Referenzzahl | `list-articles` |
+| CSV-Import | `import-articles <pfad>` |
+| Scoring-Analyse (Batch) | `analyze` → PNG/CSV unter `reports/analysis/<run_id>/` |
+| Scoring-Analyse (Einzelreport, interaktiv) | **kein Ersatz** — siehe [offener Nachbau](docs/2026-08-01-einzelreport-ansicht-nachbau.md) |
+| Korpus-Ansicht | `corpus-report` → `reports/corpus/<id>/index.html` |
+| Parameter per Schieberegler | bewusst kein Ersatz — `config/config.yaml` von Hand |
 
 ## Segmentierung: EIN globaler Graph-Cut, KEINE Konfiguration
 
@@ -647,8 +653,10 @@ Review zusätzlich nach `reports/archive/corpus-<review-id>/` (Präfix, damit
 sie nie mit einem `analyze`-Lauf gleichen Namens kollidiert) und
 überschreibt dabei nie.
 
-Die Streamlit-Seite **Korpus** (`pages/2_Korpus.py`) zeigt dieselben
-Artefakte an und erzeugt keine — neue Reviews entstehen nur über die CLI.
+Die Artefakte werden im Browser über `reports/corpus/<review-id>/index.html`
+angesehen — bis 2026-08-01 tat das die Streamlit-Seite `pages/2_Korpus.py`,
+die aber ohnehin nur anzeigte. Neue Reviews entstehen ausschließlich über
+`corpus-report`.
 
 > **Offener Punkt — Hygiene von `runs/`.** Jeder Tier-2-Lauf legt rund 60
 > Reports (~1 MB) unter `runs/<id>/replay/` ab; nach einem Arbeitstag mit

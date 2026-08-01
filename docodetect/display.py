@@ -1,8 +1,10 @@
-"""Zentrale Anzeige-Helfer für ALLE UIs (Qt + Streamlit).
+"""Zentrale Anzeige-Helfer für ALLE UIs (Qt) und die CLI.
 
-Eine Implementierung pro String — beide UIs zeigen exakt dieselben Texte
+Eine Implementierung pro String — jede Oberfläche zeigt exakt dieselben Texte
 (deutsch, Dezimalkomma). UI-Code importiert diese Funktionen über
-docodetect.pipeline (Re-Export), nie direkt Untermodule.
+docodetect.pipeline (Re-Export), nie direkt Untermodule. Die Regel stammt aus
+der Zeit zweier paralleler UIs (Qt und Streamlit, letzteres 2026-08-01
+entfernt) und bleibt gültig: Anzeigetexte werden nirgends dupliziert.
 
 Anzeige-Mapping (Wire-Namen bleiben unangetastet, siehe Spec 2026-07-20):
 accept -> "Automatisch übernommen", ambiguous -> "Bitte bestätigen",
@@ -54,7 +56,7 @@ def channel_percentages(c: CandidateReport) -> dict:
 
 def format_measured(measured: dict) -> str:
     """Rohmesswert-Diagnosezeile für NO_MATCH (kein Kandidat, also kein Ø
-    aus format_diameter verfügbar) — dieselbe Zeile in Qt und Streamlit.
+    aus format_diameter verfügbar) — dieselbe Zeile in jeder Oberfläche.
     Fehlende Keys werden wie bisher als 0 behandelt."""
     diameter = _de(measured.get("circle_diameter_mm", 0))
     circularity = _de(measured.get("circularity", 0), 2)

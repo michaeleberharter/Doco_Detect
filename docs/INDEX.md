@@ -149,6 +149,22 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   `20260801-140818-floorfix`; die alte Fassung bleibt als Beleg stehen.
   Messpfad, Entscheidungen und Korpus waren nie betroffen, die Analyse-Skripte
   auch nicht (sie nutzen `matcher._sigma_floor`).
+- **2026-08-01** — [Streamlit-Config-Tab konnte Schwellen setzen](2026-08-01-streamlit-config-tab-schreibt-config-yaml.md):
+  Schieberegler auf `min_llr_margin` plus ein Speichern-Knopf, der die
+  **gemergte** Config (inkl. `config.local.yaml`) in die geteilte
+  `config.yaml` zurückschrieb. Offene Tür, kein nachgewiesener Schaden —
+  aber der Grund, warum aus einer geplanten Teilsperre die **vollständige
+  Entfernung der Streamlit-UI** wurde (Commit `07586b5`: `app.py`, `pages/`,
+  `ui_common.py`, `requirements-ui.txt`, 1415 Zeilen). Ersatzwege stehen im
+  README; die Artikelliste wurde vorher als CLI-Befehl `list-articles`
+  nachgebaut.
+- **2026-08-01** — [Einzelreport-Ansicht: Nachbau-Kandidat](2026-08-01-einzelreport-ansicht-nachbau.md):
+  die einzige Streamlit-Funktion ohne Äquivalent. Beschreibt die acht Felder
+  (Gate-Ampel, Kandidatentabelle, Log-Beitrags-Chart, Top-1-vs-Top-2,
+  Fisher-Panel) so, dass ein Nachbau ohne den alten Code möglich ist, und
+  belegt: alle Daten liegen vollständig im Report-JSON — reine Darstellung,
+  keine Rechenarbeit. Schätzung 1,5–2 Tage (nur Tabellen) bzw. 4–5 Tage
+  (mit Diagrammen).
 
 ## Referenz (nicht chronologisch)
 
