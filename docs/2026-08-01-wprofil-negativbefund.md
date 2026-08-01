@@ -300,6 +300,132 @@ Mitgenommen:
 
 ---
 
+## 9. NACHTRAG 2026-08-01 (nach Erstfassung): MESSER-2 und MESSER-5 sind dasselbe Objekt
+
+**Der Originaltext oben bleibt unverändert stehen.** Dieser Nachtrag korrigiert
+eine Aussage daraus.
+
+Am 2026-08-01 wurde **am physischen Objekt** festgestellt: MESSER-2 und MESSER-5
+sind dasselbe Besteckteil, beim Sammeln doppelt erfasst. Nicht aus den Daten
+geschlossen, sondern am Objekt geprüft.
+
+### Was dadurch hinfällig wird
+
+Abschnitt 3b sagt: „MESSER-2/5/6 sind auch im Profil entartet … Für dieses Trio
+ist der klassische Merkmalsraum erschöpft." **Für das Paar MESSER-2/MESSER-5
+ist das falsch begründet.** Dort war nichts entartet — zwei Datenbankeinträge
+beschrieben dasselbe Objekt. Kein Merkmal der Welt trennt einen Gegenstand von
+sich selbst. Das war ein **Datenfehler, kein Merkmalsversagen.**
+
+Der Beleg deckt sich mit den Zahlen aus Abschnitt 3b: Profildistanz 0,25 mm bei
+einer Shot-Streuung von 0,278 mm, also **d/σ = 0,92** — unterhalb der eigenen
+Messstreuung. Dazu identischer Doppelbuckel, deckungsgleicher Umriss,
+Registrier-Restfehler beide 0,71 mm.
+
+### Was bestehen bleibt
+
+**MESSER-6 ist ein echter Nachbar von MESSER-5**, kein Duplikat:
+
+| Paar | d | σ_eff | d/σ | Einordnung |
+|---|---|---|---|---|
+| MESSER-2 / MESSER-5 | 0,25 mm | 0,278 | **0,92** | dasselbe Objekt |
+| MESSER-5 / MESSER-6 | 0,38 mm | 0,316 | 1,20 | echter, sehr enger Nachbar |
+| MESSER-2 / MESSER-6 | 0,48 mm | 0,313 | 1,53 | dito (= 5/6, andere Erfassung) |
+| nächstes Paar (MESSER-10/MESSER-4) | 1,01 mm | — | 2,18 | deutlich getrennt |
+
+Aus dem Trio wird also ein **Paar**: MESSER-5 und MESSER-6 liegen 1,20 σ
+auseinander. Das ist trennbar, aber sehr eng — die Aussage „Kandidat für Stufe 2"
+gilt für dieses Paar unverändert, nur eben für zwei statt drei Artikel.
+
+### Kernaussage des Negativbefunds: NICHT berührt
+
+Nachgerechnet, beide Male über dieselbe Gegenrechnung wie in Abschnitt 3:
+
+| | n | ACCEPT (w=0,10 / floor 0,50) | ACCEPT (w=0,15) | LLR-Faktor Median | max |
+|---|---|---|---|---|---|
+| mit MESSER-2 | 15 | 3 → 5 | 3 → 6 | 1,25× | 14,7× |
+| **ohne MESSER-2** | 14 | **3 → 5** | **3 → 6** | **1,25×** | 14,7× |
+
+Identisch. Die Erwartung, dass die Kernaussage nicht betroffen ist, trifft zu —
+und zwar aus einem strukturellen Grund: die Absage hängt am **gewichteten
+Mittel** (Abschnitt 3a) und am **Betriebs-Floor** (Abschnitt 6). Beide sind von
+der Zusammensetzung des Artikelbestands unabhängig. MESSER-2 war in keinem
+einzigen Report der Zweitplatzierte, und die LLR-Margin ist eine
+Platz-1-gegen-Platz-2-Größe — der Duplikateintrag hat sie nie berührt.
+
+**Die Entscheidung „w(s) wird nicht gebaut" bleibt unverändert gültig.**
+
+### Duplikat-Scan über den gesamten Bestand
+
+Gleiche Methode auf alle 40 Artikel angewandt (780 Paare; für die 25
+1-Shot-Artikel ersatzweise die gepoolte Shot-Streuung 0,463 mm, da ihre eigene
+unbekannt ist):
+
+- **d/σ ≤ 1,0: genau ein Paar** — MESSER-2 / MESSER-5 (0,92).
+- d/σ ≤ 2,0: zusätzlich nur MESSER-5/MESSER-6 (1,20) und MESSER-2/MESSER-6 (1,53).
+- Danach klarer Abstand: das nächste Paar liegt bei 2,18.
+
+Kein weiterer Duplikatverdacht im Bestand. Einschränkung: für die 25
+1-Shot-Artikel ist das ein schwächerer Test, weil ihr σ geschätzt ist.
+
+Details und Auswirkung auf den Testlauf:
+[2026-08-01-fixpunkt-test-scoring.md](2026-08-01-fixpunkt-test-scoring.md),
+Nachtrag.
+
+---
+
+## 10. ZWEITER NACHTRAG 2026-08-01: MESSER-6 ist ebenfalls ein Duplikat
+
+**Abschnitte 1–9 bleiben unverändert stehen.** Dieser Nachtrag korrigiert eine
+Aussage aus Abschnitt 9.
+
+Nach der physischen Prüfung von MESSER-6 (angestoßen durch den Scan in
+Abschnitt 9): **MESSER-2, MESSER-5 und MESSER-6 sind drei Datenbankeinträge
+desselben Besteckteils.** Aus 15 vermeintlichen Artikeln werden 13 echte.
+
+### Was dadurch hinfällig wird
+
+Abschnitt 9 sagt: „MESSER-6 ist ein echter Nachbar von MESSER-5, kein Duplikat"
+und „Aus dem Trio wird ein Paar … MESSER-5 und MESSER-6 liegen 1,20 σ
+auseinander". **Beides ist falsch.** Es gibt in diesem Bestand **kein entartetes
+Paar mehr** — der gesamte vermeintliche Dreier-Cluster war ein Datenfehler.
+
+Damit entfällt auch die Einordnung aus Abschnitt 3b, dieses Cluster sei ein
+„Kandidat für Stufe 2". Es gibt hier nichts, was Stufe 2 lösen müsste; es gab
+nur dreimal dasselbe Messer.
+
+### Der Scan hatte recht — die Lücke war das Signal
+
+Der Duplikat-Scan aus Abschnitt 9 hat **beide** Duplikate korrekt als Cluster
+ausgewiesen:
+
+| Paar | d | d/σ |
+|---|---|---|
+| MESSER-2 / MESSER-5 | 0,25 mm | **0,92** |
+| MESSER-5 / MESSER-6 | 0,38 mm | **1,20** |
+| MESSER-2 / MESSER-6 | 0,48 mm | **1,53** |
+| — Lücke — | | |
+| MESSER-10 / MESSER-4 (nächstes Paar) | 1,01 mm | 2,18 |
+
+Der Fehler lag nicht im Scan, sondern in meiner Schwelle: ich hatte nur
+d/σ ≤ 1,0 als „Duplikatverdacht" gewertet und 1,20 / 1,53 als „echte Nachbarn"
+eingeordnet. Richtig gewesen wäre, die **Lücke** zu lesen: drei Paare unter 1,6,
+dann nichts bis 2,18. Verdächtig ist alles unter **d/σ < 2,0**. Ausführlich:
+[2026-08-01-duplikatpruefung-methode.md](2026-08-01-duplikatpruefung-methode.md).
+
+### Kernaussage weiterhin NICHT berührt
+
+Die Absage an w(s) hängt am gewichteten Mittel (Abschnitt 3a) und am
+Betriebs-Floor (Abschnitt 6). Beide sind von der Bestandszusammensetzung
+unabhängig. Die Neurechnung der Simulation mit 13 Artikeln bestätigt das
+Gesamtbild unverändert: **127 von 169 Fällen bleiben AMBIGUOUS**, ACCEPT bleibt
+bei 41, neun der dreizehn Artikel erreichen kein einziges ACCEPT
+([2026-08-01-scoring-simulation-widerlegte-thesen.md](2026-08-01-scoring-simulation-widerlegte-thesen.md)).
+
+**Die Entscheidung „w(s) wird nicht gebaut" bleibt unverändert gültig.**
+
+---
+
 ## Verwandte Dokumente
 
 - [2026-08-01-fixpunkt-test-scoring.md](2026-08-01-fixpunkt-test-scoring.md) — der

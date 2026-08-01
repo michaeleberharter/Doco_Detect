@@ -172,6 +172,117 @@ noch aus. Die Differenz beider Runden wäre der quantifizierte Positionsbeitrag.
 
 ---
 
+## NACHTRAG 2026-08-01: MESSER-2 ist ein Duplikat von MESSER-5
+
+**Der Text oben bleibt unverändert.** Dieser Nachtrag korrigiert die
+Datengrundlage.
+
+Am 2026-08-01 **am physischen Objekt** festgestellt: MESSER-2 und MESSER-5 sind
+dasselbe Besteckteil, beim Sammeln doppelt erfasst. Der Bestand enthielt damit
+nicht 15, sondern **14 verschiedene Objekte** — und `accuracy_top1 = 15/15`
+zählte einen Artikel doppelt.
+
+Beleg über das Breitenprofil: Prototypen-Abstand 0,25 mm bei 0,278 mm
+Shot-Streuung (**d/σ = 0,92**, also unterhalb der eigenen Messstreuung),
+identischer Doppelbuckel, Registrier-Restfehler beide 0,71 mm. Der Scan über
+alle 780 Artikelpaare findet **kein weiteres** Paar unter d/σ = 1,0 (Details:
+[2026-08-01-wprofil-negativbefund.md](2026-08-01-wprofil-negativbefund.md),
+Nachtrag Abschnitt 9).
+
+### Wirkung auf die 12 AMBIGUOUS — geringer als erwartet
+
+Nachgerechnet mit `matcher.match()` auf denselben Messwerten, einmal mit 40 und
+einmal mit 39 Artikeln (Messwert aus `report.measured`, kein Nachrechnen von
+Hand):
+
+| Report | Rang von MESSER-2 | Posterior MESSER-2 | LLR mit | LLR ohne | Entscheidung |
+|---|---|---|---|---|---|
+| MESSER-2 | 1 (= wahr) | 0,460 | 0,54 | 0,02 | ambiguous → ambiguous |
+| MESSER-5 | 3 | 0,254 | 0,14 | 0,14 | ambiguous → ambiguous |
+| MESSER-7 | 3 | 0,227 | 0,11 | 0,11 | ambiguous → ambiguous |
+| MESSER-6 | 4 | 0,023 | 0,96 | 0,95 | ambiguous → ambiguous |
+
+**Entscheidungswechsel: 0. ACCEPT bleibt 3/15.**
+
+Das Duplikat hat also durchaus Posterior-Masse gezogen (bis 0,254 in einem
+fremden Report), aber **keinen einzigen AMBIGUOUS-Fall verursacht.** Grund: die
+LLR-Margin ist eine Platz-1-gegen-Platz-2-Größe. MESSER-2 stand in keinem
+fremden Report auf Platz 2 — die Bedränger waren dort MESSER-7 bzw. MESSER-5.
+Ein Kandidat auf Platz 3 oder 4 verschiebt den Posterior, aber nicht die Margin.
+
+Die Erwartung, zwei der zwölf AMBIGUOUS gingen auf das Duplikat zurück und
+kippten ohne es auf ACCEPT, **bestätigt sich nicht.** Die 12 AMBIGUOUS bleiben
+in vollem Umfang ein Problem der Score-Aggregation und der engen Größencluster.
+
+### Der Zwilling wird nicht wiedergefunden
+
+Wird die Aufnahme mit Label MESSER-2 gegen die DB ohne MESSER-2 gescort, steht
+**nicht** MESSER-5 auf Platz 1:
+
+| Rang | Artikel | log_score | Posterior |
+|---|---|---|---|
+| 1 | MESSER-7 | −0,5754 | 0,495 |
+| 2 | **MESSER-5** (der physische Zwilling) | −0,5916 | 0,487 |
+| 3 | MESSER-6 | −3,8704 | 0,018 |
+
+Abstand 0,016 — praktisch ein Gleichstand, aber die falsche Reihenfolge. Das ist
+ein eigenständiger Befund: Im Messer-Cluster trennt das Scoring auch dann nicht,
+wenn man den Duplikateintrag entfernt. Für die Simulation folgt daraus, dass die
+13 Aufnahmen von MESSER-2 **ausgeschlossen** und nicht auf MESSER-5 umetikettiert
+werden — eine Umetikettierung würde 13 Top-1-Fehler in die Auswertung tragen.
+
+### Was das für die Kennzahlen oben heißt
+
+- `accuracy_top1 = 15/15` beruht auf 15 Labels über 14 Objekte. Die Aussage
+  „Ranking funktioniert" bleibt bestehen (der Duplikateintrag war für seine
+  eigene Aufnahme auf Platz 1), aber n ist effektiv 14.
+- Befund 2 („Margin hängt an der Kandidatensetgröße") ist **nicht** betroffen —
+  die Zweier-Sets von MESSER-8/GABEL-9 und LOEFFEL-3 enthalten kein MESSER-2.
+- Befund 3 (Bedränger sind Größennachbarn) bleibt; MESSER-2 → MESSER-7 war
+  ohnehin kein Duplikat-Paar.
+
+---
+
+## ZWEITER NACHTRAG 2026-08-01: MESSER-6 ist ebenfalls ein Duplikat
+
+**Der Text oben, einschließlich des ersten Nachtrags, bleibt unverändert.**
+
+Nach physischer Prüfung auch von MESSER-6: **MESSER-2, MESSER-5 und MESSER-6
+sind drei Einträge desselben Besteckteils.** Der Bestand dieses Testtags enthielt
+damit **13 verschiedene Objekte, nicht 15**.
+
+Der Duplikat-Scan hatte alle drei korrekt als Cluster ausgewiesen (d/σ 0,92 /
+1,20 / 1,53), klar abgesetzt vom nächsten Paar bei 2,18. Meine Einordnung von
+1,20 und 1,53 als „echte Nachbarn" im ersten Nachtrag war zu eng gewählt; die
+Lücke im Histogramm war das eigentliche Signal. Methodik und die Schwelle, die
+funktioniert hätte (**d/σ < 2,0**):
+[2026-08-01-duplikatpruefung-methode.md](2026-08-01-duplikatpruefung-methode.md).
+
+### Wirkung auf die Kennzahlen dieses Testtags
+
+- `accuracy_top1 = 15/15` beruht auf 15 Labels über **13** Objekte.
+- Von den drei ACCEPT betrifft keiner ein Duplikat (MESSER-8, GABEL-9,
+  LOEFFEL-3) — die ACCEPT-Quote 3/15 ist unverändert gültig, nur der Nenner
+  zählt zwei Objekte doppelt.
+- **Befund 2 („Der Hebel ist der Vorfilter") ist widerlegt**, unabhängig von den
+  Duplikaten: `k_safe` bricht bei `diameter_tolerance_mm = 4,0` von 166 auf 35
+  ein, weil der engere Vorfilter den *wahren* Artikel entfernt und ein falscher
+  konkurrenzlos mit Riesen-Margin gewinnt. Siehe
+  [2026-08-01-scoring-simulation-widerlegte-thesen.md](2026-08-01-scoring-simulation-widerlegte-thesen.md),
+  Abschnitt 3.
+- Befund 3 (Bedränger sind Größennachbarn) bleibt bestehen. MESSER-5 ↔ MESSER-7
+  ist nach Entfernen beider Duplikate weiterhin das enge Messer-Paar; beide
+  Artikel erreichen in der Neurechnung 0 von 13 ACCEPT.
+
+### Das eigentliche Problem bleibt
+
+Die Simulation mit den bereinigten 13 Artikeln ergibt **127 von 169 Fällen
+AMBIGUOUS** und ACCEPT unverändert 41. Neun der dreizehn Artikel erreichen kein
+einziges ACCEPT. Der künstliche Dreier-Cluster war also **nicht** die Ursache
+der AMBIGUOUS-Quote — er hat sie nur mit erklärt.
+
+---
+
 ## Offene Punkte am Code, aus dieser Session
 
 - `sandbox_cfg` legt die Zielverzeichnisse nicht an; ein neuer Sandbox-Name

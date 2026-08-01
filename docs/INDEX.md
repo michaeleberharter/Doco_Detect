@@ -55,13 +55,24 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   15/15 Top-1 korrekt, aber nur 3 ACCEPT — der Margin bricht mit der
   Kandidatensetgröße ein, nicht mit der Artikelähnlichkeit. Der Hebel ist der
   Vorfilter (`diameter_tolerance_mm`), NICHT `min_llr_margin`.
+  **Zwei Nachträge:** MESSER-2 UND MESSER-6 sind Duplikate von MESSER-5
+  (physisch geprüft) — der Bestand hatte **13 statt 15** Objekte; die Duplikate
+  kosteten aber keinen einzigen ACCEPT.
 - **2026-08-01** — [NEGATIVBEFUND: Breitenprofil w(s) wird NICHT gebaut](2026-08-01-wprofil-negativbefund.md):
   w(s) trennt hervorragend (Median 16,1 σ gegen 1,3–1,8 σ der Farbmerkmale),
   rettet aber nur 4 der 12 AMBIGUOUS — und 0 ab σ_floor 1,0 mm, wo der
   Betriebs-Floor geschätzt liegt. **Frage entschieden, nicht neu aufmachen.**
   Enthält zwei Prämissen-Korrekturen (keine Längendopplung im Profil;
   `area_mm2`/`aspect_ratio` sind keine Scoring-Merkmale) und den Übertrag:
-  das Problem sitzt in der Score-Aggregation, MESSER-2/5/6 gehören zu Stufe 2.
+  das Problem sitzt in der Score-Aggregation. **Zwei Nachträge:** MESSER-2,
+  MESSER-5 und MESSER-6 sind DASSELBE Objekt — die „Entartung des Trios" war
+  vollständig ein Datenfehler, es bleibt kein entartetes Paar. Kernaussage
+  unberührt.
+- **2026-08-01** — [Duplikatprüfung gehört VOR jede Analyse](2026-08-01-duplikatpruefung-methode.md):
+  Methodenempfehlung nach zwei übersehenen Duplikaten. Profildistanz-Scan über
+  w(s), Kennzahl `d/σ` (nicht `d`), **Schwelle d/σ < 2,0 = physisch prüfen** —
+  und die Lücke in der sortierten Liste lesen, nicht nur die Zahl. w(s) taugt
+  nicht als Scoring-Merkmal, aber hervorragend als Duplikat-Detektor.
 - **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
   Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
   `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,
