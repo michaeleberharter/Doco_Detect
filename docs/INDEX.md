@@ -107,6 +107,32 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   9 von 13 Artikeln überschreiten (hu_log 6×, delta_e_center 4×). Reichweite
   bewusst offen (1 von 6 Paaren betroffen, n=13). Das Diagnoseblatt zeigt den
   Floor NICHT — Vorschlag notiert, nicht umgesetzt.
+- **2026-08-01** — [Block D: `sigma_eff` als Stellgröße](2026-08-01-blockD-sigma-eff.md):
+  **Keine Änderung.** D0 (robust Median/MAD) verworfen — entschärft 9 von 13
+  Floor-Überschreitungen, erzeugt 10 neue, k_safe 165→154; enthält die
+  **Schwerschwanz-Korrektur** zur früheren Zweiteilung „Ausreißer oder
+  Artikeleigenschaft". D2/D4/D5 verworfen (D4 bestätigt die
+  Vergleichbarkeitssorge: k_safe 130). **D1/D3 halten** — top1 169/169,
+  k_safe 168, wirken aufs Ranking statt auf ACCEPT. D7 schließt die
+  w(s)-Gewichtslücke.
+- **2026-08-01** — [Block D6: die `feature_weights` sind ungeprüft](2026-08-01-blockD6-gewichtsschema.md):
+  Gleichverteilte Gewichte dominieren das heutige Schema in top1, ACCEPT UND
+  k_safe gleichzeitig; Ø höher zu gewichten schadet; α=32 schadet in jedem
+  Schema. **Gleichrangig daneben:** Maximum aus 20 Zellen bei n≈13, neun Fälle
+  Unterschied, Überanpassungsgefahr. Keine Config-Änderung.
+- **2026-08-01** — [Block D8: Tiebreaker bei AMBIGUOUS](2026-08-01-blockD8-tiebreaker.md):
+  **Nicht gebaut.** Struktureller Vorteil BESTÄTIGT — im Tiebreak kann kein
+  Dritter nachrücken, die Sonde löst sich symmetrisch 13/13, die 12,47 σ werden
+  umgesetzt. Und: nicht unterscheidbar von „Margin-Gate abschaffen" (ein Fall
+  Vorsprung gegenüber dem Nullmodell). Fehlerrate strukturell an die
+  Top-2-Rangfehlerrate gekoppelt.
+- **2026-08-01** — [ABSCHLUSS der Scoring-Runde](2026-08-01-abschluss-scoring-runde.md):
+  **Hier anfangen, wer die Runde nachvollziehen will.** Sechs Ansätze, über 250
+  Varianten, keine einzige Änderung. Das methodisch wertvollste Ergebnis ist die
+  Gegenprobe **äquivalente Schwelle + Mengenüberlappung** — sie hat sechs von
+  sechs Scheingewinnen als verkleidete Schwellensenkung entlarvt. Enthält die
+  drei Wiederaufnahme-Kandidaten (D8, B2, D1/D3) und was die Datenbasis leisten
+  müsste, damit die Fragen entscheidbar werden.
 - **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
   Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
   `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,

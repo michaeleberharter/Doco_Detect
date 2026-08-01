@@ -96,12 +96,27 @@ FARB_MERKMALE = ("delta_e_center", "delta_e_rim", "hist_center", "hist_rim")
 
 
 def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
-                 nachschlag=None):
+                 nachschlag=None, sigma_regel=None, zusatz=None):
     """Eine Identifikation. `stats` = {artikelnummer: EnrollmentStats}.
     `m` = cfg['matching'] (bereits variantenspezifisch veraendert).
     `merkmale` = aktive Merkmalsliste (None = alle acht). Das Weglassen von
     Merkmalen ist NICHT dasselbe wie Gewicht 0: bei `sum_unweighted` gibt es
     keine Gewichte, dort wirkt nur das Weglassen.
+
+    `sigma_regel` (Block D) = None | dict, greift in die Konstruktion von
+    sigma_enroll ein, BEVOR sigma_eff gebildet wird:
+      {"art": "cap_median", "faktor": f, "median": {merkmal: wert}}
+          kein Kandidat breiter als f * Median ueber alle Artikel
+      {"art": "cap_floor", "k": k}      sigma_enroll <= k * sigma_floor
+      {"art": "sym", "modus": "median"|"pool"|"max"}
+          alle Kandidaten eines Sets teilen dasselbe sigma je Merkmal
+      {"art": "aus", "k": k}
+          Merkmal faellt fuer DIESEN Kandidaten aus, wenn sigma > k * floor
+          (aendert die Merkmalszahl je Kandidat — siehe Bericht)
+
+    `zusatz` (Block D7) = None | {"name", "gewicht", "floor",
+    "tabelle": {kandidat: (distanz, sigma_enroll)}} — haengt EIN zusaetzliches
+    Merkmal an, fuer die Kandidaten, die in der Tabelle stehen.
 
     `nachschlag` (Block B) = None | {"alpha": float, "reihenfolge": bool}.
     Gesetzt, werden nach dem globalen Durchgang Platz 1 und 2 mit Gewichten aus
@@ -117,9 +132,16 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
     max_z_accept = float(m.get("max_z_accept", 3.5))
     min_llr = float(m.get("min_llr_margin", 2.0))
 
-    w_cfg = m["feature_weights"]
+    w_cfg = dict(m["feature_weights"])
+    if zusatz is not None:
+        aktiv = tuple(aktiv) + (zusatz["name"],)
+        w_cfg[zusatz["name"]] = float(zusatz["gewicht"])
     w_sum = sum(float(w_cfg.get(f, 0.0)) for f in aktiv)
     w_global = {f: float(w_cfg.get(f, 0.0)) / w_sum for f in aktiv}
+
+    def _floor(f):
+        return (float(zusatz["floor"]) if zusatz is not None and f == zusatz["name"]
+                else _sigma_floor(f, floors))
 
     # ---- Vorfilter (Logik 1:1 wie matcher.match) ----
     prelim = []
@@ -142,11 +164,45 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
         st = stats.get(art.article_number)
         rows = _feature_rows(measured, st, corrected_d, geo_err, nominal)
         rows = {k: v for k, v in rows.items() if k in aktiv}
+        if zusatz is not None and st is not None:
+            zt = zusatz["tabelle"].get(art.article_number)
+            if zt is not None:
+                rows[zusatz["name"]] = (zt[0], zt[1], None, None)
+        if sigma_regel is not None:
+            art_ = sigma_regel["art"]
+            neu = {}
+            for f, (d, se, mv, ref) in rows.items():
+                fl = _sigma_floor(f, floors)
+                if art_ == "cap_median":
+                    se = min(se, sigma_regel["faktor"] * sigma_regel["median"][f])
+                elif art_ == "cap_floor":
+                    se = min(se, sigma_regel["k"] * fl)
+                elif art_ == "aus" and se > sigma_regel["k"] * fl:
+                    continue          # Merkmal faellt fuer diesen Kandidaten aus
+                neu[f] = (d, se, mv, ref)
+            rows = neu
         prelim.append((art, st, rows))
 
     if not prelim:
         return {"decision": DECISION_REJECT, "ranking": [], "llr": None,
-                "max_z": None, "n_cand": 0}
+                "max_z": None, "n_cand": 0, "n_feats": [], "getauscht": False}
+
+    # D2: symmetrisiertes sigma — erst moeglich, wenn das Kandidatenset steht.
+    # Das ist KEINE gueltige Likelihood mehr (siehe Bericht): der Nenner haengt
+    # dann nicht mehr am Modell des jeweiligen Kandidaten.
+    if sigma_regel is not None and sigma_regel["art"] == "sym":
+        modus = sigma_regel.get("modus", "median")
+        for f in aktiv:
+            ses = [rows[f][1] for (_, _, rows) in prelim if f in rows]
+            if not ses:
+                continue
+            g = (float(np.median(ses)) if modus == "median"
+                 else float(np.sqrt(np.mean(np.square(ses)))) if modus == "pool"
+                 else float(max(ses)))
+            for (_, _, rows) in prelim:
+                if f in rows:
+                    d, _se, mv, ref = rows[f]
+                    rows[f] = (d, g, mv, ref)
 
     # ---- Fisher-adaptive Gewichte (1:1 wie matcher.match) ----
     w_eff = dict(w_global)
@@ -161,7 +217,7 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
                     continue
                 dist, s_en, _, ref = row
                 locs.append(ref if f in SCALAR_FEATURES and ref is not None else dist)
-                sig2.append(s_en ** 2 + _sigma_floor(f, floors) ** 2)
+                sig2.append(s_en ** 2 + _floor(f) ** 2)
             if len(locs) >= 2 and np.mean(sig2) > 0:
                 fisher[f] = float(np.var(locs) / np.mean(sig2))
         total = sum(fisher.values())
@@ -185,7 +241,7 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
             if row is None:
                 continue
             dist, s_en, _, _ = row
-            sigma_eff = math.sqrt(s_en ** 2 + _sigma_floor(f, floors) ** 2)
+            sigma_eff = math.sqrt(s_en ** 2 + _floor(f) ** 2)
             if sigma_eff <= 0:
                 raise ZeroDivisionError(
                     f"sigma_eff=0 bei {f} ({art.article_number}): "
@@ -248,7 +304,7 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
                     continue
                 dist, s_en, _, ref = row
                 locs.append(ref if f in SCALAR_FEATURES and ref is not None else dist)
-                sig2.append(s_en ** 2 + _sigma_floor(f, floors) ** 2)
+                sig2.append(s_en ** 2 + _floor(f) ** 2)
             if len(locs) >= 2 and np.mean(sig2) > 0:
                 fisher2[f] = float(np.var(locs) / np.mean(sig2))
         tot2 = sum(fisher2.values())
@@ -267,7 +323,7 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
                     if row is None:
                         continue
                     dist, s_en, _, _ = row
-                    se = math.sqrt(s_en ** 2 + _sigma_floor(f, floors) ** 2)
+                    se = math.sqrt(s_en ** 2 + _floor(f) ** 2)
                     z = dist / se
                     L = -0.5 * z * z
                     b2.append(round((w2[f] * L / wsum2) if wsum2 > 0 else 0.0, 4))
@@ -290,7 +346,8 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
             "n_feats": [c["n_feats"] for c in cands], "getauscht": getauscht}
 
 
-def lauf(bestand, cal, m, aggregation, merkmale=None, nachschlag=None):
+def lauf(bestand, cal, m, aggregation, merkmale=None, nachschlag=None,
+         sigma_regel=None, zusatz_tab=None, zusatz_meta=None):
     """195 Leave-one-out-Identifikationen -> Liste von Ergebnissen."""
     arts, feats, stats_voll, stats_loo = bestand
     out = []
@@ -298,8 +355,11 @@ def lauf(bestand, cal, m, aggregation, merkmale=None, nachschlag=None):
         for i, measured in enumerate(feats[a]):
             stats = dict(stats_voll)
             stats[a] = stats_loo[a][i]          # nur der wahre Artikel wird ersetzt
+            zu = None
+            if zusatz_tab is not None:
+                zu = dict(zusatz_meta, tabelle=zusatz_tab[(a, i)])
             r = score_einmal(measured, arts, stats, cal, m, aggregation,
-                             merkmale, nachschlag)
+                             merkmale, nachschlag, sigma_regel, zu)
             r["wahr"] = a
             r["shot"] = i
             out.append(r)
