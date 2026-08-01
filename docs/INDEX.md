@@ -158,6 +158,15 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   `ui_common.py`, `requirements-ui.txt`, 1415 Zeilen). Ersatzwege stehen im
   README; die Artikelliste wurde vorher als CLI-Befehl `list-articles`
   nachgebaut.
+- **2026-08-01** — [Natürliche Sortierung: Stufe 1 umgesetzt, Stufe 2 offen](2026-08-01-natuerliche-sortierung-stufe2-offen.md):
+  `LOEFFEL-2` steht jetzt vor `LOEFFEL-11` — aber **nur in der Anzeige**
+  (`pipeline.list_articles`, `cli list-articles`; die beiden Qt-Dialoge kommen
+  ohne UI-Änderung mit). **`Database.all_articles()` bleibt lexikografisch:**
+  `matcher.match()` baut die Kandidaten in dieser Reihenfolge auf, die
+  Score-Sortierung ist stabil und `log_score` wird auf 4 Stellen gerundet —
+  bei Gleichstand baugleicher Artikel entscheidet also die DB-Reihenfolge über
+  Top-1. Positiv getestet. Stufe 2 (`analysis.py`, `corpus/review.py`) bewusst
+  offen: der Diff landete in `reports/archive/`, und das ist versioniert.
 - **2026-08-01** — [Einzelreport-Ansicht: Nachbau-Kandidat](2026-08-01-einzelreport-ansicht-nachbau.md):
   die einzige Streamlit-Funktion ohne Äquivalent. Beschreibt die acht Felder
   (Gate-Ampel, Kandidatentabelle, Log-Beitrags-Chart, Top-1-vs-Top-2,

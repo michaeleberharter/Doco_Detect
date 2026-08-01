@@ -20,7 +20,8 @@ from .features import (Features, describe_color_hsv, extract,
                        height_corrected_scale, min_area_rect_mm)
 from .matcher import DECISION_REJECT, MatchReport, match
 from .display import (channel_percentages, format_delta, format_diameter,  # noqa: F401
-                      format_measured, format_rank_line, headline)  # Re-Export: UIs importieren Anzeige-Helfer NUR über pipeline
+                      format_measured, format_rank_line, headline,
+                      natuerlicher_schluessel)  # Re-Export: UIs importieren Anzeige-Helfer NUR über pipeline
 from .segmentation import SegmentationError, SegmentationResult, segment
 
 
@@ -281,8 +282,16 @@ def render_report_overlay(image: np.ndarray, report: MatchReport) -> np.ndarray:
 
 
 def list_articles(cfg: dict) -> list[ArticleInfo]:
-    """Artikel + Referenzanzahl fürs UI. Leere Liste, solange keine DB
-    existiert (kein Anlegen als Nebenwirkung, wie get_status)."""
+    """Artikel + Referenzanzahl fürs UI, NATÜRLICH sortiert (LOEFFEL-2 vor
+    LOEFFEL-11). Leere Liste, solange keine DB existiert (kein Anlegen als
+    Nebenwirkung, wie get_status).
+
+    Die Sortierung sitzt hier und NICHT in `Database.all_articles()`: von
+    dort holt sich `matcher.match()` die Kandidaten, und weil die spätere
+    Sortierung nach dem gerundeten log_score stabil ist, entscheidet die
+    DB-Reihenfolge bei Gleichstand über Top-1. Diese Fassade ist die
+    Anzeigeschicht — sie speist die Artikel-Combo des Einlerndialogs und
+    den Korrekturdialog, sonst nichts."""
     if not resolve(cfg["paths"]["db_file"]).exists():
         return []
     db = Database(cfg)
@@ -292,7 +301,9 @@ def list_articles(cfg: dict) -> list[ArticleInfo]:
             article_number=a.article_number, name=a.name, category=a.category,
             diameter_mm=a.diameter_mm, height_mm=a.height_mm,
             n_references=counts.get(a.article_number, 0))
-            for a in db.all_articles()]
+            for a in sorted(db.all_articles(),
+                            key=lambda a: natuerlicher_schluessel(
+                                a.article_number))]
     except Exception:
         return []
     finally:

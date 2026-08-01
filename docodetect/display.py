@@ -14,6 +14,7 @@ reject -> "Kein Treffer".
 from __future__ import annotations
 
 import math
+import re
 
 from .matcher import CHANNELS, CandidateReport
 
@@ -21,6 +22,37 @@ from .matcher import CHANNELS, CandidateReport
 def _de(x: float, nd: int = 1) -> str:
     """Zahl deutsch formatieren (Dezimalkomma)."""
     return f"{x:.{nd}f}".replace(".", ",")
+
+
+_ZAHLENGRUPPE = re.compile(r"(\d+)")
+
+
+def natuerlicher_schluessel(text) -> tuple:
+    """Sortierschlüssel für Artikelnummern: Zahlenteile numerisch, Rest
+    alphabetisch. LOEFFEL-2 kommt damit vor LOEFFEL-11 statt danach.
+
+    NUR FÜR ANZEIGE. Die Reihenfolge aus `Database.all_articles()`
+    (`ORDER BY article_number`, also lexikografisch) darf damit NICHT
+    umsortiert werden: `matcher.match()` baut die Kandidatenliste in genau
+    dieser Reihenfolge auf, und `candidates.sort(key=log_score)` ist stabil —
+    bei gleichem (auf 4 Stellen GERUNDETEM) log_score entscheidet also die
+    DB-Reihenfolge, wer Top-1 wird. Das ist Messpfad, nicht Darstellung.
+
+    Wirft nie:
+    * ohne Ziffern ("TELLER") — ein einziges Textelement;
+    * mit mehreren Zahlengruppen ("A1-B2") — abwechselnde Elemente;
+    * bei Nicht-Strings — `str()` davor;
+    * gleichförmige 3-Tupel, damit nie `int` gegen `str` verglichen wird
+      (die übliche Falle bei selbstgebauten Naturalsorts).
+
+    Der angehängte Rohtext macht die Ordnung total: sonst wären LOEFFEL-01
+    und LOEFFEL-1 gleichwertig und ihre Reihenfolge hinge daran, wie sie
+    zufällig in die Liste kamen."""
+    s = str(text)
+    teile = _ZAHLENGRUPPE.split(s)      # ['GABEL-', '10', ''] — ungerade = Zahl
+    return (tuple((1, int(t), "") if i % 2 else (0, 0, t.casefold())
+                  for i, t in enumerate(teile)),
+            s.casefold())
 
 
 def format_diameter(c: CandidateReport) -> str:

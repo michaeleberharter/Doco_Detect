@@ -242,9 +242,14 @@ def cmd_list_articles(args, cfg):
     unterschieden, weil das zwei verschiedene Zustände sind."""
     import sqlite3
 
+    from .display import natuerlicher_schluessel
+
     db = Database(cfg)
     try:
-        articles = db.all_articles()
+        # Natürlich sortiert (LOEFFEL-2 vor LOEFFEL-11) – NUR hier, nicht in
+        # all_articles(): dort haengt der Matcher dran (siehe display.py).
+        articles = sorted(db.all_articles(),
+                          key=lambda a: natuerlicher_schluessel(a.article_number))
         counts = db.reference_counts()
     except sqlite3.OperationalError:
         sys.exit(f"[list-articles] Keine Artikel-Tabelle in {db.path}. "
