@@ -53,6 +53,8 @@ Die 41 ACCEPT verteilen sich auf nur drei Artikel mit kleinem Kandidatenset
 (GABEL-9 13/13, MESSER-8 13/13, LOEFFEL-3 10/13) plus Reste bei LOEFFEL-6 (4/13)
 und LOEFFEL-1 (1/13). **Neun der dreizehn Artikel erreichen kein einziges
 ACCEPT.**
+  
+  > **KORREKTUR 2026-08-01 (nach Erstfassung):** Es sind **acht**, nicht neun. LOEFFEL-1 erreicht 1/13, ist also kein Nullartikel. Die acht sind GABEL-10, GABEL-11, GABEL-12, GABEL-14, LOEFFEL-2, LOEFFEL-5, MESSER-5, MESSER-7. Die Originalzahl bleibt oben stehen, damit die Historie lesbar bleibt.
 
 ---
 
@@ -321,7 +323,8 @@ Begründen von Änderungen.
 Was bleibt, ist der Simulator.
 
 **Und der offene Kern:** 127 der 169 Fälle bleiben AMBIGUOUS, neun der dreizehn
-Artikel erreichen kein einziges ACCEPT — auch nachdem beide Duplikate entfernt
+Artikel erreichen kein einziges ACCEPT [KORREKTUR 2026-08-01: acht, siehe
+Abschnitt 1] — auch nachdem beide Duplikate entfernt
 sind. Das Problem ist also weder ein Datenfehler noch ein Parameterproblem
 innerhalb dieser Architektur.
 

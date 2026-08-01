@@ -419,7 +419,8 @@ Die Absage an w(s) hängt am gewichteten Mittel (Abschnitt 3a) und am
 Betriebs-Floor (Abschnitt 6). Beide sind von der Bestandszusammensetzung
 unabhängig. Die Neurechnung der Simulation mit 13 Artikeln bestätigt das
 Gesamtbild unverändert: **127 von 169 Fällen bleiben AMBIGUOUS**, ACCEPT bleibt
-bei 41, neun der dreizehn Artikel erreichen kein einziges ACCEPT
+bei 41, neun der dreizehn Artikel erreichen kein einziges ACCEPT [KORREKTUR
+2026-08-01: **acht**, nicht neun — LOEFFEL-1 hat 1/13]
 ([2026-08-01-scoring-simulation-widerlegte-thesen.md](2026-08-01-scoring-simulation-widerlegte-thesen.md)).
 
 **Die Entscheidung „w(s) wird nicht gebaut" bleibt unverändert gültig.**

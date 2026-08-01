@@ -77,13 +77,28 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   Verschärfung tötet den wahren Artikel und erzeugt konkurrenzlose
   Falschsieger (k_safe 166 → 35). Farbe ist kein toter Ballast. Ergebnis der
   Runde ist `scripts/simulate_scoring.py` — reproduziert `matcher.match()`
-  bit-identisch. Offen bleibt der Kern: 127 von 169 Fällen AMBIGUOUS, neun von
-  dreizehn Artikeln ohne ein einziges ACCEPT.
+  bit-identisch. Offen bleibt der Kern: 127 von 169 Fällen AMBIGUOUS, acht von
+  dreizehn Artikeln ohne ein einziges ACCEPT (Korrektur 2026-08-01, im
+  Dokument als Nachtrag vermerkt).
 - **2026-08-01** — [Duplikatprüfung gehört VOR jede Analyse](2026-08-01-duplikatpruefung-methode.md):
   Methodenempfehlung nach zwei übersehenen Duplikaten. Profildistanz-Scan über
   w(s), Kennzahl `d/σ` (nicht `d`), **Schwelle d/σ < 2,0 = physisch prüfen** —
   und die Lücke in der sortierten Liste lesen, nicht nur die Zahl. w(s) taugt
   nicht als Scoring-Merkmal, aber hervorragend als Duplikat-Detektor.
+- **2026-08-01** — [Block A: Unabhängigkeitsannahme / Kovarianz](2026-08-01-blockA-kovarianz.md):
+  **Keine Kovarianz-Korrektur.** Korrelation existiert, aber schwach und nur im
+  Farbblock (effektiver Rang 6,83/8). Mahalanobis kostet 5 top1 und 30 k_safe;
+  regularisiert bewegt es 0 Nullartikel. Enthält die Merkregel
+  **Rauschkorrelation innerhalb eines Artikels ≠ z über alle Kandidaten** — die
+  motivierende 0,73 war über die falsche Grundgesamtheit gerechnet (richtig: −0,15).
+- **2026-08-01** — [Block B: Paarweises Scoring](2026-08-01-blockB-paarweises-scoring.md):
+  **Nicht gebaut, aber nicht widerlegt.** Der Nachschlag ändert die Reihenfolge
+  nicht (Kontrolle B4 mit fixierter Reihenfolge ist kennzahlengleich) — reine
+  Abstandsoperation. Einziger Ansatz bisher, der nichts verschlechtert
+  (k_safe +2, 78 % statt 93–98 % Schwellenanteil); nicht gebaut, weil 13 Fälle
+  bei n≈13 Rauschen sind. Erster Wiederaufnahme-Kandidat nach der Windows-Box.
+  Enthält den Mechanik-Befund: **die Enrollment-Streuung des BEDRÄNGERS bestimmt
+  die Margin** (σ_hu 0,03 gegen 0,84 erklärt MESSER-5 0/13 gegen MESSER-7 7/13).
 - **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
   Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
   `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,

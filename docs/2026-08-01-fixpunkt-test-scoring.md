@@ -278,7 +278,8 @@ funktioniert hätte (**d/σ < 2,0**):
 
 Die Simulation mit den bereinigten 13 Artikeln ergibt **127 von 169 Fällen
 AMBIGUOUS** und ACCEPT unverändert 41. Neun der dreizehn Artikel erreichen kein
-einziges ACCEPT. Der künstliche Dreier-Cluster war also **nicht** die Ursache
+einziges ACCEPT. [KORREKTUR 2026-08-01: **acht**, nicht neun — LOEFFEL-1 hat
+1/13.] Der künstliche Dreier-Cluster war also **nicht** die Ursache
 der AMBIGUOUS-Quote — er hat sie nur mit erklärt.
 
 ---

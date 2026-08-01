@@ -65,6 +65,14 @@ ENTARTET = ()
 #                   trennscharfe Merkmale hat.
 AGGREGATIONEN = ("mean", "sum_weighted", "sum_unweighted", "sum_fisher")
 
+# Block A: Mahalanobis. MAHA_C ist die 8x8-Korrelationsmatrix der z-Vektoren
+# (Modulglobale, von scripts/analyse_merkmalskorrelation.py gesetzt). Die
+# Aggregation "maha" rechnet  log_score = -0.5 * z^T D^0.5 C^-1 D^0.5 z  mit
+# D = diag(w_eff). Fuer C = Identitaet ist das EXAKT die heutige Baseline —
+# die Variante ist eine strikte Verallgemeinerung, kein anderes Verfahren.
+MAHA_C = None          # dict {(f_i, f_j): rho} oder None
+MAHA_CINV = None       # vorberechnete Inverse als dict-of-dict
+
 
 def lade_bestand(cfg):
     """-> (artikel, feats_je_artikel, stats_voll, stats_loo)"""
@@ -87,12 +95,20 @@ def lade_bestand(cfg):
 FARB_MERKMALE = ("delta_e_center", "delta_e_rim", "hist_center", "hist_rim")
 
 
-def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None):
+def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None,
+                 nachschlag=None):
     """Eine Identifikation. `stats` = {artikelnummer: EnrollmentStats}.
     `m` = cfg['matching'] (bereits variantenspezifisch veraendert).
     `merkmale` = aktive Merkmalsliste (None = alle acht). Das Weglassen von
     Merkmalen ist NICHT dasselbe wie Gewicht 0: bei `sum_unweighted` gibt es
-    keine Gewichte, dort wirkt nur das Weglassen."""
+    keine Gewichte, dort wirkt nur das Weglassen.
+
+    `nachschlag` (Block B) = None | {"alpha": float, "reihenfolge": bool}.
+    Gesetzt, werden nach dem globalen Durchgang Platz 1 und 2 mit Gewichten aus
+    der Fisher-Ratio ueber GENAU DIESES PAAR neu bewertet. `reihenfolge=False`
+    laesst die Reihenfolge des globalen Durchgangs unangetastet und aendert nur
+    den Abstand — damit ist die Variante per Konstruktion eine reine
+    Skalenoperation und muss sich an der Schwellen-Gegenprobe messen."""
     aktiv = tuple(merkmale) if merkmale else ALL_FEATURES
     tol_mm = float(m["diameter_tolerance_mm"])
     area_tol = float(m["area_tolerance_pct"]) / 100.0
@@ -186,10 +202,20 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None):
                 b = L
             elif aggregation == "sum_fisher":
                 b = w_roh[f] * L
+            elif aggregation == "maha":
+                b = 0.0        # unten geschlossen ueber den ganzen Vektor
             else:
                 raise ValueError(aggregation)
             beitraege.append(round(b, 4))
             zs.append(round(z, 4))
+        if aggregation == "maha":
+            import numpy as _np
+            fs = [f for f in aktiv if rows.get(f) is not None]
+            zv = _np.array([zs[i] for i in range(len(fs))], dtype=float)
+            d = _np.sqrt(_np.array([w_eff[f] for f in fs], dtype=float))
+            cinv = _np.array([[MAHA_CINV[a_][b_] for b_ in fs] for a_ in fs])
+            q = float(zv @ (_np.outer(d, d) * cinv) @ zv)
+            beitraege = [round(-0.5 * q, 4)]
         cands.append({"article": art.article_number,
                       "log_score": round(sum(beitraege), 4),
                       "max_abs_z": round(max((abs(z) for z in zs), default=0.0), 4),
@@ -205,12 +231,66 @@ def score_einmal(measured, arts, stats, cal, m, aggregation, merkmale=None):
         dec = DECISION_ACCEPT
     else:
         dec = DECISION_AMBIGUOUS
+    getauscht = False
+    if nachschlag is not None and len(cands) >= 2:
+        a_alt = cands[0]["article"]
+        top = [c for c in cands[:2]]
+        namen = [c["article"] for c in top]
+        rows_top = {art.article_number: rows for (art, _st, rows) in prelim
+                    if art.article_number in namen}
+        al = float(nachschlag.get("alpha", alpha))
+        fisher2 = {}
+        for f in aktiv:
+            locs, sig2 = [], []
+            for n_ in namen:
+                row = rows_top[n_].get(f)
+                if row is None:
+                    continue
+                dist, s_en, _, ref = row
+                locs.append(ref if f in SCALAR_FEATURES and ref is not None else dist)
+                sig2.append(s_en ** 2 + _sigma_floor(f, floors) ** 2)
+            if len(locs) >= 2 and np.mean(sig2) > 0:
+                fisher2[f] = float(np.var(locs) / np.mean(sig2))
+        tot2 = sum(fisher2.values())
+        if tot2 > 0:
+            dn2 = {f: v / tot2 for f, v in fisher2.items()}
+            w2 = {f: w_global[f] * (1.0 + al * dn2.get(f, 0.0)) for f in w_global}
+            sw = sum(w2.values())
+            w2 = {f: v / sw for f, v in w2.items()}
+            neu = []
+            for c in top:
+                rows = rows_top[c["article"]]
+                wsum2 = sum(w2[f] for f in rows if f in w2)
+                b2 = []
+                for f in aktiv:
+                    row = rows.get(f)
+                    if row is None:
+                        continue
+                    dist, s_en, _, _ = row
+                    se = math.sqrt(s_en ** 2 + _sigma_floor(f, floors) ** 2)
+                    z = dist / se
+                    L = -0.5 * z * z
+                    b2.append(round((w2[f] * L / wsum2) if wsum2 > 0 else 0.0, 4))
+                neu.append(dict(c, log_score=round(sum(b2), 4)))
+            if nachschlag.get("reihenfolge", True):
+                neu.sort(key=lambda c: -c["log_score"])
+            cands = neu + cands[2:]
+            best = cands[0]
+            llr = round(cands[0]["log_score"] - cands[1]["log_score"], 4)
+            getauscht = cands[0]["article"] != a_alt
+            if best["max_abs_z"] > max_z_accept:
+                dec = DECISION_REJECT
+            elif (llr is None or llr >= min_llr) and best["has_refs"]:
+                dec = DECISION_ACCEPT
+            else:
+                dec = DECISION_AMBIGUOUS
+
     return {"decision": dec, "ranking": [c["article"] for c in cands],
             "llr": llr, "max_z": best["max_abs_z"], "n_cand": len(cands),
-            "n_feats": [c["n_feats"] for c in cands]}
+            "n_feats": [c["n_feats"] for c in cands], "getauscht": getauscht}
 
 
-def lauf(bestand, cal, m, aggregation, merkmale=None):
+def lauf(bestand, cal, m, aggregation, merkmale=None, nachschlag=None):
     """195 Leave-one-out-Identifikationen -> Liste von Ergebnissen."""
     arts, feats, stats_voll, stats_loo = bestand
     out = []
@@ -219,7 +299,7 @@ def lauf(bestand, cal, m, aggregation, merkmale=None):
             stats = dict(stats_voll)
             stats[a] = stats_loo[a][i]          # nur der wahre Artikel wird ersetzt
             r = score_einmal(measured, arts, stats, cal, m, aggregation,
-                             merkmale)
+                             merkmale, nachschlag)
             r["wahr"] = a
             r["shot"] = i
             out.append(r)
