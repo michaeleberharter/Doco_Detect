@@ -194,14 +194,29 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   `data/verworfen/<artikel>/<ts>/` (gitignored) statt sie zu löschen — kein
   DB-/reference_dir-Eintrag, da pre-commit. Das ist das „warum verworfen"-
   Material, das der C-Serie fehlte.
-- **Beim Neu-Einlernen beachten:** LOEFFEL-3 ist ein harter Fall (schon in der
-  C-Serie: Messausreißer LOEFFEL-3/-6/-7). Am 2026-07-28 aus den 9
-  Altbestands-Shots gemessen: **σ(Ø) = 1,87 mm**, ~2–4× die saubere
+- **Beim Neu-Einlernen beachten — gilt für die PRODUKTIV-DB:** dort ist
+  LOEFFEL-3 ein harter Fall (schon in der C-Serie: Messausreißer
+  LOEFFEL-3/-6/-7). Am 2026-07-28 aus den 9 **Altbestands**-Shots der
+  Produktiv-DB gemessen: **σ(Ø) = 1,87 mm**, ~2–4× die saubere
   C-Serie-Bandbreite (0,43–0,92 mm), mit sichtbarer Drift über die Shots
   (Diagnoseblatt Feld c/e: auffällig S9/S1/S8). Vor dem Vertrauen auf LOEFFEL-3
   das Blatt prüfen.
+  **Nicht auf andere Bestände übertragen:** Artikelnummern sind je Bestand
+  neu vergeben. In der Sandbox `neuenroll-2026-08` (2026-08-01) ist LOEFFEL-3
+  im Gegenteil unauffällig — kein Merkmal über dem Floor (max σ_enroll/σ_floor
+  = 0,99) und einer von nur drei Artikeln mit ACCEPT. Wer eine
+  Artikel-Warnung zitiert, nennt den Bestand dazu.
 
-## Aufgeschobene Messpfad-Runde (2026-07-28)
+## Messpfad-Runde (2026-07-28) — ERLEDIGT am 2026-07-29
+
+> **Erledigt mit Commit `59edc46` (2026-07-29).** Alle drei unten genannten
+> Änderungen sind im Messpfad: `matcher.py` schreibt `prefiltered` (jeder Kill
+> mit Grund und Abstand zur Toleranz) und `timestamp` mit µs-Auflösung,
+> `features.py` liefert `lat_p98_mm`. **Der Satz „die risikotragende Größe ist
+> derzeit nicht messbar" ist damit falsch** — Prefilter-Kills stehen seither im
+> Report-JSON, und der Fixpunkt-Test vom 2026-08-01 hat sie ausgewertet
+> (Befund 5: kein Kill des wahren Artikels in 15 Aufnahmen). Der Text unten
+> bleibt als Herleitung stehen, ist aber kein offener Auftrag mehr.
 
 - **Prefilter-Kills sind aus den Report-JSONs nicht rekonstruierbar** (nur die
   überlebenden Kandidaten stehen drin). Laut C-Serie sitzt das
@@ -214,6 +229,8 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   auf den ms-Basename des `report_path`). Drei Dinge am selben Ort → **eine**
   Messpfad-Runde, nicht einzeln (je Runde ein Korpus-Re-Baselining). Details:
   [docs/2026-07-28-messpfad-aufgeschoben.md](docs/2026-07-28-messpfad-aufgeschoben.md).
+
+## Korpus tier1 — nichtdeterministisches Flackern (2026-07-28, offen)
 
 - **Korpus tier1 flackert nichtdeterministisch** (`corpus-run --tier 1 --check`
   auf `workers=8`): am 2026-07-28 einmal `FAIL` mit **1 Bild** (`a8d8c8d7…`,
