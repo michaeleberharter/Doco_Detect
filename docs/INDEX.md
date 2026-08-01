@@ -34,9 +34,15 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   report-only — Betriebskurven (auto_accept vs. false_accept) aus
   Replay-Reports; Schwellen-ENTSCHEIDUNG erst nach Teller-Daten.
 - **2026-07-24** — [stammdaten-Diagonal-Fix + sync-stammdaten](superpowers/reports/2026-07-24-stammdaten-sync-ergebnis.md):
-  `stammdaten.py` rechnet noch mit `hypot` (dritte Diagonal-Fundstelle);
-  `sync-stammdaten --apply` bleibt gesperrt, bis es dieselbe Nominalfunktion
-  wie der Matcher nutzt.
+  dritte und letzte Fundstelle der Diagonal-vs-Länge-Klasse **gefixt**
+  (`stammdaten.py` rechnet seither `max(width, depth)` wie der Matcher), und
+  **`sync-stammdaten --apply` ist am 2026-07-24 gelaufen** — Live-DB und
+  Bundle-DBs sind post-sync. Preis: eine bewusst akzeptierte fail-safe-
+  Regression (LOEFFEL-7 accept→reject), Fehlbuchungsrate bleibt 0. Enthält die
+  Residual-Analyse, die den Ära-Offset der **Kalibrier-Reproduzierbarkeit**
+  zuordnet (~1,3 % Skalen-Drift, Zweig K), nicht dem Sync.
+  *(Korrigiert 2026-08-01: dieser Eintrag beschrieb bis dahin den Zustand VOR
+  dem Dokument, auf das er zeigt — „`--apply` bleibt gesperrt".)*
 - **2026-07-24** — [Arbeitsplan ab 2026-07-24](arbeitsplan-2026-07-24.md):
   aktueller Plan (Mac-first, Windows-Tag, Blöcke 1–5) — der lebende Fahrplan.
 - **2026-07-31** — [`reference_stats` kennt keinen Session-Begriff](2026-07-31-reference-stats-keine-sessions.md):
@@ -134,11 +140,15 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   drei Wiederaufnahme-Kandidaten (D8, B2, D1/D3) und was die Datenbasis leisten
   müsste, damit die Fragen entscheidbar werden.
 - **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
-  Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
-  `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,
-  bei 1-Shot-Artikeln Werte um 10¹⁰. **Die `discriminability`-Zahlen aus Run
-  `20260801-140818` sind für die Farbmerkmale unbrauchbar.** Messpfad,
-  Entscheidungen und Korpus sind nicht betroffen.
+  **gefixt am 2026-08-01.** Die vier Farbmerkmale bekamen in
+  `_analysis_discriminability` Floor 0,0 → Trennschärfen überhöht, bei
+  1-Shot-Artikeln Werte um 10¹⁰. Folge war nicht nur eine falsche Zahl: die
+  nach Zeilenmaximum sortierte Matrix zeigte oben die Artefaktzeilen und
+  verbarg unten die real schwierigen Paare (`MESSER-5/7`, `GABEL-10/14`,
+  `LOEFFEL-2/5`). Lauf `20260801-140818` ist neu gerechnet nach
+  `20260801-140818-floorfix`; die alte Fassung bleibt als Beleg stehen.
+  Messpfad, Entscheidungen und Korpus waren nie betroffen, die Analyse-Skripte
+  auch nicht (sie nutzen `matcher._sigma_floor`).
 
 ## Referenz (nicht chronologisch)
 
