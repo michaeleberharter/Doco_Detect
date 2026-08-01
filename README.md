@@ -379,7 +379,8 @@ python -m docodetect.cli delete-article SUPPENLOEFFEL   # falsch vermessen? Lös
 python -m docodetect.cli list-articles
 
 # 3. Artikel einlernen (weitere Referenzmerkmale, mehrere Rotationen)
-python -m docodetect.cli enroll TELLER-27-WEISS --shots 8
+#    --shots ist optional, Default 12 (seit fc656ba).
+python -m docodetect.cli enroll TELLER-27-WEISS
 #    Messreihe misslungen? Referenzen verwerfen, Artikel behalten und neu
 #    einlernen. Die Fotos werden dabei nicht gelöscht, sondern nach
 #    data/verworfen/<nr>/<zeitstempel>/ verschoben (mit info.json).
