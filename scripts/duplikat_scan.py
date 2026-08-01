@@ -46,6 +46,19 @@ sie deutlich ab, ist es kein Duplikat, sondern eine Formfamilie. Die Länge ist
 im Scoring ohnehin das schwerste Merkmal — dieser Scan misst bewusst das, was
 die Länge NICHT sieht.
 
+**Verifiziert am 2026-08-01** gegen den Bestand `neuenroll-2026-08` (40
+Artikel, 220 Referenzbilder, 780 Paare, 1007 s):
+
+- **3 von 3 bekannten Duplikaten gefunden** — MESSER-2/-5/-6 auf den Rängen
+  1-3 (d/sigma 0,92 · 1,21 · 1,55), als ein Cluster zusammengefasst, mit einem
+  Sprung von ×1,46 zum nächsten Paar.
+- **Positivkontrolle bestanden:** MESSER-5/MESSER-7 — das enge, aber echte
+  Nachbarpaar — liegt bei **12,68 sigma auf Rang 272 von 780**, wird also
+  nicht mitgezogen. Ein Detektor, der nur unten etwas findet, wäre damit noch
+  nicht belegt; erst beide Enden zusammen sind es.
+- Die Distanzen reproduzieren die Werte der ursprünglichen Ad-hoc-Rechnung auf
+  zwei Nachkommastellen (0,25 · 0,38 · 0,48 mm).
+
 Aufruf:
     .venv/bin/python scripts/duplikat_scan.py --sandbox neuenroll-2026-08
 

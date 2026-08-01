@@ -388,6 +388,17 @@ gerechnet; sie beantworteten eine Frage, die es nicht gab.
   Das ist ein Befund, kein leeres Ergebnis. Häufigster Grund: fehlende
   `reference_features.image_path` (im Produktivbestand 334 von 359 Zeilen).
 
+**Erst nach vollständigem Enrollment hat der Scan seine volle Stärke.** Ein
+Artikel mit nur einer Aufnahme hat kein eigenes σ; das Skript setzt dort die
+über alle Artikel gepoolte Shot-Streuung ein und markiert das Paar mit `*`.
+Diese Schätzung ist gröber als das echte σ — zwischen zwei solchen Artikeln
+tritt ein Duplikat weniger deutlich hervor. Im Lauf vom 2026-08-01 betraf das
+**25 von 40 Artikeln** (die Anlege-Shots) und 9 der 15 engsten Paare. Der
+Windows-Durchgang lernt alle Artikel voll ein, dort entfällt die Einschränkung.
+Wer den Scan dazwischen auf einem halb eingelernten Bestand fährt, bekommt ein
+schwächeres Ergebnis, als die Ausgabe vermuten lässt — die Sternchen in der
+Tabelle sind der Hinweis darauf.
+
 Bestätigt sich ein Duplikat: den überzähligen Eintrag **entfernen** und die
 Auswertung neu rechnen — **nicht umetikettieren.** Eine Umetikettierung trägt
 Top-1-Fehler in jede spätere Auswertung
