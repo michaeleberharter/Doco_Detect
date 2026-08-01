@@ -106,7 +106,79 @@ Mediane 1,26–1,72 σ), und der Fehler lässt sie besser aussehen.
 
 ## Status
 
-Nicht gefixt. `analysis.py` ist reine Konsumentenschicht; ein Fix ändert weder
+> **Erledigt am 2026-08-01** (Branch `feature/cli-und-analyse-fixes`). Beide
+> unten genannten Punkte umgesetzt: `_FLOOR_KEY` wird aus `matcher.py`
+> importiert, der `or 1e-9`-Zweig ist durch `np.nan` ersetzt. Zwei Tests in
+> `tests/test_analysis.py` (`test_discriminability_nutzt_die_floor_gruppe_…`,
+> `…_ohne_floor_und_ohne_streuung_ist_leer_statt_1e10`) fallen ohne den Fix um.
+>
+> Der Lauf `20260801-140818` wurde **neu gerechnet nach
+> `20260801-140818-floorfix`** (danebengelegt, die alte Fassung bleibt als
+> Beleg stehen). Ergebnis über die 79 normal auswertbaren Paare:
+> `delta_e_center` 3,82 → 1,25 · `delta_e_rim` 4,58 → 1,59 · `hist_center`
+> 3,91 → 1,78 · `hist_rim` 3,81 → 1,48; die vier Formmerkmale bitgleich.
+> Die korrigierten Mediane reproduzieren die oben unabhängig nachgerechneten
+> Werte.
+>
+> ### Die eigentliche Auswirkung: die Matrix zeigte die falschen Paare
+>
+> Wichtiger als die Faktoren ist, **was ein Mensch auf dem
+> `discriminability.png` gesehen hat**. Die Matrix ist nach dem Zeilenmaximum
+> sortiert. Oben standen deshalb die Artefaktzeilen der 1-Shot-Artikel:
+>
+> | Rang | alt (fehlerhaft) | neu (korrigiert) |
+> |---|---|---|
+> | 1 | `GABEL-3 / GABEL-7` (max 2,2·10¹⁰) | `LOEFFEL-8 / MESSER-1` (87,0) |
+> | 2 | `GABEL-3 / LOEFFEL-4` (1,9·10¹⁰) | `GABEL-1 / MESSER-11` (72,4) |
+> | 3 | `GABEL-3 / GABEL-8` (1,6·10¹⁰) | `LOEFFEL-8 / MESSER-10` (72,3) |
+>
+> Und **unten**, wo die schwierigen Paare stehen sollen, standen sie nicht.
+> Erst nach dem Fix erscheinen dort die drei Paare, um die es in dieser
+> Analyse-Runde tatsächlich ging:
+>
+> | Paar | max (korrigiert) |
+> |---|---|
+> | `MESSER-5 / MESSER-7` | **1,43** |
+> | `GABEL-10 / GABEL-14` | **1,83** |
+> | `LOEFFEL-2 / LOEFFEL-5` | **1,93** |
+>
+> Sie waren unter den Artefakten begraben. Wer die Matrix zur Orientierung
+> angeschaut hat, hat die falschen Paare gesehen — nicht bloss überhöhte
+> Zahlen bei den richtigen. Das ist der Schaden, den der Fehler angerichtet
+> hat, und der Grund, warum ein Sortierkriterium nie auf ungeprüften
+> Extremwerten beruhen darf.
+>
+> ### Geprüft: welche Aussagen der Runde beruhten darauf?
+>
+> Vollständig durchgesehen (2026-08-01), Ergebnis: **eine**.
+>
+> - **Alle Analyse-Skripte sind sauber.** `scripts/simulate_scoring.py`,
+>   `analyse_tiebreaker.py`, `analyse_sigma_eff.py`,
+>   `analyse_merkmalskorrelation.py` importieren `matcher._sigma_floor` und
+>   rechnen damit über `_FLOOR_KEY`. Kein Skript importiert `analysis.py`
+>   oder liest `discriminability.csv`.
+> - **Die Trennschärfe-Tabelle in
+>   [wprofil-negativbefund](2026-08-01-wprofil-negativbefund.md) Abschnitt 2
+>   ist korrekt** (1,26–1,72 für die Farbmerkmale) — unabhängig gerechnet,
+>   nicht aus der Matrix übernommen. `duplikatpruefung-methode.md` zitiert
+>   diese Tabelle, nicht die Matrix.
+> - **Betroffen: [fixpunkt-test-scoring.md](2026-08-01-fixpunkt-test-scoring.md),
+>   „Nächste Schritte" Punkt 4.** Dort stand, `discriminability` lege nahe,
+>   dass ausser Ø und den ΔE-Werten kaum ein Merkmal zur Trennung beitrage.
+>   Das ist **umgekehrt** richtig: die ΔE-Merkmale sind die schwächsten.
+>   Kein Ergebnis und keine Änderung hing daran — es war ein Vorschlag für
+>   die nächste Runde, der sie in die falsche Richtung geschickt hätte.
+>   Dort als Korrektur vermerkt.
+>
+> **Ein Detail, das die Erwartung oben präzisiert:** die 40 Artefaktzeilen
+> wurden NICHT zu NaN, sondern zu endlichen Werten (6,5–25,2). Mit korrektem
+> Floor ist `sigma_eff` auch bei `proto_std = 0` grösser null — der Floor-Fix
+> allein räumt sie ab. Der `np.nan`-Zweig hat auf diesen Daten **null Zellen**
+> verändert; er ist Vorsorge für ein künftiges Merkmal ohne Floor-Eintrag,
+> nicht die Ursache der besseren Zahlen.
+
+Ursprünglicher Status (2026-08-01, vor dem Fix): Nicht gefixt.
+`analysis.py` ist reine Konsumentenschicht; ein Fix ändert weder
 Messung noch Entscheidung, erzeugt aber andere Zahlen in allen künftigen
 `discriminability`-Artefakten. Er gehört als eigener, benannter Schritt gemacht —
 nicht beiläufig in einer anderen Runde.

@@ -164,10 +164,23 @@ noch aus. Die Differenz beider Runden wäre der quantifizierte Positionsbeitrag.
    `diameter_tolerance_mm` von 6,0 / 4,0 / 3,0 — und um wieviel steigt dabei das
    Risiko, den korrekten Artikel zu killen? Nur als Simulation, keine
    Config-Änderung ohne Datengrundlage.
-4. **Beitrag der Nicht-Ø-Merkmale prüfen:** `discriminability` legt nahe, dass
-   außer Ø und den ΔE-Werten kaum ein Merkmal zur Trennung beiträgt. Falls das
+4. **Beitrag der Nicht-Ø-Merkmale prüfen:** ~~`discriminability` legt nahe, dass
+   außer Ø und den ΔE-Werten kaum ein Merkmal zur Trennung beiträgt.~~ Falls das
    Bestand hat, ist die Gewichtung neu zu betrachten — mit Simulation vor jeder
    Änderung.
+
+   > **Korrektur 2026-08-01 (nach dem Floor-Key-Fix):** Die durchgestrichene
+   > Prämisse beruhte auf der fehlerhaften `discriminability`-Matrix und ist
+   > **umgekehrt** richtig. Mit korrektem Floor sind die ΔE-Merkmale die
+   > **schwächsten** (Median 1,25–1,59 σ), die Formmerkmale die stärksten. Das
+   > deckt sich mit der unabhängig gerechneten Tabelle in
+   > [2026-08-01-wprofil-negativbefund.md](2026-08-01-wprofil-negativbefund.md),
+   > Abschnitt 2 (solidity 25,87 · diameter 12,88 · circularity 7,86 gegen
+   > 1,26–1,72 der Farbmerkmale). Die absoluten Werte unterscheiden sich je nach
+   > Grundgesamtheit — die Rangfolge Form ≫ Farbe nicht. Die Frage selbst bleibt
+   > offen, nur mit umgekehrtem Vorzeichen: zu prüfen ist der Beitrag der
+   > **Farbmerkmale**, nicht der der Nicht-Ø-Merkmale. Siehe
+   > [2026-08-01-analysis-floor-key-befund.md](2026-08-01-analysis-floor-key-befund.md).
 5. **Wiederholung auf der Windows-Box** mit Fokus-Lock, sobald verfügbar.
 
 ---

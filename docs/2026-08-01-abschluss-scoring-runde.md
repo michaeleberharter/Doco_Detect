@@ -95,6 +95,26 @@ Fehlbuchungen bei baugleichen Artikeln.
   Nachschlag mit fixierter Reihenfolge, das Nullmodell bei D8. Jedes Mal war
   das die Zahl, die den Befund entschieden hat, statt ihn plausibel zu machen.
 
+### Nachtrag 2026-08-01: eine fehlerhafte Auswertungsschicht invertiert Empfehlungen, ohne rot zu werden
+
+Der [Floor-Key-Fehler](2026-08-01-analysis-floor-key-befund.md) in
+`analysis.py` hat nicht nur Zahlen überhöht. Er hat in den „Nächsten Schritten"
+von [fixpunkt-test-scoring.md](2026-08-01-fixpunkt-test-scoring.md) eine
+Empfehlung erzeugt, die **das Gegenteil des Richtigen** vorschlug — die
+ΔE-Merkmale erschienen als die tragenden, tatsächlich sind sie die
+schwächsten. Nirgends brach etwas ab, nirgends wurde etwas rot; die nächste
+Runde hätte darauf aufgesetzt.
+
+**Dass die Simulationen davon unberührt blieben, war Glück der Konstruktion,
+nicht Vorsicht.** Sie importieren `matcher._sigma_floor` und rechnen deshalb
+über `_FLOOR_KEY` — nicht, weil jemand diese Trennung geprüft hätte, sondern
+weil sie ohnehin am Matcher entlang gebaut wurden.
+
+**Die Regel, die daraus folgt:** Auswertungs-Artefakte und Simulationen müssen
+**dieselbe Floor-Quelle** benutzen. Zwei Wege zu denselben Schwellen sind zwei
+Wege, sich zu widersprechen — und der Widerspruch fällt nicht auf, weil beide
+Seiten für sich plausible Zahlen liefern.
+
 ---
 
 ## 4. Was bleibt: drei Wiederaufnahme-Kandidaten
@@ -158,7 +178,10 @@ einzige neue Aufnahme sind der Ertrag dieser Arbeit.
 
 - **[`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md)** —
   die `discriminability`-Zahlen aus Run `20260801-140818` sind für die
-  Farbmerkmale unbrauchbar. Nicht gefixt.
+  Farbmerkmale unbrauchbar. **Nachtrag: am 2026-08-01 gefixt**, Lauf neu
+  gerechnet nach `20260801-140818-floorfix`. Die Sortierung der Matrix hatte
+  die real schwierigen Paare verborgen; Aussagen dieser Runde beruhten bis auf
+  einen Vorschlag in `fixpunkt-test-scoring.md` (dort korrigiert) nicht darauf.
 - **Das Enrollment-Diagnoseblatt zeigt den `sigma_floor` nicht** (0 Treffer in
   `enrollment_sheet.py`). Wer beim Einlernen entscheiden soll, müsste acht
   Floor-Werte auswendig kennen. Vorschlag notiert, nicht umgesetzt.

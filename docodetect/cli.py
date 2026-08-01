@@ -2,10 +2,12 @@
 
     python -m docodetect.cli init-db
     python -m docodetect.cli import-articles data/articles_example.csv
+    python -m docodetect.cli list-articles
     python -m docodetect.cli capture-background
     python -m docodetect.cli calibrate [--image foto.jpg]
     python -m docodetect.cli create-article "Suppenloeffel" [--height-mm 0]
     python -m docodetect.cli delete-article ART-NR
+    python -m docodetect.cli delete-references ART-NR
     python -m docodetect.cli enroll ART-NR --shots 8 [--images dir/]
     python -m docodetect.cli identify [--image foto.jpg]
     python -m docodetect.cli evaluate data/testset/
@@ -25,7 +27,8 @@ from pathlib import Path
 
 from .calibration import run_calibration, save_background
 from .camera import BoxCamera, load_image
-from .config import load_config, resolve, sandbox_cfg
+from .config import (load_config, resolve, sandbox_cfg,
+                     sandbox_verzeichnisse_anlegen)
 from .database import Database
 from .pipeline import Pipeline
 from .segmentation import SegmentationError
@@ -88,11 +91,25 @@ def _create_one(pipe, cfg, img, name, *, article_number=None, height_mm=0.0,
     return article, feats
 
 
+def _format_geometrie(article) -> str:
+    """Die Maße eines Artikels als eine Zeile: Ø bei runden Teilen, sonst
+    Breite × Tiefe (beides die Seiten des minAreaRect). '—', wenn gar keine
+    Maße hinterlegt sind – möglich bei CSV-Import ohne Geometriespalten,
+    wo die frühere Fassung dieser Zeile an None gescheitert wäre.
+
+    Ohne Höhe: `create-article` hat sie noch nie ausgegeben, und diese
+    Ausgabe soll sich durch das Herausziehen der Zeile nicht ändern.
+    `list-articles` hängt sie selbst an."""
+    if article.diameter_mm:
+        return f"Ø {article.diameter_mm:.1f} mm"
+    if article.width_mm and article.depth_mm:
+        return f"{article.width_mm:.1f} × {article.depth_mm:.1f} mm"
+    return "—"
+
+
 def _format_created(article) -> str:
-    geo = (f"Ø {article.diameter_mm:.1f} mm" if article.diameter_mm
-           else f"{article.width_mm:.1f} × {article.depth_mm:.1f} mm")
     return (f"'{article.name}' angelegt als {article.article_number}  "
-            f"({geo}, Farbe: {article.color_desc})")
+            f"({_format_geometrie(article)}, Farbe: {article.color_desc})")
 
 
 def cmd_create_article(args, cfg):
@@ -208,6 +225,67 @@ def cmd_batch_enroll(args, cfg):
           + (f" ({sum(n for _, n in done)} Shots gesamt)." if done else "."))
 
 
+def cmd_list_articles(args, cfg):
+    """Alle Artikel mit Maßen und Referenzzahl als Tabelle.
+
+    Die einzige Übersicht dieser Art im Projekt: die Qt-UI hat keine
+    Artikelliste, und bis hierher hatte auch die CLI keine – nur die
+    entfernte Streamlit-Tabelle. Bewusst zwei Abfragen statt eines JOINs:
+    `reference_counts()` gibt es bereits fürs UI-Listing, und Artikel OHNE
+    Referenzen müssen mit `0` erscheinen, nicht fehlen. Genau die sind beim
+    Einlernen die interessanten.
+
+    Bewusst OHNE `init_schema()`, anders als die übrigen Befehle: das ruft
+    `recompute_all_stats()` und schriebe bei jedem Auflisten sämtliche
+    reference_stats neu. Ein Auflisten darf den Bestand nicht anfassen. Die
+    fehlende Datenbank wird deshalb hier abgefangen – und von der leeren
+    unterschieden, weil das zwei verschiedene Zustände sind."""
+    import sqlite3
+
+    db = Database(cfg)
+    try:
+        articles = db.all_articles()
+        counts = db.reference_counts()
+    except sqlite3.OperationalError:
+        sys.exit(f"[list-articles] Keine Artikel-Tabelle in {db.path}. "
+                 "Zuerst 'init-db' oder 'import-articles' ausführen.")
+    finally:
+        db.close()
+
+    if not articles:
+        print("[list-articles] Keine Artikel in der Datenbank. "
+              "Anlegen mit 'create-article' oder 'import-articles'.")
+        return
+
+    kopf = ("Artikelnummer", "Bezeichnung", "Maße", "Referenzen")
+    zeilen = []
+    for a in articles:
+        masse = _format_geometrie(a)
+        if a.height_mm:      # nur wenn gesetzt – sie steuert die Höhenkorrektur
+            masse += f" · h {a.height_mm:.0f} mm"
+        zeilen.append((a.article_number, a.name, masse,
+                       str(counts.get(a.article_number, 0))))
+
+    breite = [max(len(z[i]) for z in (kopf, *zeilen)) for i in range(4)]
+
+    def _zeile(z) -> str:
+        # Referenzzahl rechtsbündig: einstellig neben zweistellig soll als
+        # Zahlenspalte lesbar bleiben.
+        return (f"{z[0]:<{breite[0]}}  {z[1]:<{breite[1]}}  "
+                f"{z[2]:<{breite[2]}}  {z[3]:>{breite[3]}}")
+
+    strich = "-" * len(_zeile(kopf))
+    print(_zeile(kopf))
+    print(strich)
+    for z in zeilen:
+        print(_zeile(z))
+    print(strich)
+    eingelernt = sum(1 for a in articles if counts.get(a.article_number))
+    n_refs = sum(counts.values())
+    print(f"{len(articles)} Artikel, davon {eingelernt} eingelernt "
+          f"({n_refs} Referenz{'en' if n_refs != 1 else ''} gesamt).")
+
+
 def cmd_delete_article(args, cfg):
     db = Database(cfg)
     db.init_schema()  # fresh DB: clean "not found" instead of OperationalError
@@ -220,6 +298,98 @@ def cmd_delete_article(args, cfg):
               "Fotos unter data/reference/ bleiben liegen).")
     else:
         sys.exit(f"[delete] Artikel '{args.article_number}' nicht gefunden.")
+
+
+def _verwerfe_referenzfotos(cfg, article_number: str):
+    """Den Referenzfoto-Ordner eines Artikels VERSCHIEBEN statt löschen:
+    <reference_dir>/<nr>/  ->  <reference_dir>/../verworfen/<nr>/<zeitstempel>/
+
+    Dieselbe Ablagekonvention wie `pipeline.discard_enrollment` (dort
+    pre-commit aus dem Einlerndialog, hier post-commit aus der CLI) – bewusst
+    derselbe Ort, damit verworfenes Material nur an EINER Stelle gesucht werden
+    muss. Gibt (Zielordner, Zahl verschobener Dateien) zurück, (None, 0) wenn
+    es keinen Ordner gab."""
+    import shutil
+
+    ref_dir = resolve(cfg["paths"]["reference_dir"])
+    src = ref_dir / article_number
+    if not src.is_dir():
+        return None, 0
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    dest = ref_dir.parent / "verworfen" / article_number / stamp
+    n = 2
+    while dest.exists():        # zweiter Lauf in derselben Sekunde: nicht in
+        dest = dest.with_name(f"{stamp}-{n}")   # den bestehenden Ordner hinein
+        n += 1
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dest))
+    return dest, sum(1 for p in dest.rglob("*") if p.is_file())
+
+
+def cmd_delete_references(args, cfg):
+    """Die Referenzen EINES Artikels verwerfen, den Artikel selbst behalten –
+    für „nochmal einlernen" nach einer misslungenen Messreihe.
+
+    Gegenstück zu `delete-article`, das zusätzlich die Stammdaten entfernt.
+    Zwei bewusste Unterschiede zu dort:
+
+    * Die Fotos werden nicht liegen gelassen, sondern nach data/verworfen/
+      verschoben (move-don't-delete). Liegen bleiben hiesse: Dateien ohne
+      jede DB-Zeile, die sich nach dem Neu-Einlernen nicht mehr von den
+      neuen unterscheiden lassen.
+    * Ein Artikel ohne Referenzen ist KEIN Fehler (Exit 0) – der Zielzustand
+      ist bereits erreicht. Ein unbekannter Artikel dagegen schon (Exit 1):
+      `delete_references` gibt in beiden Fällen 0 zurück, ohne die
+      Vorabprüfung liefe ein Tippfehler in der Nummer still durch."""
+    import json
+
+    db = Database(cfg)
+    db.init_schema()  # fresh DB: clean "not found" instead of OperationalError
+    try:
+        if db.get_article(args.article_number) is None:
+            sys.exit(f"[delete-references] Artikel '{args.article_number}' "
+                     "nicht gefunden.")
+        meta = db.references_with_meta(args.article_number)
+        ohne_pfad = sum(1 for pfad, _ in meta if not pfad)
+        if not meta:
+            print(f"[delete-references] {args.article_number} hatte keine "
+                  "Referenzen – nichts zu tun.")
+            ordner = resolve(cfg["paths"]["reference_dir"]) / args.article_number
+            if ordner.is_dir() and any(ordner.iterdir()):
+                print(f"[delete-references] Hinweis: {ordner} enthält trotzdem "
+                      "Dateien. Ohne DB-Zeilen bleiben sie unangetastet.")
+            return
+        removed = db.delete_references(args.article_number)
+    finally:
+        db.close()
+
+    print(f"[delete-references] {args.article_number}: {removed} Referenzen "
+          "entfernt (Artikel und Stammdaten bleiben, reference_stats mit "
+          "geleert).")
+    # Erst die DB, dann die Dateien: schlägt das Verschieben fehl, sind die
+    # Fotos noch da und der Artikel nur leer – der umgekehrte Fehlerfall
+    # hinterliesse DB-Zeilen mit image_path auf verschobene Dateien.
+    try:
+        ziel, verschoben = _verwerfe_referenzfotos(cfg, args.article_number)
+    except OSError as e:
+        sys.exit(f"[delete-references] DB-Zeilen sind entfernt, aber die Fotos "
+                 f"liessen sich nicht verschieben: {e}")
+    if ziel is None:
+        print("[delete-references] Kein Referenzfoto-Ordner vorhanden – "
+              "nichts zu verschieben.")
+    else:
+        (ziel / "info.json").write_text(json.dumps(
+            {"article_number": args.article_number,
+             "timestamp": ziel.name,
+             "grund": "delete-references (CLI)",
+             "geloeschte_db_zeilen": removed,
+             "verschobene_dateien": verschoben,
+             "zeilen_ohne_image_path": ohne_pfad},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"[delete-references] {verschoben} Fotos verschoben nach {ziel}")
+    if ohne_pfad:
+        print(f"[delete-references] {ohne_pfad} der {removed} Zeilen hatten "
+              "keinen image_path – dazu gibt es keine Datei.")
 
 
 def cmd_enroll(args, cfg):
@@ -725,6 +895,9 @@ def main(argv=None):
     p = sub.add_parser("import-articles")
     p.add_argument("csv")
 
+    sub.add_parser("list-articles",
+                   help="alle Artikel mit Maßen und Referenzzahl auflisten")
+
     p = sub.add_parser("capture-background")
     p.add_argument("--image", help="use an image file instead of the camera")
 
@@ -758,6 +931,11 @@ def main(argv=None):
                    help="Aufnahmen je Artikel (Default: 12)")
 
     p = sub.add_parser("delete-article", help="remove an article incl. its references")
+    p.add_argument("article_number")
+
+    p = sub.add_parser("delete-references",
+                       help="Referenzen eines Artikels verwerfen, den Artikel "
+                            "behalten (Fotos nach data/verworfen/)")
     p.add_argument("article_number")
 
     p = sub.add_parser("enroll")
@@ -903,21 +1081,30 @@ def main(argv=None):
     cfg = load_config(args.config)
 
     if args.sandbox is not None:
+        # Reihenfolge ist Absicht und muss so bleiben: Sperre, dann Umlenken,
+        # dann Anlegen. Ein gesperrter Befehl bricht ab, BEVOR irgendein
+        # Verzeichnis entsteht – sonst hinterliesse jeder Fehlversuch einen
+        # leeren Sandbox-Baum.
         pruefe_sandbox_sperre(args.cmd, args)
         try:
             cfg = sandbox_cfg(cfg, args.sandbox)
         except ValueError as e:
             sys.exit(f"[sandbox] {e}")
+        neu = sandbox_verzeichnisse_anlegen(cfg)
+        if neu:   # die Pfade selbst stehen schon in der Startmeldung darüber
+            print(f"[sandbox] {len(neu)} Verzeichnis(se) neu angelegt.")
 
     {
         "init-db": cmd_init_db,
         "import-articles": cmd_import_articles,
+        "list-articles": cmd_list_articles,
         "capture-background": cmd_capture_background,
         "calibrate": cmd_calibrate,
         "create-article": cmd_create_article,
         "batch-create": cmd_batch_create,
         "batch-enroll": cmd_batch_enroll,
         "delete-article": cmd_delete_article,
+        "delete-references": cmd_delete_references,
         "enroll": cmd_enroll,
         "enrollment-sheet": cmd_enrollment_sheet,
         "contour-band": cmd_contour_band,

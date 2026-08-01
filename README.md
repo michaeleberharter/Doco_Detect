@@ -333,8 +333,16 @@ python -m docodetect.cli create-article "Suppenloeffel"
 python -m docodetect.cli create-article "Kaffeetasse weiss" --height-mm 80
 python -m docodetect.cli delete-article SUPPENLOEFFEL   # falsch vermessen? Löschen + neu anlegen
 
+# 2c. Bestand ansehen: alle Artikel mit Maßen und Referenzzahl. Rein lesend –
+#     der einzige Befehl, der die DB NICHT über init_schema() anfasst.
+python -m docodetect.cli list-articles
+
 # 3. Artikel einlernen (weitere Referenzmerkmale, mehrere Rotationen)
 python -m docodetect.cli enroll TELLER-27-WEISS --shots 8
+#    Messreihe misslungen? Referenzen verwerfen, Artikel behalten und neu
+#    einlernen. Die Fotos werden dabei nicht gelöscht, sondern nach
+#    data/verworfen/<nr>/<zeitstempel>/ verschoben (mit info.json).
+python -m docodetect.cli delete-references TELLER-27-WEISS
 
 # 4. Identifizieren
 python -m docodetect.cli identify                # Live-Aufnahme

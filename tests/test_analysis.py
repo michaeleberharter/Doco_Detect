@@ -422,3 +422,89 @@ def test_prefilter_funnel_legacy_report_without_field_is_nicht_im_set(tmp_path):
     row = _funnel_row(tmp_path, "Z")
     assert int(row["nicht im Set"]) == 1
     assert int(row["Kill Ø (knapp)"]) == 0
+
+
+# ---------- (N) Trennschaerfe-Matrix: sigma_floors ueber die Floor-Gruppe ----------
+
+def _mit_stats(tmp_path, **artikel):
+    """Temp-DB, in der die uebergebenen EnrollmentStats stehen. Direkt in
+    reference_stats geschrieben: _analysis_discriminability liest genau dort
+    (db.stats_for), Referenzbilder braucht es dafuer nicht."""
+    cfg = _graph_cfg()
+    cfg["paths"] = {"db_file": str(tmp_path / "db.sqlite3")}
+    db = Database(cfg)
+    db.init_schema()
+    try:
+        for nr, st in artikel.items():
+            db.conn.execute("INSERT INTO reference_stats "
+                            "(article_number, stats_json) VALUES (?, ?)",
+                            (nr, st.to_json()))
+        db.conn.commit()
+    finally:
+        db.close()
+    return cfg
+
+
+def _disc_row(tmp_path):
+    lines = (tmp_path / "discriminability.csv").read_text(
+        encoding="utf-8").splitlines()
+    return dict(zip(lines[0].split(","), lines[1].split(",")))
+
+
+def _paar_stats(delta_e_abstand=10.0, streuung=0.0):
+    """Zwei Artikel, die sich NUR in delta_e_center unterscheiden (CIE76-
+    Abstand = delta_e_abstand), plus ein Skalar mit echter Streuung, damit die
+    Zeile nicht vollstaendig aus NaN besteht."""
+    from docodetect.features import EnrollmentStats
+    return (
+        EnrollmentStats(n_shots=5, scalar_mean={"diameter_mm": 100.0},
+                        scalar_std={"diameter_mm": 1.0},
+                        proto={"delta_e_center": [0.0, 0.0, 0.0]},
+                        proto_std={"delta_e_center": streuung}),
+        EnrollmentStats(n_shots=5, scalar_mean={"diameter_mm": 110.0},
+                        scalar_std={"diameter_mm": 1.0},
+                        proto={"delta_e_center": [delta_e_abstand, 0.0, 0.0]},
+                        proto_std={"delta_e_center": streuung}),
+    )
+
+
+def test_discriminability_nutzt_die_floor_gruppe_statt_des_merkmalsnamens(tmp_path):
+    """delta_e_center/-_rim teilen sich den Floor-Key `delta_e`, hist_* den Key
+    `hist_bhattacharyya`. Direkt ueber den Merkmalsnamen nachgeschlagen liefern
+    alle vier 0.0 und erscheinen dadurch trennschaerfer als sie sind
+    (docs/2026-08-01-analysis-floor-key-befund.md).
+
+    Aufbau so gewaehlt, dass der Unterschied numerisch eindeutig ist:
+    Prototyp-Abstand 10, beidseitig Streuung 0, Floor delta_e = 2.0
+    -> sigma_eff = 2.0 -> Trennschaerfe 5.0. Ohne die Zuordnung waere der
+    Floor 0.0 und das Ergebnis eine Zahl der Groessenordnung 1e10."""
+    from docodetect.analysis import _analysis_discriminability
+
+    a, b = _paar_stats()
+    cfg = _mit_stats(tmp_path, A=a, B=b)
+    cfg["matching"]["sigma_floors"] = {"diameter_mm": 1.0, "delta_e": 2.0,
+                                       "hist_bhattacharyya": 0.05}
+    _analysis_discriminability([_rep(cands=[_cand("A", -1.0), _cand("B", -1.0)])],
+                               tmp_path, "t", cfg)
+    row = _disc_row(tmp_path)
+    assert row["pair"] == "A / B"
+    assert float(row["delta_e_center"]) == pytest.approx(5.0)
+
+
+def test_discriminability_ohne_floor_und_ohne_streuung_ist_leer_statt_1e10(tmp_path):
+    """Der frueher hier stehende `or 1e-9`-Zweig machte aus einer nicht
+    vergleichbaren Seite eine Zahl mit zehn Stellen — die zusaetzlich
+    Sortierung und Farbskala der Matrix bestimmte. Erwartet ist eine leere
+    Zelle (NaN), die die Matrix ohnehin maskiert."""
+    from docodetect.analysis import _analysis_discriminability
+
+    a, b = _paar_stats()
+    cfg = _mit_stats(tmp_path, A=a, B=b)
+    cfg["matching"]["sigma_floors"] = {"diameter_mm": 1.0}   # kein delta_e
+    _analysis_discriminability([_rep(cands=[_cand("A", -1.0), _cand("B", -1.0)])],
+                               tmp_path, "t", cfg)
+    row = _disc_row(tmp_path)
+    assert row["delta_e_center"] == ""
+    # der Skalar mit echter Streuung bleibt gerechnet: 10 / sqrt((1+1)/2) = 10
+    assert float(row["diameter_mm"]) == pytest.approx(10.0)
+    assert float(row["max"]) == pytest.approx(10.0)
