@@ -99,6 +99,14 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   bei n≈13 Rauschen sind. Erster Wiederaufnahme-Kandidat nach der Windows-Box.
   Enthält den Mechanik-Befund: **die Enrollment-Streuung des BEDRÄNGERS bestimmt
   die Margin** (σ_hu 0,03 gegen 0,84 erklärt MESSER-5 0/13 gegen MESSER-7 7/13).
+- **2026-08-01** — [Enrollment-Streuung bestimmt die Margin der Nachbarn](2026-08-01-enrollment-streuung-bedraenger.md):
+  **Für das Windows-Neu-Enrollment relevant.** Aus der Formel hergeleitet:
+  `z = d/sigma_eff` benutzt die Streuung des jeweiligen KANDIDATEN, also ist ein
+  weit eingelernter Artikel ein klebriger Bedränger und drückt die Margin seiner
+  Nachbarn. Prüfkriterium **σ_enroll > σ_floor → neu einlernen statt übernehmen**;
+  9 von 13 Artikeln überschreiten (hu_log 6×, delta_e_center 4×). Reichweite
+  bewusst offen (1 von 6 Paaren betroffen, n=13). Das Diagnoseblatt zeigt den
+  Floor NICHT — Vorschlag notiert, nicht umgesetzt.
 - **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
   Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
   `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,
