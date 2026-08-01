@@ -55,6 +55,20 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   15/15 Top-1 korrekt, aber nur 3 ACCEPT — der Margin bricht mit der
   Kandidatensetgröße ein, nicht mit der Artikelähnlichkeit. Der Hebel ist der
   Vorfilter (`diameter_tolerance_mm`), NICHT `min_llr_margin`.
+- **2026-08-01** — [NEGATIVBEFUND: Breitenprofil w(s) wird NICHT gebaut](2026-08-01-wprofil-negativbefund.md):
+  w(s) trennt hervorragend (Median 16,1 σ gegen 1,3–1,8 σ der Farbmerkmale),
+  rettet aber nur 4 der 12 AMBIGUOUS — und 0 ab σ_floor 1,0 mm, wo der
+  Betriebs-Floor geschätzt liegt. **Frage entschieden, nicht neu aufmachen.**
+  Enthält zwei Prämissen-Korrekturen (keine Längendopplung im Profil;
+  `area_mm2`/`aspect_ratio` sind keine Scoring-Merkmale) und den Übertrag:
+  das Problem sitzt in der Score-Aggregation, MESSER-2/5/6 gehören zu Stufe 2.
+- **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
+  Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
+  `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,
+  bei 1-Shot-Artikeln Werte um 10¹⁰. **Die `discriminability`-Zahlen aus Run
+  `20260801-140818` sind für die Farbmerkmale unbrauchbar.** Messpfad,
+  Entscheidungen und Korpus sind nicht betroffen.
+
 ## Referenz (nicht chronologisch)
 
 - [architektur.md](architektur.md) — zweistufige Pipeline, Modulgrenzen, Messpfad.
