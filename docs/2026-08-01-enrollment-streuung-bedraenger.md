@@ -226,6 +226,18 @@ breit, 7 ausreißergetrieben) — und sie brauchen verschiedene Antworten:
 - **Gleichmäßig breit** (6 Fälle): die Form reagiert wirklich empfindlich auf
   Rotation. **Nicht durch sorgfältigeres Einlernen behebbar.**
 
+> **KORREKTUR 2026-08-01 (Block D0):** Die Zweiteilung „Ausreißer oder
+> Artikeleigenschaft" ist **zu grob**. Eine robuste σ-Schätzung (Median/MAD)
+> entschärft 9 der 13 Überschreitungen — darunter **fünf der sechs hier als
+> „gleichmäßig breit" eingestuften** `hu_log`-Fälle (MESSER-7 von 2,21 auf 0,94).
+> Jackknife und MAD widersprechen sich also, und der Widerspruch ist selbst der
+> Befund: bei `hu_log` ist die Distanzverteilung **schwerschwänzig** — der Spann
+> wird von etwa drei bis fünf Shots getragen, nicht von einem oder zwei und nicht
+> gleichmäßig. Weder „ein Ausreißer" noch „Artikeleigenschaft" trifft es.
+> Der MAD ist dabei keine Lösung: er ist bei n=13 stark verrauscht (IQR/Median
+> 0,357), verzerrt um +12 % nach oben und erzeugt zehn NEUE Überschreitungen.
+> Details: [2026-08-01-blockD-sigma-eff.md](2026-08-01-blockD-sigma-eff.md).
+
 **Entscheidend:** Der Fall, der die ganze MESSER-5/MESSER-7-Asymmetrie treibt —
 MESSER-7s `hu_log` — ist der **gleichmäßig breite**. σ/Floor fällt von 2,21 nur
 auf 2,15, wenn man die zwei schlimmsten Shots streicht. Für genau den

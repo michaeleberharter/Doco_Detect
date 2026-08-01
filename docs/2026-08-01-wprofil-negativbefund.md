@@ -10,6 +10,11 @@ Config, keine Baseline geändert.
 > zuerst die Floor-Abschätzung in Abschnitt 6 widerlegen — nicht die
 > Trennschärfe-Zahlen.** Die Trennschärfe ist unstrittig gut; sie ist nicht der
 > Grund für die Absage.
+>
+> **PRÄZISIERUNG 2026-08-01 (Abschnitt 11):** Der Riegel gilt **für Gewichte bis
+> 0,25 und für σ_floor ≥ 1,50 mm**. Für den Bereich **Gewicht 0,60 bei floor
+> 0,5–1,0** ist die Absage **nicht belegt** — dort wurde nie gerechnet. Wer die
+> Frage in diesem Bereich aufmacht, macht sie zu Recht auf.
 
 ---
 
@@ -437,3 +442,72 @@ bei 41, neun der dreizehn Artikel erreichen kein einziges ACCEPT [KORREKTUR
   unbrauchbar.
 - [2026-07-28-messpfad-aufgeschoben.md](2026-07-28-messpfad-aufgeschoben.md) —
   `lat_p98` als Kontext zu Abschnitt 5a.
+
+
+---
+
+## 11. NACHTRAG 2026-08-01: die Absage war unvollständig geprüft
+
+**Abschnitte 1–10 bleiben unverändert.** Dieser Nachtrag korrigiert den
+Geltungsbereich, nicht das Ergebnis.
+
+Abschnitt 3 prüfte Gewichte von 0,10 bis 0,25. In Block D7 wurden 0,40, 0,60 und
+1,00 nachgerechnet — und dort verschwindet der Gewinn bei floor 1,00 **nicht**.
+
+### Was tatsächlich gilt
+
+| Gewicht w(s) | σ_floor 0,50 | σ_floor 1,00 | σ_floor 1,50 |
+|---|---|---|---|
+| 0,10 | Gewinn | **kein Gewinn** | kein Gewinn |
+| 0,25 | Gewinn | ~kein Gewinn | **kein Gewinn** |
+| **0,60** | Gewinn | **GEWINN — nie geprüft** | **kein Gewinn** |
+
+Bei Gewicht 0,60 und floor 1,00 liegt die ACCEPT-Rate bei 38 % (Testaufnahme-
+Konstruktion) bzw. 43 % (Leave-one-out) gegen eine Baseline von 23 % / 24 %.
+Der geschätzte Betriebs-Floor war 0,5–0,9 mm (Abschnitt 6) — **dieser Bereich
+liegt vollständig innerhalb der Zone, in der ein hohes Gewicht noch wirkt.**
+
+Ab floor 1,50 ist der Gewinn in beiden Konstruktionen und bei jedem geprüften
+Gewicht vollständig weg. Die Absage gilt dort unverändert.
+
+### Es sind nicht zwei Verfahren, die sich widersprechen
+
+Der naheliegende Verdacht war, dass Leave-one-out (Messung stammt aus derselben
+Enrollment-Serie wie der Prototyp) systematisch günstiger rechnet als die
+Testaufnahme-Konstruktion aus Abschnitt 3. **Nachgerechnet — der Verdacht
+bestätigt sich nicht:**
+
+| Gewicht / floor | Testaufnahme (n=13) | Leave-one-out (n=169) |
+|---|---|---|
+| Baseline | 23 % | 24 % |
+| 0,10 / 0,50 | 38 % | 34 % |
+| 0,25 / 0,50 | 62 % | 54 % |
+| 0,60 / 0,50 | 62 % | 67 % |
+| 0,25 / 1,00 | 23 % | 27 % |
+| 0,60 / 1,00 | 38 % | 43 % |
+| 0,60 / 1,50 | 23 % | 24 % |
+
+Die beiden Konstruktionen liegen überall innerhalb weniger Prozentpunkte und
+zeigen keine systematische Richtung. **Mein Vorbehalt, LOO sei die günstigere
+Konstruktion, ist damit gegenstandslos und wird zurückgezogen.** Der Unterschied
+zwischen Abschnitt 3 und Block D7 ist kein Methodenunterschied — es ist eine
+Lücke im geprüften Parameterbereich.
+
+### Was der Nachtrag NICHT ändert
+
+- Die Trennschärfe von w(s) war nie strittig (Abschnitt 2).
+- Der Aufwand ist unverändert: Persistenz des Profils, Enrollment-Format,
+  Matcher-Merkmal, Korpus-Re-Baselining.
+- Die statistische Basis trägt weiterhin keine Entscheidung: n ≈ 13 Artikel,
+  Fixpunkt-Referenzen ohne Positionsstreuung, und der Betriebs-Floor ist
+  **geschätzt**, nicht gemessen. Ob er bei 0,5, 0,9 oder 1,5 liegt, entscheidet
+  über das ganze Ergebnis — und genau das ist offen.
+- top1 und k_safe bleiben bei jedem Gewicht bis 1,00 unverändert (169/169 bzw.
+  168). Die Befürchtung, ein hohes w(s)-Gewicht ziehe `diameter_mm` herunter und
+  schade dem Ranking, bestätigt sich nicht.
+
+**Handlungsfolge:** unverändert nicht bauen — aber der Grund ist jetzt
+ausschließlich der unbekannte Betriebs-Floor, nicht mehr „der Gewinn ist zu
+klein". Sobald die Windows-Box einen **gemessenen** Floor liefert, ist die Frage
+neu zu stellen. Fällt er unter 1,0 mm, ist w(s) mit hohem Gewicht ein ernsthafter
+Kandidat.
