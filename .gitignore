@@ -42,3 +42,10 @@ corpus/runs/
 # Fixture fuer den noch ausstehenden Aufloesungs-Waechter. Nicht versionieren
 # (Bilddaten), aber auch nicht loeschen.
 data/quarantine/
+
+# Artefakte von `pip install -e .` (Konsolen-Entrypoints, siehe pyproject.toml).
+# Der editierbare Install erzeugt sie im Arbeitsbaum; sie gehoeren keinem
+# Commit an und entstehen bei jedem Install neu.
+*.egg-info/
+build/
+dist/

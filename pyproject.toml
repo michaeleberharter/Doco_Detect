@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docodetect"
+version = "0.1.0"
+requires-python = ">=3.9"
+# BEWUSST OHNE dependencies: die Abhaengigkeiten stehen weiter in
+# requirements.txt / requirements.lock und werden dort gepflegt. Stuenden sie
+# hier, loeste `pip install -e .` sie neu auf und koennte gepinnte Pakete im
+# venv heben oder senken. requirements.lock muss aber der Stand bleiben,
+# gegen den der Regressions-Korpus gemessen hat.
+dependencies = []
+
+# `python -m docodetect.cli ...` funktioniert unveraendert weiter - die
+# Entrypoints ERGAENZEN nur, damit der Aufruf nicht mehr an das
+# Projektverzeichnis gebunden ist. Pfade bleiben dabei stabil:
+# config.resolve() loest immer gegen project_root() auf, nie gegen das
+# aktuelle Verzeichnis.
+[project.scripts]
+docodetect = "docodetect.cli:main"
+docodetect-ui = "docodetect.ui_qt.__main__:main"
+
+# Explizite Liste statt Auto-Discovery: im Flat-Layout sieht setuptools
+# tests/, scripts/, docs/, data/, config/ ... und bricht mit "Multiple
+# top-level packages discovered" ab.
+[tool.setuptools]
+packages = ["docodetect", "docodetect.corpus",
+            "docodetect.ui_qt", "docodetect.ui_qt.widgets"]

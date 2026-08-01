@@ -204,6 +204,48 @@ pip install -r requirements-stage2.txt   # optional: Stufe 2 (torch, faiss)
 pip install -r requirements-ui-qt.txt    # optional: native Qt-Bedien-UI
 ```
 
+### Konsolen-Befehle (optional, einmalig)
+
+```bash
+pip install -e .          # installiert NUR den Link auf den Quellbaum
+```
+
+Danach laufen `docodetect …` und `docodetect-ui` aus **jedem** Verzeichnis:
+
+```bash
+docodetect list-articles
+docodetect --sandbox neuenroll-2026-08 identify
+docodetect-ui                              # native Qt-UI
+```
+
+Drei Dinge, die dabei wichtig sind:
+
+- **`python -m docodetect.cli …` funktioniert unverändert weiter.** Die
+  Entrypoints ergänzen nur, sie ersetzen nichts.
+- **Die Pfade wandern nicht mit.** `config.resolve()` löst immer gegen das
+  Projektverzeichnis auf, nie gegen das aktuelle. `docodetect --sandbox X
+  identify` aus `~/Desktop` schreibt also nach `…/Doco_Detect/data/sandbox/X/`.
+- **`pip install -e .` installiert keine Abhängigkeiten.** `pyproject.toml`
+  führt bewusst `dependencies = []`; die Pakete stehen weiter in
+  `requirements*.txt` und `requirements.lock`. Sonst löste der Befehl sie neu
+  auf und könnte gepinnte Versionen verschieben — und `requirements.lock` muss
+  der Stand bleiben, gegen den der Regressions-Korpus gemessen hat.
+
+> **Der Install braucht einmalig Netz.** Das venv trägt `setuptools 58.0.4`,
+> und das kennt den PEP-660-Hook `build_editable` noch nicht — `pip install
+> -e . --no-build-isolation` scheitert daran. Mit der Standard-Build-Isolation
+> (also ohne diesen Schalter) holt sich pip ein aktuelles setuptools in eine
+> temporäre Umgebung; das venv selbst bleibt unangetastet, kein Paket wird
+> bewegt. Ohne Netz gibt es den Install also nicht — **und dann bleibt alles
+> beim Alten: `python -m docodetect.cli …` läuft unverändert, es geht nur die
+> Bequemlichkeit des kurzen Befehls verloren.**
+
+> **Windows: ungeprüft.** Console-Scripts erzeugen unter Windows
+> `.venv\Scripts\docodetect.exe`. Für dieses venv ist ein **defekter Launcher**
+> bekannt (deshalb dort `python -m pip` statt `pip`) — ob die neuen `.exe`
+> davon betroffen sind, ist an der Box noch nicht geprüft. Rückfallweg bleibt
+> in jedem Fall `python -m docodetect.cli …`.
+
 ### Rechnerlokale Einstellungen (`config/config.local.yaml`)
 
 Liegt neben `config/config.yaml` eine `config.local.yaml`, wird sie beim
