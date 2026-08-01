@@ -42,13 +42,19 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
 - **2026-07-31** — [`reference_stats` kennt keinen Session-Begriff](2026-07-31-reference-stats-keine-sessions.md):
   zwei Einlern-Sessions desselben Artikels verschmelzen still zu einem σ
   (Basis für `sigma_eff`) — vor dem Neu-Einlernen ALLE Altreferenzen löschen.
+- **2026-07-31** — [Ablaufzettel: Enrollment-Session in der Sandbox](2026-07-31-ablauf-enrollment-session.md):
+  ausgeschriebene Befehlsfolge (init-db → 40× create-article → Qt-Einlernen),
+  je Schritt Bildschirm-Kontrolle und Kamera-Öffnen/-Schließen. Zum Ausdrucken.
 - **2026-07-31** — [Baseline trägt `code_fingerprint` von vor der Messpfad-Runde](2026-07-31-baseline-code-fingerprint.md):
   Befund — ohne Wirkung auf `--check`, aber `--changed-only` rechnet mehr neu
   als nötig. Nichts geändert, kein Re-Baselining.
 - **2026-07-31** — [Isolierter Testbestand `--sandbox NAME`](2026-07-31-sandbox-isolierter-db-stand.md):
   fünf Schreibpfade nach `data/sandbox/<name>/`, Kalibrierung bleibt geteilt
   (daher Sperren); enthält die bekannte Einschränkung `corpus/build.py:117`.
-
+- **2026-08-01** — [Fixpunkt-Test: trennt das Scoring ohne Positionseffekt?](2026-08-01-fixpunkt-test-scoring.md):
+  15/15 Top-1 korrekt, aber nur 3 ACCEPT — der Margin bricht mit der
+  Kandidatensetgröße ein, nicht mit der Artikelähnlichkeit. Der Hebel ist der
+  Vorfilter (`diameter_tolerance_mm`), NICHT `min_llr_margin`.
 ## Referenz (nicht chronologisch)
 
 - [architektur.md](architektur.md) — zweistufige Pipeline, Modulgrenzen, Messpfad.
