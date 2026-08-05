@@ -233,6 +233,55 @@ class Database:
         self._recompute_stats(article_number)
         self.conn.commit()
 
+    def add_references(self, article_number: str,
+                       items: list[tuple[Features, str | None]]) -> int:
+        """Alle Referenzen EINER Einlern-Session in EINER Transaktion.
+
+        Batch-Gegenstueck zu add_reference: N INSERTs + genau EIN
+        _recompute_stats + EIN Commit. `with self.conn:` committet bei Erfolg
+        und rollt bei jeder Exception vollstaendig zurueck.
+
+        Der Grund fuer diese Methode: add_reference committet PRO AUFRUF
+        (Zeile darueber). N Aufrufe waeren N Transaktionen, und ein Absturz
+        dazwischen hinterliesse k von N Referenzzeilen plus eine
+        reference_stats ueber einen unvollstaendigen Shot-Satz. Da
+        reference_stats keinen Session-Begriff kennt
+        (docs/2026-07-31-reference-stats-keine-sessions.md), waere so ein
+        Zustand nicht mehr sauber zu reparieren — ein erneutes Speichern
+        buchte 12+k. Mit dieser Methode ist er unerreichbar.
+
+        _recompute_stats EINMAL am Ende ist semantisch identisch zu N-mal: es
+        liest per references_for ALLE Zeilen des Artikels und schreibt
+        reference_stats neu, ist also reihenfolgeunabhaengig und idempotent.
+
+        items = [(Features, image_path | None), ...] in Aufnahmereihenfolge.
+        Leere Liste: gibt 0 zurueck, ohne Transaktion und ohne
+        _recompute_stats — nichts zu tun heisst nichts anfassen. Die Strenge
+        sitzt eine Schicht hoeher: der Aufrufer im Einlernpfad lehnt eine
+        Session ohne Shots bereits ab.
+
+        Prueft NICHT auf doppelte image_path: reference_features traegt darauf
+        keine UNIQUE-Bedingung (siehe SCHEMA). Diese Schranke sitzt bewusst in
+        der Domaenenschicht, die vor dem Buchen prueft, dass keine Zeile
+        bereits auf einen der Zielpfade zeigt.
+
+        Gibt die Zahl eingefuegter Zeilen zurueck.
+        """
+        if not items:
+            return 0
+        if self.get_article(article_number) is None:
+            raise KeyError(f"Unknown article_number '{article_number}' – import it first.")
+        with self.conn:
+            self.conn.executemany(
+                "INSERT INTO reference_features "
+                "(article_number, image_path, features_json, created_unix) "
+                f"VALUES (?, ?, ?, {_SQL_UNIX_NOW})",
+                [(article_number, image_path, features.to_json())
+                 for features, image_path in items],
+            )
+            self._recompute_stats(article_number)
+        return len(items)
+
     def references_for(self, article_number: str) -> list[Features]:
         rows = self.conn.execute(
             "SELECT features_json FROM reference_features WHERE article_number = ?",

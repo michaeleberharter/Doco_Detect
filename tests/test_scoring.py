@@ -184,6 +184,92 @@ def test_add_reference_maintains_stats(tmp_path):
         db.close()
 
 
+# ---------- add_references: EINE Transaktion je Einlern-Session ----------
+
+def test_add_references_schreibt_alle_zeilen_und_stats(tmp_path):
+    db = _db(tmp_path); _add_article(db)
+    try:
+        n = db.add_references("TELLER-200", [
+            (fake_features(199.0), "/pfad/a_00.png"),
+            (fake_features(201.0), "/pfad/a_01.png"),
+        ])
+        assert n == 2
+        meta = db.references_with_meta("TELLER-200")
+        assert [p for p, _ in meta] == ["/pfad/a_00.png", "/pfad/a_01.png"]
+        st = db.stats_for("TELLER-200")
+        assert st is not None and st.n_shots == 2
+        assert math.isclose(st.scalar_mean["diameter_mm"], 200.0)
+    finally:
+        db.close()
+
+
+def test_add_references_leere_liste_fasst_nichts_an(tmp_path):
+    """Nichts zu tun heisst nichts anfassen: keine Transaktion, kein
+    _recompute_stats. Die Strenge sitzt eine Schicht hoeher."""
+    db = _db(tmp_path); _add_article(db)
+    try:
+        gerufen = []
+        db._recompute_stats = lambda nr: gerufen.append(nr)   # Spion
+        assert db.add_references("TELLER-200", []) == 0
+        assert gerufen == []
+        assert db.reference_counts().get("TELLER-200", 0) == 0
+    finally:
+        db.close()
+
+
+def test_add_references_rollt_bei_exception_vollstaendig_zurueck(tmp_path):
+    """Der eigentliche Grund fuer die Methode: add_reference committet PRO
+    Aufruf, N Aufrufe waeren N Transaktionen, und ein Abbruch dazwischen
+    hinterliesse k von N Zeilen plus eine reference_stats ueber einen
+    unvollstaendigen Shot-Satz. Hier bricht _recompute_stats NACH den INSERTs
+    ab – bleibt eine einzige Zeile stehen, ist die Transaktionsgrenze falsch
+    gesetzt."""
+    db = _db(tmp_path); _add_article(db)
+    try:
+        def boom(nr):
+            raise RuntimeError("Absturz nach den INSERTs")
+        db._recompute_stats = boom
+        with pytest.raises(RuntimeError):
+            db.add_references("TELLER-200", [
+                (fake_features(199.0), None),
+                (fake_features(201.0), None),
+                (fake_features(200.0), None),
+            ])
+        assert db.reference_counts().get("TELLER-200", 0) == 0
+        assert db.stats_for("TELLER-200") is None
+    finally:
+        db.close()
+
+
+def test_add_references_ruft_recompute_stats_genau_einmal(tmp_path):
+    """Einmal am Ende ist semantisch identisch zu N-mal (reihenfolge-
+    unabhaengig, idempotent) – geprueft wird die ANZAHL, weil N Aufrufe der
+    Hinweis auf N Transaktionen waeren."""
+    db = _db(tmp_path); _add_article(db)
+    try:
+        echt = db._recompute_stats
+        gerufen = []
+
+        def spion(nr):
+            gerufen.append(nr)
+            return echt(nr)
+        db._recompute_stats = spion
+        db.add_references("TELLER-200", [(fake_features(200.0), None)] * 5)
+        assert gerufen == ["TELLER-200"]
+        assert db.stats_for("TELLER-200").n_shots == 5
+    finally:
+        db.close()
+
+
+def test_add_references_unbekannter_artikel_wirft_keyerror(tmp_path):
+    db = _db(tmp_path)
+    try:
+        with pytest.raises(KeyError):
+            db.add_references("GIBTSNICHT", [(fake_features(200.0), None)])
+    finally:
+        db.close()
+
+
 def test_stats_missing_returns_none_and_delete_clears(tmp_path):
     db = _db(tmp_path); _add_article(db)
     try:
