@@ -341,6 +341,7 @@ class SessionInfo:
     target_shots: int
     n_shots: int              # DISTINKTE i, nicht Zeilen
     zustand: str              # "offen" | "umzug_unterbrochen" | "gebucht_aufraeumen_offen"
+    fingerprint: dict         # der in session.json gespeicherte Abdruck
     fingerprint_ok: bool
     age_secs: float
 
@@ -349,6 +350,14 @@ class EnrollSession:
     info: SessionInfo
     shots: list[SessionShot]  # je i die LETZTE Journalzeile, nach i sortiert
 ```
+
+> **Nachgetragen 2026-08-05 aus der Umsetzung (Schritt 2):** `fingerprint: dict`
+> stand ursprünglich nicht in `SessionInfo` — ohne den gespeicherten Abdruck
+> lässt sich `fingerprint_ok` weder berechnen noch die Abweichung in der
+> Verweigerungsmeldung **beziffern**. `zustand` trägt nach Schritt 2 stets
+> `"offen"`: die beiden anderen Werte setzen die Berechnung der Zielpfade
+> voraus, und die gehört zum Umzug (Schritt 3). Solange es kein `commit` gibt,
+> kann kein anderer Zustand entstehen.
 
 ### 4.2 Neue Fassaden
 

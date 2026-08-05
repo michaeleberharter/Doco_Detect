@@ -6,8 +6,16 @@ process stays identical everywhere.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+import os
+import re
+import shutil
+import socket
+import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -212,6 +220,434 @@ def persist_enrollment_sheet(cfg: dict, article_number: str, sheet_png):
     dest = dest_dir / f"{article_number}.png"
     shutil.copy2(str(src), str(dest))
     return dest
+
+
+# ============================================================================
+# Crash-sichere Einlern-Session (Schritt 2 von 8)
+# Design: docs/superpowers/specs/2026-08-05-crashsichere-einlern-session-design.md
+#
+# Leitsatz: KEIN Statusfeld, und keine Datei wird je zweimal geschrieben. Jeder
+# Zwischenzustand ist aus (Journal, Dateisystem, DB) ABLEITBAR. Was nie
+# ueberschrieben wird, kann nicht halb ueberschrieben sein — das gilt fuer den
+# JSON-Block wie fuer das PNG.
+#
+# NOCH NICHT hier (Schritt 3): Umzug nach reference_dir, Buchen, Verwerfen,
+# remeasure_session.
+# ============================================================================
+
+# Roh-Shots tragen eine laufende Nummer, die NIE wiederverwendet wird — der
+# Endname {ts}_{i:02d}.png entsteht erst beim Umzug (Schritt 3). Ein Retake
+# schreibt also eine NEUE Datei und laesst die alte liegen, statt sie zu
+# ueberschreiben: ein Rewrite auf Dateiebene waere derselbe Verstoss gegen die
+# Append-only-Regel wie ein neu geschriebener JSON-Block, nur eine Ebene tiefer.
+_RAW_NAME_RE = re.compile(r"^raw_(\d{3,})\.png$")
+
+# Teile des Fingerabdrucks, deren Abweichung das Fortsetzen verweigert. Die
+# Klartextwerte (mm_per_px, camera_height_mm) stehen nur daneben, damit eine
+# Meldung die Abweichung BEZIFFERN kann — verglichen werden die Hashes.
+_FINGERPRINT_HASHES = ("calibration_sha256", "background_sha256",
+                       "features_cfg_sha256")
+
+
+class EnrollSessionError(RuntimeError):
+    """Session-Befund, den der Aufrufer dem Menschen erklaeren muss.
+
+    `kind` waehlt die Behandlung, `detail` traegt die Zahlen fuer die Meldung.
+    Ein Typ mit `kind` statt sechs Unterklassen — Hausform ist Nutzlast auf
+    einem Typ (SegmentationError traegt `.segmentation`), und jeder Aufrufer
+    faengt ohnehin die ganze Familie und verzweigt nur fuer die Abhilfe.
+
+    kind: mount | fingerprint | kollision | datei_fehlt | luecke | invariante
+    """
+
+    def __init__(self, message: str, *, kind: str, detail: dict | None = None):
+        super().__init__(message)
+        self.kind = kind
+        self.detail = detail or {}
+
+
+@dataclass
+class SessionShot:
+    i: int                    # logische Shot-Position (ein Retake ersetzt sie)
+    raw_path: Path
+    d_mm: float
+    features: Features
+
+
+@dataclass
+class SessionInfo:
+    """Kopf einer Session OHNE Journal-Inhalt – fuer Listen und Dialoge."""
+    path: Path
+    article_number: str
+    ts: int
+    created: str
+    target_shots: int
+    n_shots: int              # DISTINKTE i, nicht Zeilen (siehe _lies_journal)
+    zustand: str
+    fingerprint: dict
+    fingerprint_ok: bool
+    age_secs: float
+
+
+@dataclass
+class EnrollSession:
+    info: SessionInfo
+    shots: list[SessionShot] = field(default_factory=list)
+
+
+# ---------- interne Helfer ----------
+
+def _sessions_root(cfg: dict) -> Path:
+    return resolve(cfg["paths"]["enroll_sessions_dir"])
+
+
+def _sha256_datei(p: Path) -> str:
+    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+
+
+def _fsync_verzeichnis(p: Path) -> None:
+    """Verzeichniseintrag durabel machen.
+
+    Auf Windows NICHT durchfuehrbar: ein Verzeichnis laesst sich dort nicht als
+    Dateideskriptor oeffnen, os.fsync haette kein Ziel. Der Schritt wird dort
+    uebersprungen. Folge (bewusst in Kauf genommen, nicht stillschweigend):
+    nach einem STROMAUSFALL — nicht nach einem Prozessabsturz, dafuer genuegt
+    der Page-Cache — kann auf NTFS ein Verzeichniseintrag fehlen, dessen
+    Journalzeile schon durabel ist. Das ist erkennbar (Datei weg, Journalzeile
+    da) und fuehrt zu einem Befund, nicht zu einer stillen Falschmessung.
+    """
+    if os.name == "nt":
+        return
+    fd = os.open(str(p), os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _naechster_vorhandener(p: Path) -> Path:
+    """Naechster existierender Vorfahr – erlaubt die Mount-Pruefung, BEVOR die
+    Verzeichnisse angelegt sind, ohne sie als Nebenwirkung anzulegen."""
+    p = Path(p).resolve()
+    while not p.exists() and p != p.parent:
+        p = p.parent
+    return p
+
+
+def _pruefe_mount(cfg: dict) -> None:
+    """enroll_sessions_dir und reference_dir muessen auf DEMSELBEN Dateisystem
+    liegen. Der Umzug beim Buchen ist ein os.rename; ueber Dateisystemgrenzen
+    hinweg ist der nicht atomar (EXDEV). Geprueft statt unterstellt — und zwar
+    beim Anlegen der Session, also bevor ein einziger Shot existiert. Eine
+    Session, die erst nach zwoelf Aufnahmen am Umzug scheitert, waere genau der
+    Schaden, den dieses Paket verhindern soll."""
+    a = _naechster_vorhandener(_sessions_root(cfg))
+    b = _naechster_vorhandener(resolve(cfg["paths"]["reference_dir"]))
+    if a.stat().st_dev != b.stat().st_dev:
+        raise EnrollSessionError(
+            "Einlern-Sessions und Referenzverzeichnis liegen auf verschiedenen "
+            "Dateisystemen – der Umzug beim Buchen waere nicht atomar. "
+            f"Sessions: {a} · Referenzen: {b}",
+            kind="mount",
+            detail={"enroll_sessions_dir": str(a), "reference_dir": str(b)})
+
+
+def _fingerabdruck(cfg: dict) -> dict:
+    """Optikzustand als Hashes ueber die ROHDATEIEN plus die Klartextwerte.
+
+    Rohdateien statt abgeleiteter Werte: eine neu geschriebene Kalibrierung mit
+    zufaellig gleichem mm_per_px ist trotzdem ein anderer Optikzustand.
+
+    Der features-Block gehoert dazu, weil er die Merkmalsberechnung
+    parametrisiert – und er ist VOLLSTAENDIG: features.extract liest aus cfg
+    ausschliesslich features.ring_zones und features.hs_hist_bins, sonst
+    nichts. Kanonisiert (sort_keys), damit eine YAML-Umformatierung ohne
+    Wertaenderung nicht faelschlich anschlaegt. `matching` bleibt draussen: es
+    parametrisiert das Scoring, nicht die Messung.
+
+    Kosten: 0,5 ms gemessen (sha256 ueber beide Dateien, 1,26 MB) gegen ~1 s
+    Segmentierung je Aufnahme.
+    """
+    cal = load_calibration(cfg)
+    return {
+        "calibration_sha256": _sha256_datei(resolve(cfg["calibration"]["file"])),
+        "background_sha256": _sha256_datei(
+            resolve(cfg["calibration"]["background_file"])),
+        "features_cfg_sha256": hashlib.sha256(
+            json.dumps(cfg.get("features", {}), sort_keys=True).encode("utf-8")
+        ).hexdigest(),
+        "mm_per_px": cal.mm_per_px,
+        "camera_height_mm": cal.camera_height_mm,
+    }
+
+
+def _pruefe_fingerabdruck(cfg: dict, session: EnrollSession) -> None:
+    """Wirft kind='fingerprint', wenn sich der Optikzustand seit dem Anlegen
+    geaendert hat. Sonst mischte eine sigma_enroll zwei Optikzustaende."""
+    jetzt = _fingerabdruck(cfg)
+    soll = session.info.fingerprint
+    abweichend = [k for k in _FINGERPRINT_HASHES if soll.get(k) != jetzt.get(k)]
+    if not abweichend:
+        return
+    raise EnrollSessionError(
+        "Optikzustand hat sich seit dem Anlegen der Session geaendert "
+        f"({', '.join(abweichend)}). Die Aufnahmen dieser Session sind unter "
+        f"mm_per_px {soll.get('mm_per_px')} entstanden, aktuell gilt "
+        f"{jetzt.get('mm_per_px')}. Auswege: alte Kalibrierung aus "
+        f"{session.info.path / 'optik'} zurueckholen, Session verwerfen, oder "
+        "unter dem aktuellen Zustand neu einlernen.",
+        kind="fingerprint",
+        detail={"abweichend": abweichend, "soll": soll, "jetzt": jetzt,
+                "optik_kopie": str(session.info.path / "optik")})
+
+
+def _pruefe_luecken(session: EnrollSession) -> None:
+    """Die distinkten i muessen exakt {0..N-1} sein – lueckenlos ab 0.
+
+    Eine Luecke hiesse, dass die Endnamen {ts}_{i:02d} Spruenge enthalten und
+    die Sortierung in references_with_meta eine Position ohne Datei anspricht.
+    N == target_shots wird NICHT verlangt: weniger Shots als geplant zu
+    speichern ist ein zulaessiger Bedienfall, target_shots ist Anzeigegroesse."""
+    idx = sorted({s.i for s in session.shots})
+    if not idx:
+        raise EnrollSessionError(
+            f"Session {session.info.path} enthaelt keine Aufnahme.",
+            kind="luecke", detail={"i": idx, "n": 0})
+    if idx != list(range(len(idx))):
+        raise EnrollSessionError(
+            f"Luecke in der Shot-Reihenfolge: {idx} (erwartet 0..{len(idx) - 1}).",
+            kind="luecke", detail={"i": idx, "erwartet": list(range(len(idx)))})
+
+
+def _lies_journal(journal: Path, sess_dir: Path) -> list[SessionShot]:
+    """Journal lesen, je i die LETZTE Zeile behalten, nach i sortieren.
+
+    Eine nicht parsebare LETZTE Zeile wird stillschweigend verworfen – das ist
+    der abgeschnittene Schreibvorgang eines Absturzes. Eine nicht parsebare
+    Zeile IN DER MITTE ist ein Befund (ValueError) und wird nicht uebersprungen:
+    dort ist etwas anderes passiert als ein Abbruch am Ende.
+    """
+    if not journal.exists():
+        return []
+    zeilen = journal.read_text(encoding="utf-8").splitlines()
+    je_i: dict = {}
+    for nr, zeile in enumerate(zeilen):
+        if not zeile.strip():
+            continue
+        try:
+            d = json.loads(zeile)
+        except json.JSONDecodeError as e:
+            if nr == len(zeilen) - 1:
+                break        # abgeschnittene letzte Zeile: kein Shot, kein Fehler
+            raise ValueError(
+                f"Journal {journal} ist in Zeile {nr + 1} von {len(zeilen)} "
+                f"unlesbar (nicht die letzte Zeile): {e}") from e
+        je_i[int(d["i"])] = d
+    # Features(**d) ist der Gegenpart zu asdict() – dieselbe Form, die
+    # Features.from_json intern benutzt (features.py: Features(**json.loads(s))).
+    return [SessionShot(i=i, raw_path=sess_dir / d["file"],
+                        d_mm=float(d["d_mm"]),
+                        features=Features(**d["features"]))
+            for i, d in sorted(je_i.items())]
+
+
+def _lade_session(cfg: dict, sess_dir: Path) -> EnrollSession:
+    sess_dir = Path(sess_dir)
+    kopf_datei = sess_dir / "session.json"
+    if not kopf_datei.is_file():
+        raise FileNotFoundError(f"Keine Einlern-Session unter {sess_dir}")
+    kopf = json.loads(kopf_datei.read_text(encoding="utf-8"))
+    shots = _lies_journal(sess_dir / "journal.jsonl", sess_dir)
+    try:
+        ok = not [k for k in _FINGERPRINT_HASHES
+                  if kopf["fingerprint"].get(k) != _fingerabdruck(cfg).get(k)]
+    except Exception:
+        ok = False          # keine Kalibrierung da -> nicht fortsetzbar
+    journal = sess_dir / "journal.jsonl"
+    stand = journal.stat().st_mtime if journal.exists() else kopf["ts"] / 1000.0
+    info = SessionInfo(
+        path=sess_dir, article_number=kopf["article_number"], ts=int(kopf["ts"]),
+        created=kopf["created"], target_shots=int(kopf["target_shots"]),
+        n_shots=len(shots),
+        # Schritt 2 kennt nur "offen": die beiden anderen Werte
+        # ("umzug_unterbrochen", "gebucht_aufraeumen_offen") setzen die
+        # Berechnung der Zielpfade voraus, und die gehoert zum Umzug
+        # (Schritt 3). Solange es kein commit gibt, kann kein anderer Zustand
+        # entstehen.
+        zustand="offen",
+        fingerprint=kopf["fingerprint"], fingerprint_ok=ok,
+        age_secs=max(0.0, time.time() - stand))
+    return EnrollSession(info=info, shots=shots)
+
+
+# ---------- Fassaden ----------
+
+def begin_enroll_session(cfg: dict, article_number: str, *,
+                         target_shots: int) -> EnrollSession:
+    """Neue Einlern-Session anlegen und auf Platte verankern.
+
+    Legt <enroll_sessions_dir>/<artikel>/<ts>/ an, schreibt session.json
+    (temp+fsync+rename+fsync-Verzeichnis), das leere journal.jsonl und die
+    optik/-Kopien von calibration.json und background.png. Die Kopien machen
+    die Session selbstbeschreibend: bei spaeterer Fingerabdruck-Abweichung ist
+    "alte Kalibrierung zurueckholen" ein echter Ausweg statt einer Sackgasse.
+
+    Prueft VOR dem Anlegen: Mount-Gleichheit (EnrollSessionError kind='mount')
+    und dass der Artikel existiert (KeyError, wie database.add_reference).
+    Fail-fast, bevor ein einziger Shot existiert.
+
+    SETZT den Fingerabdruck – prueft ihn hier nicht, es gibt noch keinen
+    Vergleichswert.
+    """
+    _pruefe_mount(cfg)
+    db = Database(cfg)
+    try:
+        if db.get_article(article_number) is None:
+            raise KeyError(
+                f"Unknown article_number '{article_number}' – import it first.")
+    finally:
+        db.close()
+
+    abdruck = _fingerabdruck(cfg)
+    ts = int(time.time() * 1000)
+    sess_dir = _sessions_root(cfg) / article_number / str(ts)
+    sess_dir.mkdir(parents=True, exist_ok=True)
+
+    optik = sess_dir / "optik"
+    optik.mkdir(exist_ok=True)
+    shutil.copy2(str(resolve(cfg["calibration"]["file"])),
+                 str(optik / "calibration.json"))
+    shutil.copy2(str(resolve(cfg["calibration"]["background_file"])),
+                 str(optik / "background.png"))
+    _fsync_verzeichnis(optik)
+
+    kopf = {"article_number": article_number, "ts": ts,
+            "created": datetime.now().isoformat(timespec="microseconds"),
+            "target_shots": int(target_shots), "fingerprint": abdruck,
+            "owner": {"pid": os.getpid(), "host": socket.gethostname()},
+            "sandbox": cfg.get("sandbox")}
+    tmp = sess_dir / "session.json.tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(kopf, fh, ensure_ascii=False, indent=2)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.rename(str(tmp), str(sess_dir / "session.json"))
+
+    journal = sess_dir / "journal.jsonl"
+    with open(journal, "w", encoding="utf-8") as fh:
+        fh.flush()
+        os.fsync(fh.fileno())
+    _fsync_verzeichnis(sess_dir)
+    return _lade_session(cfg, sess_dir)
+
+
+def stage_frame(cfg: dict, session: EnrollSession, frame: np.ndarray) -> Path:
+    """Rohbild verankern, BEVOR es vermessen wird. Gibt den Pfad zurueck.
+
+    Reihenfolge: PNG schreiben -> fsync(Datei) -> fsync(Verzeichnis) -> DANN
+    den Fingerabdruck pruefen. Die Pruefung steht bewusst NACH dem Schreiben:
+    die Kamera hat ausgeloest und das Objekt liegt in der Box – ein 4K-Frame
+    wird nicht weggeworfen, nur weil zwischendurch jemand kalibriert hat. Bei
+    Abweichung bleibt das Bild als Waise liegen (keine Journalzeile, kein
+    gezaehlter Shot) und faehrt beim Aufraeumen als Material mit. Das ist
+    dieselbe Behandlung wie bei SegmentationError.
+
+    Vor measure_shot steht die Pruefung trotzdem – sie spart die ~1 s
+    Segmentierung und eine sinnlose Messung gegen einen fremden Hintergrund.
+
+    Erzeugt noch KEINEN Shot: Commit-Record ist die Journalzeile (append_shot),
+    nicht die Existenz der Datei. Deshalb braucht das PNG auch kein
+    temp+rename – ein halb geschriebenes raw_<NNN>.png ohne Journalzeile zaehlt
+    nirgends mit.
+    """
+    sess_dir = session.info.path
+    belegt = [int(m.group(1)) for m in
+              (_RAW_NAME_RE.match(p.name) for p in sess_dir.glob("raw_*.png"))
+              if m]
+    pfad = sess_dir / f"raw_{(max(belegt) + 1 if belegt else 0):03d}.png"
+
+    ok, buf = cv2.imencode(".png", frame)
+    if not ok:
+        raise RuntimeError("Rohbild liess sich nicht als PNG kodieren.")
+    with open(pfad, "wb") as fh:
+        fh.write(buf.tobytes())
+        fh.flush()
+        os.fsync(fh.fileno())
+    _fsync_verzeichnis(sess_dir)
+
+    _pruefe_fingerabdruck(cfg, session)
+    return pfad
+
+
+def append_shot(cfg: dict, session: EnrollSession, raw_path, feats: Features,
+                *, i: int | None = None) -> EnrollSession:
+    """Vermessenen Shot ins Journal uebernehmen – DAS ist der Commit-Record.
+
+    Haengt EINE Zeile an, flush + fsync. i=None -> naechste freie Position,
+    i=k -> Retake von k: eine NEUE Zeile mit demselben i, die alte Zeile und
+    die alte Datei bleiben liegen. Es gilt die letzte Zeile je i.
+
+    Prueft vorher (ValueError, Hausform fuer falsche Werte): raw_path liegt im
+    Session-Ordner, der Name passt auf raw_<NNN>.png, die Datei existiert und
+    ist nicht leer. Die Namenspruefung ist NICHT redundant zur Enthaltensein-
+    Pruefung: ohne sie liesse sich <session>/optik/background.png uebergeben,
+    das im Ordner liegt und existiert.
+    """
+    sess_dir = session.info.path.resolve()
+    p = Path(raw_path).resolve()
+    if not p.is_relative_to(sess_dir):
+        raise ValueError(
+            f"raw_path liegt nicht im Session-Ordner: {p} (Session {sess_dir})")
+    if not _RAW_NAME_RE.match(p.name):
+        raise ValueError(
+            f"raw_path stammt nicht aus stage_frame: {p.name} "
+            "(erwartet raw_<NNN>.png)")
+    if not p.is_file() or p.stat().st_size == 0:
+        raise ValueError(f"raw_path fehlt oder ist leer: {p}")
+
+    if i is None:
+        i = max((s.i for s in session.shots), default=-1) + 1
+    zeile = {"i": int(i), "file": p.name,
+             "t": datetime.now().isoformat(timespec="microseconds"),
+             "d_mm": round(float(feats.circle_diameter_mm), 4),
+             "features": asdict(feats)}
+    with open(session.info.path / "journal.jsonl", "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(zeile, ensure_ascii=False) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    return _lade_session(cfg, session.info.path)
+
+
+def load_enroll_session(cfg: dict, path) -> EnrollSession:
+    """Eine konkrete Session laden (Artikel und ts stehen im Pfad). Billig:
+    Journal lesen, je i die letzte Zeile behalten. MISST NICHT nach."""
+    return _lade_session(cfg, Path(path))
+
+
+def list_enroll_sessions(cfg: dict, *,
+                         article_number: str | None = None) -> list[SessionInfo]:
+    """Alle OFFENEN Sessions, neueste zuerst. Die Existenz des Ordners IST
+    'offen' – es gibt kein Statusfeld, das damit auseinanderlaufen koennte.
+
+    Liest nur session.json und journal.jsonl, misst nichts nach. Mehrere
+    Sessions je Artikel sind zulaessig und werden ALLE zurueckgegeben; das
+    Fortsetzen adressiert spaeter immer eine konkrete Session (Artikel + ts),
+    nie 'die fuer diesen Artikel'.
+    """
+    root = _sessions_root(cfg)
+    if not root.is_dir():
+        return []
+    infos: list[SessionInfo] = []
+    for art_dir in sorted(root.iterdir()):
+        if not art_dir.is_dir():
+            continue
+        if article_number is not None and art_dir.name != article_number:
+            continue
+        for sess_dir in sorted(art_dir.iterdir()):
+            if not (sess_dir / "session.json").is_file():
+                continue
+            infos.append(_lade_session(cfg, sess_dir).info)
+    return sorted(infos, key=lambda s: s.ts, reverse=True)
 
 
 def confirm_result(report: MatchReport, article_number: str):
