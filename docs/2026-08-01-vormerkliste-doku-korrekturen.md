@@ -360,3 +360,67 @@ Vier isotrope Skalenfehler ähnlicher Größenordnung in vier Dokumenten. Der
 dritte betrifft den **Anlege-Shot** — also genau den Wert, der als
 `articles.width_mm` das Vorfilter-Nominal wird. Ob sie denselben Ursprung
 haben, hat niemand geprüft.
+
+---
+
+# Nachtrag 2026-08-05 — aus dem Design „Crash-sichere Einlern-Session"
+
+Die folgenden drei Punkte sind beim Entwurf von
+[2026-08-05-crashsichere-einlern-session-design.md](superpowers/specs/2026-08-05-crashsichere-einlern-session-design.md)
+entstanden und **bewusst aus dessen Umfang herausgehalten** worden. Sie setzen
+voraus, dass das Design umgesetzt ist — vorher greifen sie ins Leere.
+
+## 16. Zwei aufruferlose Fassaden nach dem Session-Umbau
+
+**Fundstellen:** `pipeline.save_reference`, `pipeline.save_enrollment` ·
+**Aufwand:** ~30 min
+
+Nach der Umstellung des Einlerndialogs auf `commit_enroll_session` hat
+**`save_reference` keinen Aufrufer mehr** (heute genau einen:
+`save_enrollment`), und **`save_enrollment` keinen Produktivaufrufer** — es
+behält Testaufrufer (`test_enrollment_sheet.py:91` und `:217`,
+`test_ui_facade.py:239`).
+
+Beide bleiben bewusst stehen, mit datiertem Kommentar an der Definition:
+`save_reference` ist die dokumentierte zweite Hälfte der Zwei-Schritt-Fassade
+(`pipeline.py:403`), und ein UI, das einzelne Referenzen nachträgt, wäre ein
+legitimer künftiger Aufrufer.
+
+**Zusammenlegen oder entfernen ist ein eigener Schritt** — ausdrücklich nicht
+im selben Paket, das den Einlernpfad umbaut: das vergrößerte dessen Testfläche
+ohne Not. Wer den Punkt aufgreift, prüft zuerst, ob die Testaufrufer auf die
+Session-Fassaden umgezogen werden können.
+
+## 17. Doppelte Segmentierung beim Fortsetzen-und-Speichern
+
+**Fundstellen:** `pipeline.remeasure_session`,
+`enrollment_sheet.build_enrollment_sheet` · **Aufwand:** ~1–2 h
+
+`remeasure_session` segmentiert beim Fortsetzen alle N Aufnahmen neu (~1 s je
+Shot), `build_enrollment_sheet` unmittelbar danach beim Speichern **noch
+einmal**. Wer eine unterbrochene Session fortsetzt und direkt speichert, wartet
+bei zwölf Shots **rund 24 s statt 12**.
+
+Zusammenlegen hieße, `build_enrollment_sheet` fertige Segmentierungen
+entgegennehmen zu lassen — ein Eingriff in eine Konsumentenschicht, bewusst aus
+dem Absicherungspaket herausgehalten. Als bekannte Kosten im Design benannt
+(Abschnitt 5.2), nicht als Defekt.
+
+## 18. `optik/`-Kopien sind teilweise redundant zum `calibration/`-Archiv
+
+**Fundstellen:** `calibration/` (21 × `background-<ts>.png`, 3 ×
+`calibration-<ts>.json` am 2026-08-05), Design Abschnitt 3.2 ·
+**Aufwand:** ~20 min Prüfung, danach Entscheidung
+
+Jede Session legt Kopien von `calibration.json` und `background.png` unter
+`<session>/optik/` ab, damit der Ausweg „alte Kalibrierung zurückholen" ohne
+Suche funktioniert. `capture-background` und `calibrate` **archivieren die
+Vorgängerstände aber ohnehin schon** mit Zeitstempel im selben Verzeichnis —
+über den gespeicherten Hash wäre der passende Archivstand auffindbar.
+
+Die Kopien sind also nicht die einzige Rettung, sondern die bequeme. Bei
+gemessenen 1,26 MB je Session (~52 MB über 40 Artikel) ist der Preis niedrig
+und die Entscheidung fiel für die Kopie — **aber die Redundanz ist nie geprüft
+worden**: ob das Archiv lückenlos ist, ob es je aufgeräumt wird, und ob eine
+Hash-Suche darin verlässlich zum richtigen Stand führt. Wer das prüft, kann die
+Kopien danach begründet behalten oder streichen.
