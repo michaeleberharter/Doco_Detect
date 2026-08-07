@@ -424,3 +424,67 @@ und die Entscheidung fiel für die Kopie — **aber die Redundanz ist nie geprü
 worden**: ob das Archiv lückenlos ist, ob es je aufgeräumt wird, und ob eine
 Hash-Suche darin verlässlich zum richtigen Stand führt. Wer das prüft, kann die
 Kopien danach begründet behalten oder streichen.
+
+## 19. Der Korpus sammelt Zustand über wiederholte Suite-Läufe an
+
+**Fundstellen:** `<corpus_dir>/runs/` (am 2026-08-06: **93 Laufordner**, davon 7
+aus einer einzigen Sitzung), `<corpus_dir>/runs/_invalid/` (**19 Einträge**),
+`tests/test_corpus.py::test_corpus_tier2_decisions_reproduce` ·
+**Aufwand:** offen, zuerst ~30 min Beobachtung
+
+Jeder volle Suite-Lauf legt einen Laufordner an, und
+`test_corpus_tier2_decisions_reproduce` hinterlässt zusätzlich einen Eintrag
+unter `runs/_invalid/` — es ruft `run_corpus()` direkt auf und erreicht
+`write_run` nie (in CLAUDE.md dokumentiert). Über Monate summiert sich das:
+93 Ordner, 443 MB.
+
+**Warum es notiert wird:** am 2026-08-06 zeigte ein voller Suite-Lauf **5
+Ausfälle**, während dieselbe Codebasis in drei Folgeläufen grün war — beide
+Teilmengen einzeln (mit und ohne Korpus-Block) und der vollständige Lauf. Die
+Namen der fünf sind verloren (erst durch ein `tail -8` in der Erfassung, dann
+durch einen fehlerfreien Diagnoselauf, der `.pytest_cache/.../lastfailed`
+leerte). Angesammelter Korpus-Zustand ist ein **plausibler, ungeprüfter**
+Kandidat für solche Reihenfolge-Effekte — der andere ist der dokumentierte
+Qt-Teardown ([ui-qt-testsuite-segfault.md](ui-qt-testsuite-segfault.md)), der im
+selben Zeitraum einen Lauf mit **SIGABRT (Exit 134)** beendete, nachdem alle
+737 Tests grün gemeldet waren.
+
+**Nicht verfolgt, bewusst.** Wer es aufgreift: zuerst klären, ob ein Lauf gegen
+einen frisch aufgeräumten `runs/`-Stand anders ausgeht als gegen den
+gewachsenen. Aufräumen heißt hier **verschieben**, nicht löschen — der Korpus
+liegt außerhalb des Repos und ist nicht wiederherstellbar.
+
+**Regel für die nächste Untersuchung, teuer gelernt:** bei einem nicht
+reproduzierbaren Suite-Fehler zuerst `.pytest_cache/v/cache/lastfailed`
+sichern und die volle Ausgabe in eine Datei schreiben — **bevor** irgendein
+weiterer Lauf startet. Ein erfolgreicher Diagnoselauf löscht die Namen, die er
+finden soll.
+
+## 20. Ein Qt-Test schreibt in den echten Projektbaum
+
+**Fundstelle:** `reports/analysis/enrollment/DEMO-T18.png` (am 2026-08-06 um
+20:26 während eines Suite-Laufs entstanden), `pipeline.persist_enrollment_sheet`
+→ `analysis.output_dir/enrollment/<artikel>.png` · **Aufwand:** ~20 min
+
+`DEMO-T18` ist ein Demo-Artikel aus `ui_qt/demo_scenes.py` und kommt nur in den
+Qt-Tests vor. Ein Smoke-Test fährt den Einlernpfad durch, und
+`persist_enrollment_sheet` schreibt gegen ein **nicht umgelenktes**
+`analysis.output_dir` — also in den echten Projektbaum. Dort liegt das
+Testartefakt seither neben Produktivmaterial:
+
+```
+DEMO-T18.png    337 KB   2026-08-06   <- Test
+MESSER-2.png    712 KB   2026-07-28   <- echtes Enrollment
+LOEFFEL-3.png   628 KB   2026-07-28   <- echtes Enrollment
+GABEL-1.png     334 KB   2026-07-28   <- echtes Enrollment
+```
+
+**Warum es niemandem auffällt:** `reports/*` ist gitignored (`.gitignore:24`),
+`git status` bleibt sauber.
+
+**Vorbestehend, nicht durch das Session-Paket verursacht** — gefunden beim
+Nachweis für `paths.backups_dir`, das dieselbe Fehlerklasse im neuen Code
+beseitigt hat. Der Fix ist derselbe: die Qt-Test-Config muss
+`analysis.output_dir` unter `tmp_path` legen. **Nicht aufgeräumt** — wer es
+angeht, entscheidet zuerst, ob `DEMO-T18.png` verschoben oder gelöscht wird
+(Dauerregel: verschieben).
