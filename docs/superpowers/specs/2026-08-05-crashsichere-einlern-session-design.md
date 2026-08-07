@@ -1116,6 +1116,25 @@ Terminal-Scrollback überlebt.
 | 5 | 6-s-Timer gegen echtes Reconnect-Verhalten | Das reale Gerät bestimmt, wie lange `open()` nach USB-Ausfall dauert. | offen |
 | 6 | „Aufnehmen hängt nicht mehr" bei echtem USB-Abzug | Der Befund entstand am Gerät; die Attrappe prüft die Logik, nicht das Gerät. | offen |
 | 7 | Die 40-Artikel-Session am Stück | Das eigentliche Ziel des Pakets. | offen |
+| 8 | **Der Abschuss des Kindprozesses in der Absturzsimulation** (`tests/test_enroll_session_crash.py`) | Der Windows-Zweig der Rückgabecode-Prüfung ist auf dem Mac nicht erreichbar. | offen |
+
+**Zu Zeile 8, damit klar ist, worauf man schaut.** Der Harness startet einen
+eigenen Interpreter und schießt ihn an fünf definierten Punkten ab.
+`Popen.kill()` verhält sich plattformabhängig (belegt aus der CPython-Quelle,
+`subprocess.py`):
+
+- **POSIX:** `send_signal(SIGKILL)` → Rückgabecode **−9** (bzw. 137 über eine Shell)
+- **Windows:** `kill = terminate` → `TerminateProcess(handle, 1)` → Rückgabecode **1**
+
+**Erwartetes Verhalten an der Box:** alle sieben Tests grün, die fünf
+Abschusspunkte erzeugen dieselben fünf unterscheidbaren Zustände wie auf dem
+Mac. `TerminateProcess` ist semantisch dasselbe wie `SIGKILL` — unabfangbar,
+kein `finally`, kein `atexit`, kein Aufräumen; der Unterschied ist allein die
+Zahl. Schlägt einer der Tests dort fehl, ist **zuerst der Rückgabecode zu
+lesen**: eine 1 ist das Normale, kein Defekt. Ein Rückgabecode **99** wäre
+dagegen ein echter Befund — das ist der Sentinel des Kindprozesses für „bis
+zum Ende durchgelaufen, also gar nicht abgeschossen", und dann prüft der Test
+nichts.
 
 ---
 
