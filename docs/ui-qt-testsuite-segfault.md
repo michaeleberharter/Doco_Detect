@@ -70,9 +70,9 @@ Die Kombination — persistentes Singleton + nicht abgeräumte Widgets/QThreads
 Empfehlung: erst (1) versuchen (keine neue Abhängigkeit); die QThread-Stops im
 Teardown sind vermutlich der eigentliche Hebel gegen den Segfault.
 
-## Datenpunkte 2026-08-06/07 — zweimal **Exit 134** nach grünem Summary
+## Datenpunkte 2026-08-06/07 — dreimal **Exit 134** nach grünem Summary
 
-Zwei datierte Vorkommen aus **einer** Sitzung, beide in einem **vollen**
+Drei datierte Vorkommen an **zwei Tagen**, alle in einem **vollen**
 Suite-Lauf (`pytest tests/`, alle Module in einem Aufruf, Mac/Python 3.9.6/
 PySide6, `QT_QPA_PLATFORM=offscreen`). Reine Beobachtung — **kein Fix, keine
 Arbeit am Ursachenpfad.**
@@ -81,6 +81,7 @@ Arbeit am Ursachenpfad.**
 |---|---|---|---|
 | 2026-08-06 | 739 gesammelt | **737 passed, 2 skipped, 0 failed** | **134** (SIGABRT) |
 | 2026-08-07 | 765 gesammelt | **763 passed, 2 skipped, 0 failed** | **134** (SIGABRT) |
+| 2026-08-07 | 772 gesammelt | **770 passed, 2 skipped, 0 failed** | **134** (SIGABRT) |
 
 In beiden Fällen erschien **nach** der Summary-Zeile
 `QThread: Destroyed while thread '' is still running`, danach brach der
