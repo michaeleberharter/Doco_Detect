@@ -257,6 +257,22 @@ eindeutig — eine Kollision kann nicht von einer anderen Session desselben
 Artikels stammen, sondern bedeutet einen fremden Schreibzugriff auf
 `reference_dir`.
 
+> **Nachgetragen 2026-08-07 aus Schritt 5 — eine Zusicherung, die hier fehlte.**
+> Der Umzug prüft **erst den vollständigen Plan, dann bewegt er**. Die
+> ursprüngliche Fassung entschied und bewegte in einer Schleife; eine
+> Kollision bei Datei k ließ damit die Dateien 0…k−1 verschoben zurück — ein
+> Zwischenzustand, der zwar per Vier-Fälle-Tabelle wiederaufnehmbar gewesen
+> wäre, aber vermeidbar ist. Jetzt gilt: **schlägt der Umzug fehl, hat sich
+> keine einzige Datei bewegt.** Die vier Fälle selbst sind unverändert.
+>
+> Möglich wurde das durch die Trennung von Entscheidung und Ausführung
+> (`_umzug_plan` / `_reverse_plan` rechnen ohne Seiteneffekt,
+> `_move_session_files` / `_reverse_move` führen nur aus). Dieselbe Trennung
+> trägt `--dry-run`: **eine** Stelle entscheidet, Probelauf und echter Lauf
+> lesen sie beide — ein `--dry-run`, der etwas anderes sagt als der echte
+> Lauf, wäre schlimmer als keiner. In beiden Richtungen durch je einen Test
+> abgesichert (`…_COMMIT`, `…_DISCARD`).
+
 **Wiederaufnahme des Umzugs als Verfahren:**
 
 1. `session.json` lesen → `ts`

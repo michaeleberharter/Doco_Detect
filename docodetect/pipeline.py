@@ -736,6 +736,46 @@ def _pruefe_buchungsstand(db: Database, article_number: str, ziele: list) -> str
                 "article_number": article_number})
 
 
+def _umzug_plan(ziele: list) -> list:
+    """Vier-Faelle-Entscheidung je Datei, OHNE Seiteneffekt.
+
+    EINE Stelle entscheidet, zwei lesen: _move_session_files fuehrt aus,
+    --dry-run zeigt nur an. Getrennt gepflegt koennten Plan und Ausfuehrung
+    auseinanderlaufen — und ein --dry-run, der etwas anderes sagt als der
+    echte Lauf, ist schlimmer als keiner.
+    """
+    plan = []
+    for i, quelle, ziel in ziele:
+        q, z = quelle.exists(), ziel.exists()
+        aktion = ("verschieben" if q and not z else
+                  "bereits_erledigt" if not q and z else
+                  "kollision" if q and z else "datei_fehlt")
+        plan.append({"i": i, "quelle": str(quelle), "ziel": str(ziel),
+                     "aktion": aktion})
+    return plan
+
+
+def _reverse_plan(ziele: list, je_pfad: dict) -> list:
+    """Gegenrichtung, ebenfalls ohne Seiteneffekt. Dieselbe Trennung wie
+    _umzug_plan: entscheiden hier, ausfuehren in _reverse_move."""
+    plan = []
+    for i, quelle, ziel in ziele:
+        q, z = quelle.exists(), ziel.exists()
+        if not q and z and je_pfad.get(str(ziel)):
+            aktion = "gebucht_nicht_angefasst"
+        elif not q and z:
+            aktion = "zurueckholen"
+        elif q and z:
+            aktion = "ziel_ist_fremd_nicht_angefasst"
+        elif q and not z:
+            aktion = "nichts_zu_tun"
+        else:
+            aktion = "VERLOREN"
+        plan.append({"i": i, "quelle": str(quelle), "ziel": str(ziel),
+                     "aktion": aktion})
+    return plan
+
+
 def _move_session_files(cfg: dict, session: EnrollSession, ziele: list) -> list:
     """Umzug Session -> reference_dir, idempotent, vier Faelle je Datei.
 
@@ -752,33 +792,34 @@ def _move_session_files(cfg: dict, session: EnrollSession, ziele: list) -> list:
     shutil.move waere hier falsch: es faellt bei EXDEV still auf copy+delete
     zurueck – nicht atomar, und das Loeschen der Quelle waere ein verdeckter
     Regelverstoss. os.rename scheitert dort laut.
+
+    Der PLAN wird von _umzug_plan gerechnet, damit --dry-run und die
+    Ausfuehrung nicht auseinanderlaufen koennen: EINE Stelle entscheidet, zwei
+    lesen sie. Und es wird ERST der ganze Plan geprueft, DANN bewegt – sonst
+    liesse eine Kollision bei Datei k die Dateien 0..k-1 verschoben zurueck,
+    also einen vermeidbaren Zwischenzustand.
     """
+    plan = _umzug_plan(ziele)
+    for e in plan:
+        if e["aktion"] == "kollision":
+            raise EnrollSessionError(
+                f"Fremdkollision bei Shot {e['i']}: {e['ziel']} existiert "
+                "bereits und stammt nicht aus diesem Umzug (der Zielname "
+                "traegt die Session-ts, ist also sessionweit eindeutig). Es "
+                "hat jemand anders in reference_dir geschrieben.",
+                kind="kollision", detail=e)
+        if e["aktion"] == "datei_fehlt":
+            raise EnrollSessionError(
+                f"Datei zu Shot {e['i']} ist verschwunden – weder "
+                f"{e['quelle']} noch {e['ziel']} existiert.",
+                kind="datei_fehlt", detail=e)
+
     ziel_dir = resolve(cfg["paths"]["reference_dir"]) / session.info.article_number
     ziel_dir.mkdir(parents=True, exist_ok=True)
-    protokoll = []
-    for i, quelle, ziel in ziele:
-        q, z = quelle.exists(), ziel.exists()
-        if q and not z:
-            os.rename(str(quelle), str(ziel))
-            protokoll.append({"i": i, "aktion": "verschoben", "ziel": str(ziel)})
-        elif not q and z:
-            protokoll.append({"i": i, "aktion": "bereits_erledigt",
-                              "ziel": str(ziel)})
-        elif q and z:
-            raise EnrollSessionError(
-                f"Fremdkollision bei Shot {i}: {ziel} existiert bereits und "
-                "stammt nicht aus diesem Umzug (der Zielname traegt die "
-                "Session-ts, ist also sessionweit eindeutig). Es hat jemand "
-                "anders in reference_dir geschrieben.",
-                kind="kollision",
-                detail={"i": i, "quelle": str(quelle), "ziel": str(ziel)})
-        else:
-            raise EnrollSessionError(
-                f"Datei zu Shot {i} ist verschwunden – weder {quelle} noch "
-                f"{ziel} existiert.",
-                kind="datei_fehlt",
-                detail={"i": i, "quelle": str(quelle), "ziel": str(ziel)})
-    return protokoll
+    for e in plan:
+        if e["aktion"] == "verschieben":
+            os.rename(e["quelle"], e["ziel"])
+    return plan
 
 
 def _reverse_move(cfg: dict, session: EnrollSession, ziele: list,
@@ -795,25 +836,12 @@ def _reverse_move(cfg: dict, session: EnrollSession, ziele: list,
     Konstruktion von _zielpfade), und es darf KEINE reference_features-Zeile
     darauf zeigen. Die DB-Schranke ist die entscheidende.
     """
-    protokoll = []
-    for i, quelle, ziel in ziele:
-        q, z = quelle.exists(), ziel.exists()
-        if not q and z and je_pfad.get(str(ziel)):
-            protokoll.append({"i": i, "aktion": "gebucht_nicht_angefasst",
-                              "ziel": str(ziel)})
-        elif not q and z:
-            os.rename(str(ziel), str(quelle))
-            protokoll.append({"i": i, "aktion": "zurueckgeholt",
-                              "quelle": str(quelle)})
-        elif q and z:
-            protokoll.append({"i": i, "aktion": "ziel_ist_fremd_nicht_angefasst",
-                              "ziel": str(ziel)})
-        elif q and not z:
-            protokoll.append({"i": i, "aktion": "nichts_zu_tun"})
-        else:
-            protokoll.append({"i": i, "aktion": "VERLOREN",
-                              "quelle": str(quelle), "ziel": str(ziel)})
-    return protokoll
+    plan = _reverse_plan(ziele, je_pfad)
+    for e in plan:
+        if e["aktion"] == "zurueckholen":
+            os.rename(e["ziel"], e["quelle"])
+            e["aktion"] = "zurueckgeholt"     # ausgefuehrt, nicht nur geplant
+    return plan
 
 
 def _raeume_nach_backups(cfg: dict, session: EnrollSession) -> Path:
@@ -879,6 +907,46 @@ def commit_enroll_session(cfg: dict, session: EnrollSession) -> int:
         db.close()
     _raeume_nach_backups(cfg, session)
     return len(ziele)
+
+
+def plan_commit_enroll_session(cfg: dict, session: EnrollSession) -> dict:
+    """--dry-run fuer commit: ALLE VIER Pruefungen laufen echt, danach der
+    Umzugsplan – aber keine Datei wird bewegt und die DB nur gelesen.
+
+    Faellt eine Pruefung, wirft diese Fassade genauso wie commit selbst. Das
+    ist der Punkt: ein Probelauf, der andere Fehler meldet als der echte,
+    taeuscht Sicherheit vor."""
+    session = _lade_session(cfg, session.info.path)
+    _pruefe_luecken(session)
+    _pruefe_mount(cfg)
+    _pruefe_fingerabdruck(cfg, session)
+    ziele = _zielpfade(cfg, session)
+    db = Database(cfg)
+    try:
+        stand = _pruefe_buchungsstand(db, session.info.article_number,
+                                      [z for _, _, z in ziele])
+    finally:
+        db.close()
+    return {"stand": stand, "n": len(ziele), "plan": _umzug_plan(ziele),
+            "article_number": session.info.article_number, "ts": session.info.ts}
+
+
+def plan_discard_enroll_session(cfg: dict, session: EnrollSession) -> dict:
+    """--dry-run fuer discard: die vollstaendige Gegenrichtungs-Tabelle je i,
+    ohne eine Datei zu bewegen und ohne info.json zu schreiben.
+
+    Der Rueckumzug greift AUS reference_dir heraus – das ist die gefaehrlichere
+    Richtung, und genau dort will man vorher sehen, was passieren soll."""
+    session = _lade_session(cfg, session.info.path)
+    ziele = _zielpfade(cfg, session)
+    db = Database(cfg)
+    try:
+        je_pfad = _zeilen_je_pfad(db, session.info.article_number,
+                                  [z for _, _, z in ziele])
+    finally:
+        db.close()
+    return {"n": len(ziele), "plan": _reverse_plan(ziele, je_pfad),
+            "article_number": session.info.article_number, "ts": session.info.ts}
 
 
 def discard_enroll_session(cfg: dict, session: EnrollSession, *,

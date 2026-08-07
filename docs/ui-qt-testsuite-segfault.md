@@ -69,3 +69,36 @@ Die Kombination — persistentes Singleton + nicht abgeräumte Widgets/QThreads
 
 Empfehlung: erst (1) versuchen (keine neue Abhängigkeit); die QThread-Stops im
 Teardown sind vermutlich der eigentliche Hebel gegen den Segfault.
+
+## Datenpunkte 2026-08-06/07 — zweimal **Exit 134** nach grünem Summary
+
+Zwei datierte Vorkommen aus **einer** Sitzung, beide in einem **vollen**
+Suite-Lauf (`pytest tests/`, alle Module in einem Aufruf, Mac/Python 3.9.6/
+PySide6, `QT_QPA_PLATFORM=offscreen`). Reine Beobachtung — **kein Fix, keine
+Arbeit am Ursachenpfad.**
+
+| Datum | Lauf | Ergebnis laut pytest | Prozess-Exit |
+|---|---|---|---|
+| 2026-08-06 | 739 gesammelt | **737 passed, 2 skipped, 0 failed** | **134** (SIGABRT) |
+| 2026-08-07 | 765 gesammelt | **763 passed, 2 skipped, 0 failed** | **134** (SIGABRT) |
+
+In beiden Fällen erschien **nach** der Summary-Zeile
+`QThread: Destroyed while thread '' is still running`, danach brach der
+Interpreter ab. **Alle Tests waren zu diesem Zeitpunkt bereits grün** — belegt
+unabhängig durch `--junitxml`, das pro Test geschrieben wird und den Abbruch
+deshalb überlebt: `failures=0 errors=0 skipped=2` in beiden Läufen.
+
+**Warum das zählt, über die Kuriosität hinaus:** ein CI liest **Exit 134 als
+Fehlschlag**, egal wie das Summary lautet. Solange der Teardown-Abbruch
+auftritt, ist der Prozess-Rückgabecode kein verlässliches Freigabesignal — die
+Aussage steckt dann nur noch im XML. Wer das Gate baut, muss das wissen.
+
+**Nicht deterministisch:** dieselbe Codebasis lief in derselben Sitzung
+mehrfach mit **Exit 0** durch. Die Abbrüche traten unabhängig davon auf, welcher
+Schritt gerade gebaut wurde, und nie in einem Teillauf (Qt-Module einzeln,
+Nicht-Qt-Teilmenge) — nur im vollen Lauf am Stück, also genau in der
+Konstellation, die oben als vermutete Ursache beschrieben ist.
+
+**Vorbestehend.** Die Session-Arbeit dieser Sitzung fasst keinen QThread an;
+sie fügt nur Tests hinzu, die ohne Qt laufen. Der Fix bleibt der oben
+beschriebene Kandidat und ist nicht Teil dieser Arbeit.
