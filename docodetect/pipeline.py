@@ -24,8 +24,8 @@ from .calibration import (Calibration, load_background, load_calibration,
                           run_calibration, save_background)
 from .config import resolve
 from .database import Article, Database
-from .features import (Features, describe_color_hsv, extract,
-                       height_corrected_scale, min_area_rect_mm)
+from .features import (SCALAR_FEATURES, Features, describe_color_hsv, extract,
+                       height_corrected_scale, min_area_rect_mm, scalar_value)
 from .matcher import DECISION_REJECT, MatchReport, match
 from .display import (channel_percentages, format_delta, format_diameter,  # noqa: F401
                       format_measured, format_rank_line, headline,
@@ -468,16 +468,42 @@ def _lade_session(cfg: dict, sess_dir: Path) -> EnrollSession:
     info = SessionInfo(
         path=sess_dir, article_number=kopf["article_number"], ts=int(kopf["ts"]),
         created=kopf["created"], target_shots=int(kopf["target_shots"]),
-        n_shots=len(shots),
-        # Schritt 2 kennt nur "offen": die beiden anderen Werte
-        # ("umzug_unterbrochen", "gebucht_aufraeumen_offen") setzen die
-        # Berechnung der Zielpfade voraus, und die gehoert zum Umzug
-        # (Schritt 3). Solange es kein commit gibt, kann kein anderer Zustand
-        # entstehen.
-        zustand="offen",
+        n_shots=len(shots), zustand="offen",
         fingerprint=kopf["fingerprint"], fingerprint_ok=ok,
         age_secs=max(0.0, time.time() - stand))
-    return EnrollSession(info=info, shots=shots)
+    session = EnrollSession(info=info, shots=shots)
+    info.zustand = _zustand(cfg, session)
+    return session
+
+
+def _zustand(cfg: dict, session: EnrollSession) -> str:
+    """Zustand ABLEITEN aus (Journal, Dateisystem, DB) – nie gespeichert.
+
+    Ein Statusfeld muesste bei jedem Uebergang neu geschrieben werden; was nie
+    geschrieben wird, kann nicht halb geschrieben sein und nicht mit der
+    Wirklichkeit auseinanderlaufen.
+    """
+    ziele = _zielpfade(cfg, session)
+    if not ziele:
+        return "offen"
+    quellen_da = sum(1 for _, q, _ in ziele if q.exists())
+    ziele_da = sum(1 for _, _, z in ziele if z.exists())
+    if ziele_da == 0:
+        return "offen"
+    if quellen_da == 0 and ziele_da == len(ziele):
+        # Alles umgezogen – gebucht oder noch nicht? Nur die DB weiss es.
+        if resolve(cfg["paths"]["db_file"]).exists():
+            db = Database(cfg)
+            try:
+                je = _zeilen_je_pfad(db, session.info.article_number,
+                                     [z for _, _, z in ziele])
+            except Exception:
+                je = {}
+            finally:
+                db.close()
+            if je and all(je.values()):
+                return "gebucht_aufraeumen_offen"
+    return "umzug_unterbrochen"
 
 
 # ---------- Fassaden ----------
@@ -648,6 +674,310 @@ def list_enroll_sessions(cfg: dict, *,
                 continue
             infos.append(_lade_session(cfg, sess_dir).info)
     return sorted(infos, key=lambda s: s.ts, reverse=True)
+
+
+# ---------- Umzug, Buchen, Verwerfen (Schritt 3) ----------
+
+def _zielpfade(cfg: dict, session: EnrollSession) -> list:
+    """[(i, quelle, ziel), ...] – REINE FUNKTION von (session.json, journal).
+
+    Der Endname {ts}_{i:02d}.png wird bei JEDEM Lauf neu aus der
+    Journal-Reihenfolge gerechnet und nirgends gemerkt, in keiner
+    Fortschrittsdatei, in keinem Feld. Genau deshalb ist die Wiederaufnahme
+    idempotent: derselbe Eingang erzeugt dieselbe Zuordnung, beliebig oft.
+
+    Die ts im Namen macht den Zielpfad ausserdem sessionweit eindeutig – eine
+    Kollision kann daher nicht von einer anderen Session desselben Artikels
+    stammen, sondern bedeutet einen fremden Schreibzugriff.
+    """
+    ref = resolve(cfg["paths"]["reference_dir"]) / session.info.article_number
+    ts = session.info.ts
+    return [(s.i, s.raw_path, ref / f"{ts}_{s.i:02d}.png") for s in session.shots]
+
+
+def _zeilen_je_pfad(db: Database, article_number: str, ziele: list) -> dict:
+    """ABFRAGEND, wirft nie: Zielpfad (str) -> zeigt eine reference_features-
+    Zeile darauf? Einzige Stelle, die diese Zuordnung herstellt; speist den
+    Rueckumzug (je Datei) und _pruefe_buchungsstand (aggregiert).
+
+    Nutzt references_with_meta statt eigener SQL – database.py bleibt die
+    einzige Schicht, die SQLite kennt.
+    """
+    vorhanden = {p for p, _ in db.references_with_meta(article_number) if p}
+    return {str(z): str(z) in vorhanden for z in ziele}
+
+
+def _pruefe_buchungsstand(db: Database, article_number: str, ziele: list) -> str:
+    """WERFEND, fuer commit. Aggregiert _zeilen_je_pfad zu drei Faellen:
+
+        keine Zeile     -> "leer"          (Normalfall: umziehen + buchen)
+        alle N Zeilen   -> "vollstaendig"  (Zustand 3: nur noch aufraeumen)
+        0 < k < N       -> EnrollSessionError(kind='invariante')
+
+    Der mittlere Fall ist die k<N-Assertion: er DARF nicht entstehen, weil die
+    Buchung transaktional ist (database.add_references). Tritt er auf, ist eine
+    Design-Annahme verletzt – kein Angebot, keine Automatik, kein
+    Selbstheilungsversuch. Jede Reparatur rechnete an reference_stats, und die
+    kennt keinen Session-Begriff.
+    """
+    je = _zeilen_je_pfad(db, article_number, ziele)
+    gebucht = [p for p, ja in je.items() if ja]
+    if not gebucht:
+        return "leer"
+    if len(gebucht) == len(ziele):
+        return "vollstaendig"
+    raise EnrollSessionError(
+        f"INVARIANTE VERLETZT: {len(gebucht)} von {len(ziele)} Referenzzeilen "
+        f"fuer Artikel {article_number} vorhanden. Dieser Zustand darf nicht "
+        "entstehen – die Buchung schreibt alle Zeilen in EINER Transaktion. "
+        "Keine automatische Reparatur: sie rechnete an reference_stats.",
+        kind="invariante",
+        detail={"gefunden": sorted(gebucht), "erwartet_n": len(ziele),
+                "article_number": article_number})
+
+
+def _move_session_files(cfg: dict, session: EnrollSession, ziele: list) -> list:
+    """Umzug Session -> reference_dir, idempotent, vier Faelle je Datei.
+
+    os.rename ist innerhalb eines Dateisystems atomar gegenueber Beobachtern
+    (POSIX per Standard, Windows innerhalb eines Volumes). Ein Zustand, in dem
+    Quelle UND Ziel aus DEMSELBEN Vorgang existieren, kann nicht auftreten –
+    die vier Faelle sind damit vollstaendig und disjunkt:
+
+        Quelle da, Ziel fehlt  -> verschieben
+        Quelle weg, Ziel da    -> in einem frueheren Lauf erledigt, ueberspringen
+        Quelle da UND Ziel da  -> Fremdkollision, Abbruch
+        Quelle weg, Ziel fehlt -> Datei verschwunden, Abbruch
+
+    shutil.move waere hier falsch: es faellt bei EXDEV still auf copy+delete
+    zurueck – nicht atomar, und das Loeschen der Quelle waere ein verdeckter
+    Regelverstoss. os.rename scheitert dort laut.
+    """
+    ziel_dir = resolve(cfg["paths"]["reference_dir"]) / session.info.article_number
+    ziel_dir.mkdir(parents=True, exist_ok=True)
+    protokoll = []
+    for i, quelle, ziel in ziele:
+        q, z = quelle.exists(), ziel.exists()
+        if q and not z:
+            os.rename(str(quelle), str(ziel))
+            protokoll.append({"i": i, "aktion": "verschoben", "ziel": str(ziel)})
+        elif not q and z:
+            protokoll.append({"i": i, "aktion": "bereits_erledigt",
+                              "ziel": str(ziel)})
+        elif q and z:
+            raise EnrollSessionError(
+                f"Fremdkollision bei Shot {i}: {ziel} existiert bereits und "
+                "stammt nicht aus diesem Umzug (der Zielname traegt die "
+                "Session-ts, ist also sessionweit eindeutig). Es hat jemand "
+                "anders in reference_dir geschrieben.",
+                kind="kollision",
+                detail={"i": i, "quelle": str(quelle), "ziel": str(ziel)})
+        else:
+            raise EnrollSessionError(
+                f"Datei zu Shot {i} ist verschwunden – weder {quelle} noch "
+                f"{ziel} existiert.",
+                kind="datei_fehlt",
+                detail={"i": i, "quelle": str(quelle), "ziel": str(ziel)})
+    return protokoll
+
+
+def _reverse_move(cfg: dict, session: EnrollSession, ziele: list,
+                  je_pfad: dict) -> list:
+    """Rueckumzug reference_dir -> Session, Gegenrichtung der vier Faelle.
+
+    Ohne ihn waere ein abgebrochener Umzug eine Sackgasse: Teile laegen in
+    reference_dir, der Rest in der Session, Fortsetzen braeche reproduzierbar
+    wieder ab, und "ganzen Ordner nach verworfen/" verschoebe eine
+    unvollstaendige Session.
+
+    Zwei Schranken, damit nie eine echte Referenz aus reference_dir gezogen
+    wird: der Name muss exakt {ts}_{i:02d}.png mit DIESER Session-ts sein (per
+    Konstruktion von _zielpfade), und es darf KEINE reference_features-Zeile
+    darauf zeigen. Die DB-Schranke ist die entscheidende.
+    """
+    protokoll = []
+    for i, quelle, ziel in ziele:
+        q, z = quelle.exists(), ziel.exists()
+        if not q and z and je_pfad.get(str(ziel)):
+            protokoll.append({"i": i, "aktion": "gebucht_nicht_angefasst",
+                              "ziel": str(ziel)})
+        elif not q and z:
+            os.rename(str(ziel), str(quelle))
+            protokoll.append({"i": i, "aktion": "zurueckgeholt",
+                              "quelle": str(quelle)})
+        elif q and z:
+            protokoll.append({"i": i, "aktion": "ziel_ist_fremd_nicht_angefasst",
+                              "ziel": str(ziel)})
+        elif q and not z:
+            protokoll.append({"i": i, "aktion": "nichts_zu_tun"})
+        else:
+            protokoll.append({"i": i, "aktion": "VERLOREN",
+                              "quelle": str(quelle), "ziel": str(ziel)})
+    return protokoll
+
+
+def _raeume_nach_backups(cfg: dict, session: EnrollSession) -> Path:
+    """Den (nach dem Umzug PNG-losen) Session-Ordner nach backups/ verschieben.
+    Nie loeschen – move-don't-delete. Im Regelfall sind das einige KB
+    (session.json + journal.jsonl + optik/); Waisen-PNGs und Retake-Vorgaenger
+    fahren als Vollbilder mit, das sind dann Megabyte.
+
+    Das Ziel kommt aus paths.backups_dir und NICHT aus einem Literal: sonst
+    loeste resolve() immer gegen project_root() auf, und jeder Testlauf
+    schriebe in den echten Projektbaum."""
+    datum = datetime.now().strftime("%Y-%m-%d")
+    ziel = (resolve(cfg.get("paths", {}).get("backups_dir", "backups"))
+            / f"{datum}-enroll-sessions"
+            / f"{session.info.article_number}-{session.info.ts}")
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    if ziel.exists():
+        ziel = ziel.parent / f"{ziel.name}-{int(time.time() * 1000)}"
+    shutil.move(str(session.info.path), str(ziel))
+    return ziel
+
+
+def commit_enroll_session(cfg: dict, session: EnrollSession) -> int:
+    """Buchen unter INVARIANTE U1: erst ALLE N Dateien verschieben, danach ALLE
+    N Referenzzeilen und die Neuberechnung von reference_stats in GENAU EINER
+    Transaktion. Nie umgekehrt – die umgekehrte Reihenfolge erzeugt bei einem
+    Absturz dazwischen genau die Zeilen mit toten image_path, gegen die das
+    Paket gerichtet ist.
+
+    Liest das Journal von der Platte NEU und benutzt das uebergebene Objekt nur
+    fuer den Pfad: dieselbe Regel wie bei der Zuordnung i -> Endname. Ein
+    veraltetes In-Memory-Objekt kann damit keine falschen Werte buchen. Gebucht
+    werden die JOURNALWERTE.
+
+    Pruefungen vor dem ersten Schreibzugriff, in dieser Reihenfolge:
+      1. Lueckenlosigkeit (distinkte i == {0..N-1}, N >= 1)
+      2. Mount-Gleichheit (die Config kann sich seit dem Anlegen geaendert haben)
+      3. Fingerabdruck – der kritische Moment, hier entsteht sigma_enroll
+      4. Buchungsstand (leer / vollstaendig / dazwischen -> kind='invariante')
+
+    Bei Buchungsstand "vollstaendig" (Zustand 3: Absturz zwischen Transaktion
+    und Aufraeumen) werden Umzug und Transaktion UEBERSPRUNGEN – es folgt nur
+    das Aufraeumen. Rueckgabe ist in beiden Wegen N.
+    """
+    session = _lade_session(cfg, session.info.path)
+    _pruefe_luecken(session)
+    _pruefe_mount(cfg)
+    _pruefe_fingerabdruck(cfg, session)
+
+    artikel = session.info.article_number
+    ziele = _zielpfade(cfg, session)
+    nur_ziele = [z for _, _, z in ziele]
+
+    db = Database(cfg)
+    try:
+        stand = _pruefe_buchungsstand(db, artikel, nur_ziele)
+        if stand == "leer":
+            _move_session_files(cfg, session, ziele)
+            db.add_references(
+                artikel,
+                [(s.features, str(z)) for s, (_, _, z) in zip(session.shots, ziele)])
+    finally:
+        db.close()
+    _raeume_nach_backups(cfg, session)
+    return len(ziele)
+
+
+def discard_enroll_session(cfg: dict, session: EnrollSession, *,
+                           sheet_png=None) -> Path:
+    """Verwerfen: Rueckumzug, dann der VOLLSTAENDIGE Ordner nach
+    data/verworfen/<artikel>/<ts>/. Loescht nichts.
+
+    info.json protokolliert beide Orte vor dem Aufraeumen, jede Entscheidung je
+    i und jede verlorene Datei – das ist das "warum verworfen"-Material.
+    """
+    session = _lade_session(cfg, session.info.path)
+    artikel = session.info.article_number
+    ziele = _zielpfade(cfg, session)
+
+    db = Database(cfg)
+    try:
+        je_pfad = _zeilen_je_pfad(db, artikel, [z for _, _, z in ziele])
+    finally:
+        db.close()
+    protokoll = _reverse_move(cfg, session, ziele, je_pfad)
+
+    if sheet_png and Path(sheet_png).exists():
+        shutil.copy2(str(sheet_png), str(session.info.path / "diagnoseblatt.png"))
+    (session.info.path / "info.json").write_text(
+        json.dumps({"article_number": artikel, "ts": session.info.ts,
+                    "n_shots": session.info.n_shots,
+                    "grund": "im Einlerndialog verworfen",
+                    "rueckumzug": protokoll,
+                    "reference_dir": str(resolve(cfg["paths"]["reference_dir"])
+                                          / artikel)},
+                   ensure_ascii=False, indent=2), encoding="utf-8")
+
+    ts_name = datetime.fromtimestamp(session.info.ts / 1000.0).strftime(
+        "%Y%m%d-%H%M%S")
+    dest = (resolve(cfg["paths"]["reference_dir"]).parent / "verworfen"
+            / artikel / ts_name)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        dest = dest.parent / f"{ts_name}-{session.info.ts}"
+    shutil.move(str(session.info.path), str(dest))
+    return dest
+
+
+def remeasure_session(cfg: dict, session: EnrollSession,
+                      progress=None) -> tuple:
+    """Fortsetzen: jeden Shot aus seinem PNG NEU vermessen (~1 s je Shot).
+
+    LESEND – schreibt NICHTS, weder ins Journal noch sonstwohin. Fortsetzen ist
+    der Rettungspfad; eine Operation, die dort schreibt, kann den Zustand
+    beschaedigen, den sie retten soll. Ausserdem hat die Neumessung ungeprueften
+    Determinismus: driftete sie, wanderte der Drift bei jedem Fortsetzen ins
+    Journal und waere nach dreimaligem Fortsetzen eine sigma_enroll aus drei
+    Segmentierungslaeufen – dieselbe Vermischung, gegen die der Fingerabdruck
+    gebaut ist, nur innerhalb einer Session.
+
+    Gibt (Session mit den NEU gemessenen Werten, Abweichungsliste) zurueck.
+    Beides ausschliesslich ZUR ANZEIGE: commit_enroll_session liest das Journal
+    von der Platte und bucht die JOURNALWERTE.
+
+    Abweichung ist WARNUNG, nie Abbruch. Toleranz je Merkmal
+    0,1 * sigma_floor, bezogen ueber matcher._sigma_floor – NICHT ueber direktes
+    Lesen von matching.sigma_floors: nur _sigma_floor traegt die
+    _FLOOR_KEY-Zuordnung (delta_e_center/_rim -> delta_e, beide Histogramm-Zonen
+    -> hist_bhattacharyya). Direktes Lesen rechnete fuer diese vier Merkmale mit
+    Floor 0 – exakt der Fehler, den analysis.py gemacht hat.
+
+    progress(fertig, gesamt) wird je Shot gerufen.
+    """
+    from .matcher import _sigma_floor
+
+    session = _lade_session(cfg, session.info.path)
+    _pruefe_fingerabdruck(cfg, session)
+    floors = cfg["matching"]["sigma_floors"]
+
+    neue: list[SessionShot] = []
+    abweichungen: list[dict] = []
+    for k, shot in enumerate(session.shots, start=1):
+        bild = cv2.imread(str(shot.raw_path))
+        if bild is None:
+            raise EnrollSessionError(
+                f"Rohbild zu Shot {shot.i} nicht lesbar: {shot.raw_path}",
+                kind="datei_fehlt", detail={"i": shot.i,
+                                            "pfad": str(shot.raw_path)})
+        feats, _seg = measure_shot(bild, cfg)
+        neue.append(SessionShot(i=shot.i, raw_path=shot.raw_path,
+                                d_mm=feats.circle_diameter_mm, features=feats))
+        for name in SCALAR_FEATURES:
+            alt, neu = scalar_value(shot.features, name), scalar_value(feats, name)
+            if alt is None or neu is None:
+                continue
+            grenze = 0.1 * _sigma_floor(name, floors)
+            if abs(neu - alt) > grenze:
+                abweichungen.append({"i": shot.i, "merkmal": name,
+                                     "journal": alt, "neu": neu,
+                                     "delta": abs(neu - alt), "toleranz": grenze})
+        if progress is not None:
+            progress(k, len(session.shots))
+
+    return EnrollSession(info=session.info, shots=neue), abweichungen
 
 
 def confirm_result(report: MatchReport, article_number: str):

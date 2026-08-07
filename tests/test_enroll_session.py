@@ -1,12 +1,15 @@
-"""Tests für die crash-sichere Einlern-Session – Schritt 2 (Fassaden).
+"""Tests für die crash-sichere Einlern-Session (Schritte 2 und 3).
 
 Design: docs/superpowers/specs/2026-08-05-crashsichere-einlern-session-design.md
 
-Geprüft wird hier die ABLAGE, nicht der Umzug: Journal-Mechanik, N = distinkte
-i, Retake vernichtet nichts, append_shot weist Fremdpfade ab, Fingerabdruck
-(gesetzt in begin, geprüft in stage_frame), Lesbarkeit halber Journalzeilen,
-Durabilitäts-Reihenfolge. Umzug, Buchen, Verwerfen und remeasure_session
-kommen in Schritt 3 und werden hier NICHT berührt.
+Schritt 2 – die ABLAGE: Journal-Mechanik, N = distinkte i, Retake vernichtet
+nichts, append_shot weist Fremdpfade ab, Fingerabdruck (gesetzt in begin,
+geprüft in stage_frame), halbe Journalzeilen, Durabilitäts-Reihenfolge.
+
+Schritt 3 – UMZUG UND BUCHUNG: Invariante U1 (alle Dateien vor der
+Transaktion), die vier Fälle in beiden Richtungen, k<N als
+Invariantenverletzung, Zustand 3, Lückenlosigkeit, Fingerabdruck vor der
+Transaktion, und dass remeasure_session das Journal nicht anfasst.
 
 Ohne Qt, ohne Kamera, alles gegen Temp-Verzeichnisse und Temp-DBs.
 """
@@ -25,8 +28,10 @@ from docodetect.calibration import Calibration  # noqa: E402
 from docodetect.database import Article, Database  # noqa: E402
 from docodetect.features import Features  # noqa: E402
 from docodetect.pipeline import (EnrollSessionError, append_shot,  # noqa: E402
-                                 begin_enroll_session, list_enroll_sessions,
-                                 load_enroll_session, stage_frame)
+                                 begin_enroll_session, commit_enroll_session,
+                                 discard_enroll_session, list_enroll_sessions,
+                                 load_enroll_session, remeasure_session,
+                                 stage_frame)
 
 ARTIKEL = "T-270"
 
@@ -41,9 +46,14 @@ def make_cfg(tmp_path):
                         "background_file": str(tmp_path / "background.png")},
         "paths": {"db_file": str(tmp_path / "db.sqlite3"),
                   "reference_dir": str(tmp_path / "reference"),
-                  "enroll_sessions_dir": str(tmp_path / "enroll_sessions")},
+                  "enroll_sessions_dir": str(tmp_path / "enroll_sessions"),
+                  "backups_dir": str(tmp_path / "backups")},
         "features": {"ring_zones": {"center_max": 0.60, "rim_min": 0.75},
                      "hs_hist_bins": [16, 8]},
+        # Nur fuer remeasure_session: die Abweichungstoleranz ist
+        # 0,1 * sigma_floor, bezogen ueber matcher._sigma_floor.
+        "matching": {"sigma_floors": {"diameter_mm": 0.6, "circularity": 0.01,
+                                      "solidity": 0.01}},
     }
 
 
@@ -540,3 +550,353 @@ def test_fingerprint_ok_kippt_bei_neukalibrierung(cfg):
                 created_unix=1.0).save(cfg["calibration"]["file"])
     assert list_enroll_sessions(cfg)[0].fingerprint_ok is False
     assert s.info.path.is_dir(), "die Session bleibt bestehen, nur nicht fortsetzbar"
+
+
+# ============================================================================
+# Schritt 3: Umzug, Buchen, Verwerfen, remeasure_session
+# ============================================================================
+
+def _sitzung(cfg, n=3, start=270.0):
+    """Session mit n vermessenen Shots."""
+    s = begin_enroll_session(cfg, ARTIKEL, target_shots=n)
+    for k in range(n):
+        s = append_shot(cfg, s, stage_frame(cfg, s, _frame(100 + k)),
+                        _feats(start + k))
+    return s
+
+
+def _ziel(cfg, s, i):
+    return (Path(cfg["paths"]["reference_dir"]) / ARTIKEL
+            / f"{s.info.ts}_{i:02d}.png")
+
+
+def _refs(cfg):
+    db = Database(cfg)
+    try:
+        return db.references_with_meta(ARTIKEL)
+    finally:
+        db.close()
+
+
+# ---------- Buchen: der Normalfall ----------
+
+def test_commit_verschiebt_und_bucht(cfg):
+    s = _sitzung(cfg, 3)
+    quellen = [sh.raw_path for sh in s.shots]
+    assert commit_enroll_session(cfg, s) == 3
+
+    for i in range(3):
+        assert _ziel(cfg, s, i).is_file(), f"Shot {i} liegt im reference_dir"
+    assert not any(q.exists() for q in quellen), "die Quellen sind umgezogen"
+
+    meta = _refs(cfg)
+    assert [p for p, _ in meta] == [str(_ziel(cfg, s, i)) for i in range(3)]
+    assert not s.info.path.exists(), "Session-Ordner ist weggeraeumt"
+
+
+def test_commit_raeumt_nach_backups_statt_zu_loeschen(cfg):
+    s = _sitzung(cfg, 2)
+    commit_enroll_session(cfg, s)
+    treffer = list(Path(cfg["paths"]["backups_dir"]).glob(
+        f"*-enroll-sessions/{ARTIKEL}-{s.info.ts}"))
+    assert len(treffer) == 1, "Session-Rest liegt unter backups/"
+    assert (treffer[0] / "journal.jsonl").is_file()
+    assert (treffer[0] / "session.json").is_file()
+
+
+def test_commit_bucht_die_journalwerte(cfg):
+    s = _sitzung(cfg, 2, start=265.5)
+    commit_enroll_session(cfg, s)
+    gemessen = [f.circle_diameter_mm for _, f in _refs(cfg)]
+    assert gemessen == [265.5, 266.5]
+
+
+# ---------- U1: Dateien vor der Transaktion ----------
+
+def test_U1_dateien_liegen_im_ziel_bevor_die_transaktion_laeuft(cfg, monkeypatch):
+    """Bricht die Transaktion ab, muessen ALLE Dateien im Ziel liegen und die
+    DB LEER sein – das ist der wiederaufnehmbare Zustand. Die umgekehrte
+    Reihenfolge erzeugte Zeilen mit toten image_path."""
+    from docodetect.database import Database as _DB
+
+    def boom(self, nr, items):
+        raise RuntimeError("Transaktion abgebrochen")
+
+    s = _sitzung(cfg, 3)
+    monkeypatch.setattr(_DB, "add_references", boom)
+    with pytest.raises(RuntimeError):
+        commit_enroll_session(cfg, s)
+
+    for i in range(3):
+        assert _ziel(cfg, s, i).is_file(), "alle Dateien sind umgezogen"
+    assert _refs(cfg) == [], "die DB ist leer"
+    assert s.info.path.is_dir(), "die Session lebt und ist wiederaufnehmbar"
+
+    monkeypatch.undo()
+    assert commit_enroll_session(cfg, s) == 3, "zweites commit vollendet"
+    assert len(_refs(cfg)) == 3
+
+
+def test_zustand_nach_abgebrochener_transaktion(cfg, monkeypatch):
+    from docodetect.database import Database as _DB
+    s = _sitzung(cfg, 2)
+    monkeypatch.setattr(_DB, "add_references",
+                        lambda self, nr, items: (_ for _ in ()).throw(RuntimeError()))
+    with pytest.raises(RuntimeError):
+        commit_enroll_session(cfg, s)
+    assert load_enroll_session(cfg, s.info.path).info.zustand == "umzug_unterbrochen"
+
+
+# ---------- Vier Faelle vorwaerts ----------
+
+def test_umzug_ist_idempotent_teilweise_verschoben(cfg):
+    """Fall 'Quelle weg, Ziel da' -> ueberspringen. Der Abbruchpunkt mitten im
+    Umzug ist damit wiederaufnehmbar."""
+    s = _sitzung(cfg, 3)
+    ziel_dir = Path(cfg["paths"]["reference_dir"]) / ARTIKEL
+    ziel_dir.mkdir(parents=True, exist_ok=True)
+    import os as _os
+    _os.rename(str(s.shots[0].raw_path), str(_ziel(cfg, s, 0)))   # Shot 0 vorab
+
+    assert commit_enroll_session(cfg, s) == 3
+    assert len(_refs(cfg)) == 3
+
+
+def test_fremdkollision_bricht_ab(cfg):
+    """Fall 'Quelle da UND Ziel da' – das Ziel traegt die Session-ts, kann also
+    nicht von einer anderen Session desselben Artikels stammen."""
+    s = _sitzung(cfg, 2)
+    ziel_dir = Path(cfg["paths"]["reference_dir"]) / ARTIKEL
+    ziel_dir.mkdir(parents=True, exist_ok=True)
+    _ziel(cfg, s, 0).write_bytes(b"fremd")
+
+    with pytest.raises(EnrollSessionError) as e:
+        commit_enroll_session(cfg, s)
+    assert e.value.kind == "kollision"
+    assert _refs(cfg) == [], "nichts gebucht"
+    assert _ziel(cfg, s, 0).read_bytes() == b"fremd", "fremde Datei unangetastet"
+
+
+def test_verschwundene_datei_bricht_ab(cfg):
+    """Fall 'Quelle weg UND Ziel fehlt'."""
+    s = _sitzung(cfg, 2)
+    s.shots[1].raw_path.unlink()
+    with pytest.raises(EnrollSessionError) as e:
+        commit_enroll_session(cfg, s)
+    assert e.value.kind == "datei_fehlt"
+
+
+# ---------- k<N-Assertion und Zustand 3 ----------
+
+def test_k_kleiner_N_ist_eine_invariantenverletzung(cfg):
+    """Der Zustand DARF nicht entstehen – kein Angebot, nur Befund, und keine
+    Datei wird dabei bewegt."""
+    s = _sitzung(cfg, 3)
+    db = Database(cfg)
+    try:                                     # k=1 von 3 kuenstlich herstellen
+        db.add_reference(ARTIKEL, s.shots[0].features, str(_ziel(cfg, s, 0)))
+    finally:
+        db.close()
+
+    quellen_vorher = [q.exists() for q in (sh.raw_path for sh in s.shots)]
+    with pytest.raises(EnrollSessionError) as e:
+        commit_enroll_session(cfg, s)
+    assert e.value.kind == "invariante"
+    assert e.value.detail["erwartet_n"] == 3
+    assert len(e.value.detail["gefunden"]) == 1
+    assert [q.exists() for q in (sh.raw_path for sh in s.shots)] == quellen_vorher
+
+
+def test_zustand3_raeumt_nur_auf_und_bucht_nicht_doppelt(cfg):
+    """Absturz zwischen Transaktion und Aufraeumen: alle Zeilen da, alle
+    Dateien im Ziel, Session-Ordner steht noch."""
+    s = _sitzung(cfg, 2)
+    ziele = [_ziel(cfg, s, i) for i in range(2)]
+    ziele[0].parent.mkdir(parents=True, exist_ok=True)
+    import os as _os
+    for sh, z in zip(s.shots, ziele):
+        _os.rename(str(sh.raw_path), str(z))
+    db = Database(cfg)
+    try:
+        db.add_references(ARTIKEL, [(sh.features, str(z))
+                                    for sh, z in zip(s.shots, ziele)])
+    finally:
+        db.close()
+
+    assert load_enroll_session(cfg, s.info.path).info.zustand \
+        == "gebucht_aufraeumen_offen"
+    assert commit_enroll_session(cfg, s) == 2
+    assert len(_refs(cfg)) == 2, "nicht doppelt gebucht"
+    assert not s.info.path.exists()
+
+
+# ---------- Lueckenlosigkeit ----------
+
+def test_commit_verweigert_bei_luecke(cfg):
+    s = _sitzung(cfg, 2)
+    s = append_shot(cfg, s, stage_frame(cfg, s, _frame()), _feats(273.0), i=5)
+    with pytest.raises(EnrollSessionError) as e:
+        commit_enroll_session(cfg, s)
+    assert e.value.kind == "luecke"
+    assert _refs(cfg) == []
+
+
+def test_commit_verweigert_bei_null_shots(cfg):
+    s = begin_enroll_session(cfg, ARTIKEL, target_shots=3)
+    with pytest.raises(EnrollSessionError) as e:
+        commit_enroll_session(cfg, s)
+    assert e.value.kind == "luecke"
+
+
+# ---------- Fingerabdruck vor der Transaktion ----------
+
+def test_commit_verweigert_bei_geaenderter_optik(cfg):
+    """Der kritische Moment: hier entsteht sigma_enroll. Wuerde unter X
+    aufgenommen und unter X' gebucht, laege in reference_stats ein
+    sigma_enroll aus X, gegen das kuenftig unter X' gemessen wird."""
+    s = _sitzung(cfg, 2)
+    Calibration(mm_per_px=0.25, camera_height_mm=300.0, image_width=1920,
+                image_height=1080, marker_size_mm=50.0,
+                created_unix=1.0).save(cfg["calibration"]["file"])
+    with pytest.raises(EnrollSessionError) as e:
+        commit_enroll_session(cfg, s)
+    assert e.value.kind == "fingerprint"
+    assert _refs(cfg) == [], "nichts gebucht"
+    assert all(sh.raw_path.exists() for sh in s.shots), "keine Datei bewegt"
+    assert "optik_kopie" in e.value.detail, "der Ausweg wird genannt"
+
+
+# ---------- Verwerfen ----------
+
+def test_discard_schiebt_nach_verworfen_ohne_zu_loeschen(cfg):
+    s = _sitzung(cfg, 2)
+    dateien = [sh.raw_path.name for sh in s.shots]
+    ziel = discard_enroll_session(cfg, s)
+    assert ziel.is_dir()
+    assert not s.info.path.exists()
+    for n in dateien:
+        assert (ziel / n).is_file(), f"{n} ist erhalten"
+    assert (ziel / "info.json").is_file()
+    assert (ziel / "journal.jsonl").is_file()
+    assert _refs(cfg) == [], "kein DB-Eintrag"
+
+
+def test_discard_holt_bereits_verschobene_dateien_zurueck(cfg):
+    """Rueckumzug, Fall 'Quelle weg, Ziel da, keine DB-Zeile'. Ohne ihn waere
+    ein abgebrochener Umzug eine Sackgasse."""
+    s = _sitzung(cfg, 3)
+    ziel_dir = Path(cfg["paths"]["reference_dir"]) / ARTIKEL
+    ziel_dir.mkdir(parents=True, exist_ok=True)
+    import os as _os
+    _os.rename(str(s.shots[0].raw_path), str(_ziel(cfg, s, 0)))
+
+    ziel = discard_enroll_session(cfg, s)
+    assert not _ziel(cfg, s, 0).exists(), "aus reference_dir zurueckgeholt"
+    assert (ziel / s.shots[0].raw_path.name).is_file()
+    protokoll = json.loads((ziel / "info.json").read_text())["rueckumzug"]
+    assert protokoll[0]["aktion"] == "zurueckgeholt"
+
+
+def test_discard_laesst_gebuchte_referenz_in_ruhe(cfg):
+    """Rueckumzug, Fall 'Quelle weg, Ziel da, DB-Zeile vorhanden'. Die
+    DB-Schranke ist die entscheidende – sie verhindert, dass der Rueckumzug
+    eine echte Referenz aus reference_dir zieht."""
+    s = _sitzung(cfg, 2)
+    ziel_dir = Path(cfg["paths"]["reference_dir"]) / ARTIKEL
+    ziel_dir.mkdir(parents=True, exist_ok=True)
+    import os as _os
+    _os.rename(str(s.shots[0].raw_path), str(_ziel(cfg, s, 0)))
+    db = Database(cfg)
+    try:
+        db.add_reference(ARTIKEL, s.shots[0].features, str(_ziel(cfg, s, 0)))
+    finally:
+        db.close()
+
+    ziel = discard_enroll_session(cfg, s)
+    assert _ziel(cfg, s, 0).is_file(), "gebuchte Referenz bleibt liegen"
+    protokoll = json.loads((ziel / "info.json").read_text())["rueckumzug"]
+    assert protokoll[0]["aktion"] == "gebucht_nicht_angefasst"
+
+
+def test_discard_meldet_verlorene_datei_statt_zu_scheitern(cfg):
+    s = _sitzung(cfg, 2)
+    s.shots[1].raw_path.unlink()
+    ziel = discard_enroll_session(cfg, s)
+    protokoll = json.loads((ziel / "info.json").read_text())["rueckumzug"]
+    assert protokoll[1]["aktion"] == "VERLOREN"
+
+
+# ---------- remeasure_session ----------
+
+def _remeasure_mit(monkeypatch, feats_je_aufruf):
+    """measure_shot ersetzen: die Testframes sind flach und nicht
+    segmentierbar. Geprueft wird hier die Abweichungs- und Schreiblogik von
+    remeasure_session, NICHT die Messung selbst – die ist derselbe Aufruf, den
+    der Dialog heute schon macht und der anderswo abgedeckt ist."""
+    from docodetect import pipeline as pl
+    folge = iter(feats_je_aufruf)
+    monkeypatch.setattr(pl, "measure_shot",
+                        lambda bild, c: (next(folge), None))
+
+
+def test_remeasure_faesst_das_journal_NICHT_an(cfg, monkeypatch):
+    """Fortsetzen ist der Rettungspfad. Eine Operation, die dort schreibt, kann
+    den Zustand beschaedigen, den sie retten soll."""
+    s = _sitzung(cfg, 2, start=270.0)
+    journal = s.info.path / "journal.jsonl"
+    vorher = journal.read_bytes()
+
+    _remeasure_mit(monkeypatch, [_feats(299.0), _feats(298.0)])
+    neu, abw = remeasure_session(cfg, s)
+
+    assert journal.read_bytes() == vorher, "Journal Byte-fuer-Byte unveraendert"
+    assert [sh.d_mm for sh in neu.shots] == [299.0, 298.0], "neue Werte nur im Rueckgabewert"
+    assert len(abw) >= 2, "die Abweichung wird gemeldet"
+
+
+def test_commit_nach_remeasure_bucht_die_journalwerte(cfg, monkeypatch):
+    """Der Kern der Entscheidung: gebucht wird, was im Journal steht."""
+    s = _sitzung(cfg, 2, start=270.0)
+    _remeasure_mit(monkeypatch, [_feats(299.0), _feats(298.0)])
+    remeasure_session(cfg, s)
+    monkeypatch.undo()
+
+    commit_enroll_session(cfg, s)
+    assert [f.circle_diameter_mm for _, f in _refs(cfg)] == [270.0, 271.0]
+
+
+def test_remeasure_abweichung_ist_warnung_kein_abbruch(cfg, monkeypatch):
+    s = _sitzung(cfg, 2, start=270.0)
+    _remeasure_mit(monkeypatch, [_feats(270.0), _feats(280.0)])
+    neu, abw = remeasure_session(cfg, s)      # wirft NICHT
+    betroffen = {a["i"] for a in abw}
+    assert betroffen == {1}, "nur der abweichende Shot wird gemeldet"
+    d = [a for a in abw if a["merkmal"] == "diameter_mm"][0]
+    assert d["journal"] == 271.0 and d["neu"] == 280.0
+    assert d["toleranz"] == pytest.approx(0.06), "0,1 * sigma_floor 0,6"
+
+
+def test_remeasure_ohne_abweichung_meldet_nichts(cfg, monkeypatch):
+    s = _sitzung(cfg, 2, start=270.0)
+    _remeasure_mit(monkeypatch, [_feats(270.0), _feats(271.0)])
+    _neu, abw = remeasure_session(cfg, s)
+    assert abw == []
+
+
+def test_remeasure_verweigert_bei_geaenderter_optik(cfg, monkeypatch):
+    s = _sitzung(cfg, 2)
+    Calibration(mm_per_px=0.25, camera_height_mm=300.0, image_width=1920,
+                image_height=1080, marker_size_mm=50.0,
+                created_unix=1.0).save(cfg["calibration"]["file"])
+    _remeasure_mit(monkeypatch, [_feats(270.0), _feats(271.0)])
+    with pytest.raises(EnrollSessionError) as e:
+        remeasure_session(cfg, s)
+    assert e.value.kind == "fingerprint"
+
+
+def test_remeasure_meldet_fortschritt(cfg, monkeypatch):
+    s = _sitzung(cfg, 3, start=270.0)
+    _remeasure_mit(monkeypatch, [_feats(270.0), _feats(271.0), _feats(272.0)])
+    schritte = []
+    remeasure_session(cfg, s, progress=lambda k, n: schritte.append((k, n)))
+    assert schritte == [(1, 3), (2, 3), (3, 3)]

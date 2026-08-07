@@ -67,7 +67,22 @@ Neu in `config.yaml`:
 ```yaml
 paths:
   enroll_sessions_dir: data/enroll_sessions   # laufende Einlern-Sessions
+  backups_dir: backups                        # Ziel des Aufräumens (3.11)
 ```
+
+> **`backups_dir` nachgetragen 2026-08-06 aus der Umsetzung (Schritt 3).** Der
+> Schlüssel stand nicht im ursprünglichen Design: `_raeume_nach_backups` löste
+> gegen `project_root()` auf, also schrieb **jeder Testlauf in den echten
+> Projektbaum**. Mit eigenem Schlüssel zeigen Tests auf `tmp_path` und brauchen
+> gar kein Aufräumen mehr. `backups_dir` ist zugleich das **siebte**
+> Sandbox-Ziel (sechs per Schlüssel umgelenkt, `verworfen/` weiterhin
+> abgeleitet) — sonst archivierte eine Sandbox-Buchung nach produktiv.
+>
+> Beim Nachweis fiel ein **bestehender** Defekt derselben Klasse auf, der
+> nichts mit diesem Paket zu tun hat: ein Qt-Test schreibt
+> `reports/analysis/enrollment/DEMO-T18.png` in den echten Projektbaum
+> (`persist_enrollment_sheet` gegen ein nicht umgelenktes
+> `analysis.output_dir`). Notiert als Vormerkliste 20, hier nicht behoben.
 
 Aufgenommen in `config.sandbox_cfg` als **fünftes** umgelenktes Ziel
 (`data/sandbox/<name>/enroll_sessions`) und in `sandbox_pfade`. Die

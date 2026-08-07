@@ -134,14 +134,15 @@ def validate_sandbox_name(name: str) -> str:
 def sandbox_cfg(cfg: dict, name: str, *, verbose: bool = True) -> dict:
     """Kopie der Config, deren SCHREIB-Pfade unter data/sandbox/<name>/ liegen.
 
-    Betroffen sind genau die sechs Ziele, die ein Test-Enrollment samt
-    Prüflauf berührt — FÜNF davon per eigenem Config-Key umgelenkt, das
-    sechste (verworfen/) abgeleitet:
+    Betroffen sind genau die sieben Ziele, die ein Test-Enrollment samt
+    Prüflauf berührt — SECHS davon per eigenem Config-Key umgelenkt, das
+    siebte (verworfen/) abgeleitet:
 
         paths.db_file             -> data/sandbox/<name>/doco_detect.sqlite3
         paths.reference_dir       -> data/sandbox/<name>/reference
         paths.captures_dir        -> data/sandbox/<name>/captures
         paths.enroll_sessions_dir -> data/sandbox/<name>/enroll_sessions
+        paths.backups_dir         -> data/sandbox/<name>/backups
         analysis.output_dir       -> data/sandbox/<name>/reports
         (data/sandbox/<name>/verworfen folgt automatisch: discard_enrollment
          leitet den Pfad aus reference_dir.parent ab)
@@ -172,6 +173,7 @@ def sandbox_cfg(cfg: dict, name: str, *, verbose: bool = True) -> dict:
     out["paths"]["reference_dir"] = f"{root}/reference"
     out["paths"]["captures_dir"] = f"{root}/captures"
     out["paths"]["enroll_sessions_dir"] = f"{root}/enroll_sessions"
+    out["paths"]["backups_dir"] = f"{root}/backups"
     out["analysis"]["output_dir"] = f"{root}/reports"
     # Marker für die Sperren in CLI und Qt-UI. Bewusst im cfg und nicht als
     # Extra-Parameter: die Qt-Dialoge bekommen ausschliesslich cfg gereicht.
@@ -182,7 +184,7 @@ def sandbox_cfg(cfg: dict, name: str, *, verbose: bool = True) -> dict:
 
 
 def sandbox_pfade(cfg: dict) -> dict:
-    """Die sechs Sandbox-Ziele, aufgelöst – EINE Definition.
+    """Die sieben Sandbox-Ziele, aufgelöst – EINE Definition.
 
     Startmeldung und Verzeichnisanlage müssen zwingend dieselben Ziele
     meinen. Getrennt gepflegt driften sie beim nächsten hinzugefügten Pfad
@@ -195,32 +197,33 @@ def sandbox_pfade(cfg: dict) -> dict:
         "verworfen": ref.parent / "verworfen",
         "captures": resolve(cfg["paths"]["captures_dir"]),
         "einlern_sessions": resolve(cfg["paths"]["enroll_sessions_dir"]),
+        "backups": resolve(cfg["paths"]["backups_dir"]),
         "berichte": resolve(cfg["analysis"]["output_dir"]),
     }
 
 
 def sandbox_banner(cfg: dict) -> str:
-    """Die sechs aufgelösten Sandbox-Pfade als Startmeldung.
+    """Die sieben aufgelösten Sandbox-Pfade als Startmeldung.
 
     Beantwortet den einzigen ernsthaften Einwand gegen das Umlenken von
     analysis.output_dir („dann liegt das Diagnoseblatt nicht am gewohnten
     Ort"): es steht beim Start da, wo es liegt."""
     return ("[sandbox] '{name}' aktiv — db={db} · referenzen={referenzen} · "
             "verworfen={verworfen} · captures={captures} · "
-            "einlern-sessions={einlern_sessions} · "
+            "einlern-sessions={einlern_sessions} · backups={backups} · "
             "berichte={berichte}").format(name=cfg.get("sandbox"),
                                           **sandbox_pfade(cfg))
 
 
 def sandbox_verzeichnisse_anlegen(cfg: dict) -> list:
-    """Die sechs Sandbox-Ziele anlegen. Gibt die NEU angelegten zurück.
+    """Die sieben Sandbox-Ziele anlegen. Gibt die NEU angelegten zurück.
 
     Ohne das scheitert der erste Befehl in einer frischen Sandbox an
     `sqlite3.OperationalError: unable to open database file`: sqlite legt die
     DATEI an, nicht ihren Ordner. Die übrigen Ziele legen ihre Schreiber
     zwar selbst an (`_save_capture_and_report`, `enroll`, `discard_enrollment`,
     `analyze`, das Anlegen einer Einlern-Session), aber erst im Moment des
-    ersten Schreibens – die Startmeldung nennt dann sechs Pfade, von denen
+    ersten Schreibens – die Startmeldung nennt dann sieben Pfade, von denen
     keiner existiert.
 
     Bewusst NICHT in `sandbox_cfg`: die bleibt eine reine Config-Umformung
@@ -231,7 +234,7 @@ def sandbox_verzeichnisse_anlegen(cfg: dict) -> list:
     p = sandbox_pfade(cfg)
     ordner = [p["db"].parent,        # nur der Ordner; die Datei macht sqlite
               p["referenzen"], p["verworfen"], p["captures"],
-              p["einlern_sessions"], p["berichte"]]
+              p["einlern_sessions"], p["backups"], p["berichte"]]
     neu = [d for d in ordner if not d.exists()]
     for d in ordner:
         d.mkdir(parents=True, exist_ok=True)

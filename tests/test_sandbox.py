@@ -1,8 +1,8 @@
 """Tests für den isolierten Testbestand (--sandbox NAME).
 
 Zweck der Sandbox: ein komplettes Test-Enrollment samt Prüflauf fahren, ohne
-produktive Referenzen, DB, Captures oder Berichte anzufassen. Sechs Ziele
-sind betroffen (fünf per Config-Key umgelenkt, verworfen/ abgeleitet),
+produktive Referenzen, DB, Captures oder Berichte anzufassen. Sieben Ziele
+sind betroffen (sechs per Config-Key umgelenkt, verworfen/ abgeleitet),
 ZWEI bewusst NICHT — calibration.file und
 background_file bleiben geteilt, weil ein Test-Enrollment gegen eine andere
 Skala nichts misst. Genau daraus folgen die Sperren: was die geteilten
@@ -41,21 +41,23 @@ def _cfg():
         "paths": {"db_file": "doco_detect.sqlite3",
                   "reference_dir": "data/reference",
                   "captures_dir": "data/captures",
-                  "enroll_sessions_dir": "data/enroll_sessions"},
+                  "enroll_sessions_dir": "data/enroll_sessions",
+                  "backups_dir": "backups"},
         "analysis": {"output_dir": "reports/analysis",
                      "publish_dir": "reports/archive"},
     }
 
 
-# ---------- Umlenkung: die sechs Pfade ----------
+# ---------- Umlenkung: die sieben Pfade ----------
 
-def test_sandbox_lenkt_die_sechs_schreibpfade_um():
+def test_sandbox_lenkt_die_sieben_schreibpfade_um():
     out = sandbox_cfg(_cfg(), "testlauf1", verbose=False)
     root = f"{SANDBOX_ROOT}/testlauf1"
     assert out["paths"]["db_file"] == f"{root}/doco_detect.sqlite3"
     assert out["paths"]["reference_dir"] == f"{root}/reference"
     assert out["paths"]["captures_dir"] == f"{root}/captures"
     assert out["paths"]["enroll_sessions_dir"] == f"{root}/enroll_sessions"
+    assert out["paths"]["backups_dir"] == f"{root}/backups"
     assert out["analysis"]["output_dir"] == f"{root}/reports"
     assert out["sandbox"] == "testlauf1"
 
@@ -128,12 +130,12 @@ def test_publish_dir_wird_nicht_umgelenkt():
     assert out["analysis"]["publish_dir"] == "reports/archive"
 
 
-def test_startzeile_nennt_alle_sechs_pfade(capsys):
+def test_startzeile_nennt_alle_sieben_pfade(capsys):
     sandbox_cfg(_cfg(), "testlauf1")
     zeile = capsys.readouterr().out
     assert "[sandbox] 'testlauf1' aktiv" in zeile
     for teil in ("db=", "referenzen=", "verworfen=", "captures=",
-                 "einlern-sessions=", "berichte="):
+                 "einlern-sessions=", "backups=", "berichte="):
         assert teil in zeile
     assert str(project_root() / SANDBOX_ROOT / "testlauf1") in zeile
 
@@ -150,19 +152,20 @@ def _abs_cfg(tmp_path):
     cfg["paths"]["reference_dir"] = str(root / "reference")
     cfg["paths"]["captures_dir"] = str(root / "captures")
     cfg["paths"]["enroll_sessions_dir"] = str(root / "enroll_sessions")
+    cfg["paths"]["backups_dir"] = str(root / "backups")
     cfg["analysis"]["output_dir"] = str(root / "reports")
     cfg["sandbox"] = "testlauf1"
     return cfg
 
 
-def test_alle_sechs_ziele_existieren_nach_dem_anlegen(tmp_path):
+def test_alle_sieben_ziele_existieren_nach_dem_anlegen(tmp_path):
     cfg = _abs_cfg(tmp_path)
     sandbox_verzeichnisse_anlegen(cfg)
     p = sandbox_pfade(cfg)
     assert p["db"].parent.is_dir()      # nur der Ordner – die Datei macht sqlite
     assert not p["db"].exists()
     for schluessel in ("referenzen", "verworfen", "captures",
-                       "einlern_sessions", "berichte"):
+                       "einlern_sessions", "backups", "berichte"):
         assert p[schluessel].is_dir(), schluessel
 
 
@@ -178,10 +181,10 @@ def test_einlern_sessions_liegen_auf_demselben_mount_wie_reference_dir(tmp_path)
 
 def test_anlegen_meldet_nur_das_neue_und_ist_idempotent(tmp_path):
     """`neu` wird VOR dem ersten mkdir bestimmt: bei einer frischen Sandbox
-    sind das alle sechs, auch der Wurzelordner (Elternteil der DB-Datei), der
+    sind das alle sieben, auch der Wurzelordner (Elternteil der DB-Datei), der
     danach ohnehin durch parents=True mit entstünde."""
     cfg = _abs_cfg(tmp_path)
-    assert len(sandbox_verzeichnisse_anlegen(cfg)) == 6
+    assert len(sandbox_verzeichnisse_anlegen(cfg)) == 7
     assert sandbox_verzeichnisse_anlegen(cfg) == []
     # Teilfall: nur ein Ziel fehlt -> genau eines wird gemeldet
     import shutil

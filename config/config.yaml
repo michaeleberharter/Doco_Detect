@@ -149,6 +149,11 @@ paths:
   # MUSS dieser Pfad auf demselben Dateisystem liegen wie reference_dir —
   # geprueft zur Laufzeit beim Anlegen und vor dem Umzug.
   enroll_sessions_dir: data/enroll_sessions
+  # Archiv fuer Verschobenes statt Geloeschtes (move-don't-delete). Gebuchte
+  # Einlern-Sessions landen hier als <datum>-enroll-sessions/<artikel>-<ts>/.
+  # Eigener Key, damit Tests und Sandbox ihn umlenken koennen — sonst schriebe
+  # jeder Testlauf in den echten Projektbaum.
+  backups_dir: backups
   # Korpus des Regressions-Harness (docodetect/corpus). Bewusst AUSSERHALB
   # des Repos: der Korpus enthaelt hunderte 4K-PNGs. Versioniert wird nur
   # corpus/manifest.json im Repo, dessen Pfade relativ zu diesem Verzeichnis
