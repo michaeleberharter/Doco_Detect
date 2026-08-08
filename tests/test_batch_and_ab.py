@@ -1,11 +1,17 @@
-"""Tests für die Messreihen-Helfer (batch-create/batch-enroll) und den
-A/B-Vergleich (ab-report).
+"""Tests für die Messreihen-Helfer (batch-create/batch-enroll), die
+CLI-Befehle `delete-references` und `list-articles` und den A/B-Vergleich
+(ab-report).
 
 Beide sind dünne Wrapper: die Batch-Kommandos nutzen exakt dieselben Kerne wie
 `create-article`/`enroll`, `ab-report` dieselbe Aggregation wie `evaluate`.
 Getestet wird deshalb vor allem die BEDIENUNG (q = Abbruch, r = verwerfen und
 wiederholen) und dass ein verworfener Artikel wirklich verschwindet – sonst
 verfälschen Fehlmessungen still die Messreihe.
+
+`delete-references` steht hier, weil es denselben DB-Kern benutzt wie der
+„r"-Zweig von batch-enroll (Database.delete_references) und dieselbe Umgebung
+braucht. Geprüft wird zusätzlich das, was der CLI-Befehl eigenmächtig tut:
+Fotos VERSCHIEBEN statt löschen und die beiden Exit-Codes unterscheiden.
 
 Ohne Kamera: die Aufnahme wird durch ein synthetisches Bild ersetzt
 (conftest.py sperrt echte Geräte ohnehin).
@@ -190,6 +196,224 @@ def test_delete_references_keeps_article(batch_env, monkeypatch):
         assert db.stats_for("LOEFFEL-1") is None         # Statistik mit geleert
     finally:
         db.close()
+
+
+# ---------- delete-references (CLI) ----------
+
+def _mit_einem_artikel(env, monkeypatch):
+    """LOEFFEL-1 anlegen (1 Referenz + 1 Foto auf Platte)."""
+    _answers(monkeypatch, ["", ""])
+    cli.cmd_batch_create(
+        Namespace(name_prefix="Löffel", count=1, height_mm=0.0, category=None),
+        env)
+    return Path(env["paths"]["reference_dir"]) / "LOEFFEL-1"
+
+
+def test_cli_delete_references_leert_db_und_behaelt_artikel(batch_env, monkeypatch):
+    _mit_einem_artikel(batch_env, monkeypatch)
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+    db = Database(batch_env)
+    try:
+        assert db.get_article("LOEFFEL-1") is not None    # Artikel bleibt
+        assert db.references_for("LOEFFEL-1") == []
+        # reference_stats MUSS mit weg: der Matcher liest has_references aus
+        # stats_for() – eine übrig gebliebene Zeile führte den Artikel weiter
+        # als eingelernt, ohne dass es noch Referenzen gäbe.
+        assert db.stats_for("LOEFFEL-1") is None
+    finally:
+        db.close()
+
+
+def test_cli_delete_references_verschiebt_fotos_statt_zu_loeschen(batch_env,
+                                                                  monkeypatch):
+    """move-don't-delete: der Ordner ist weg, sein Inhalt liegt vollständig
+    unter verworfen/<nr>/<zeitstempel>/ – samt info.json als Beleg."""
+    import json
+
+    ref_ordner = _mit_einem_artikel(batch_env, monkeypatch)
+    fotos = sorted(p.name for p in ref_ordner.glob("*.png"))
+    assert fotos, "Vorbedingung: batch-create legt ein Foto ab"
+
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+
+    assert not ref_ordner.exists()
+    verworfen = ref_ordner.parent.parent / "verworfen" / "LOEFFEL-1"
+    ziele = list(verworfen.iterdir())
+    assert len(ziele) == 1, "genau ein Zeitstempel-Ordner"
+    assert sorted(p.name for p in ziele[0].glob("*.png")) == fotos
+    info = json.loads((ziele[0] / "info.json").read_text(encoding="utf-8"))
+    assert info["article_number"] == "LOEFFEL-1"
+    assert info["geloeschte_db_zeilen"] == 1
+    assert info["verschobene_dateien"] == len(fotos)
+    assert info["zeilen_ohne_image_path"] == 0
+
+
+def test_cli_delete_references_folgt_dem_reference_dir(tmp_path, batch_env,
+                                                       monkeypatch):
+    """Das Ziel entsteht AUS reference_dir (../verworfen/), nie aus einem
+    Literal – nur so landet der Befehl unter --sandbox im Sandbox-Baum statt
+    im produktiven data/verworfen/. Dass reference_dir selbst umgelenkt wird,
+    prüft test_sandbox.py; hier zählt die Ableitung."""
+    _mit_einem_artikel(batch_env, monkeypatch)
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+    assert (tmp_path / "verworfen" / "LOEFFEL-1").is_dir()
+
+
+def test_cli_delete_references_ohne_referenzen_ist_exit_0(batch_env, monkeypatch,
+                                                          capsys):
+    """Zielzustand schon erreicht: idempotent, kein Abbruch."""
+    _mit_einem_artikel(batch_env, monkeypatch)
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+    capsys.readouterr()
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+    assert "keine Referenzen" in capsys.readouterr().out
+
+
+def test_cli_delete_references_unbekannter_artikel_ist_exit_1(batch_env):
+    """Muss sich vom Leerfall unterscheiden: delete_references() gibt für
+    beide 0 zurück, der Tippfehler darf nicht still durchlaufen."""
+    with pytest.raises(SystemExit) as e:
+        cli.cmd_delete_references(Namespace(article_number="GIBTSNICHT"),
+                                  batch_env)
+    assert e.value.code != 0
+    assert "nicht gefunden" in str(e.value)
+
+
+def test_cli_delete_references_zweimal_in_derselben_sekunde(batch_env,
+                                                            monkeypatch):
+    """Zwei Läufe im selben Zeitstempel dürfen nicht ineinander verschachteln
+    (shutil.move in einen EXISTIERENDEN Ordner legt ihn sonst hinein)."""
+    ref_ordner = _mit_einem_artikel(batch_env, monkeypatch)
+    db = Database(batch_env)
+    try:
+        feats = db.references_for("LOEFFEL-1")[0]     # für die zweite Runde
+    finally:
+        db.close()
+    monkeypatch.setattr(cli.time, "strftime", lambda *a: "20260801-120000")
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+
+    ref_ordner.mkdir(parents=True)
+    (ref_ordner / "zweite_runde.png").write_bytes(b"x")
+    db = Database(batch_env)
+    try:
+        db.add_reference("LOEFFEL-1", feats,
+                         str(ref_ordner / "zweite_runde.png"))
+    finally:
+        db.close()
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+
+    verworfen = ref_ordner.parent.parent / "verworfen" / "LOEFFEL-1"
+    assert sorted(p.name for p in verworfen.iterdir()) == [
+        "20260801-120000", "20260801-120000-2"]
+    assert (verworfen / "20260801-120000-2" / "zweite_runde.png").exists()
+
+
+# ---------- list-articles (CLI) ----------
+
+def _teller_ohne_referenzen(env, nummer="TELLER-1"):
+    """Runder Artikel MIT Höhe und OHNE Referenzen – deckt die drei Zweige ab,
+    die batch-create nicht erzeugt (Ø statt B×T, Höhe gesetzt, 0 Referenzen)."""
+    from docodetect.database import Article
+    db = Database(env)
+    db.init_schema()
+    try:
+        db.create_article(Article(
+            article_number=nummer, name="Teller rund", category="Teller",
+            diameter_mm=200.0, width_mm=None, depth_mm=None, height_mm=20.0,
+            color_desc="weiss", notes=None))
+    finally:
+        db.close()
+
+
+def test_list_articles_zeigt_masse_und_referenzzahl(batch_env, monkeypatch,
+                                                    capsys):
+    _mit_einem_artikel(batch_env, monkeypatch)      # LOEFFEL-1, länglich, 1 Ref
+    _teller_ohne_referenzen(batch_env)
+    capsys.readouterr()
+
+    cli.cmd_list_articles(Namespace(), batch_env)
+    out = capsys.readouterr().out
+
+    # init_schema() meldet sich vor der Tabelle – Kopfzeile über den Inhalt
+    # finden, nicht über die Position.
+    zeilen = out.splitlines()
+    kopf = next(z for z in zeilen if z.startswith("Artikelnummer"))
+    assert kopf.split() == ["Artikelnummer", "Bezeichnung", "Maße", "Referenzen"]
+    loeffel = next(z for z in zeilen if z.startswith("LOEFFEL-1"))
+    teller = next(z for z in zeilen if z.startswith("TELLER-1"))
+    assert "×" in loeffel and "mm" in loeffel      # länglich -> B × T
+    assert loeffel.split()[-1] == "1"
+    assert "Ø 200.0 mm" in teller and "h 20 mm" in teller
+    assert teller.split()[-1] == "0"               # ohne Referenzen, nicht fehlend
+    assert "2 Artikel, davon 1 eingelernt (1 Referenz gesamt)." in out
+
+
+def test_list_articles_leere_datenbank_ist_kein_fehler(batch_env, capsys):
+    """Schema da, aber keine Artikel: Exit 0 mit Hinweis."""
+    db = Database(batch_env)
+    db.init_schema()
+    db.close()
+    capsys.readouterr()
+    cli.cmd_list_articles(Namespace(), batch_env)   # darf nicht werfen
+    assert "Keine Artikel" in capsys.readouterr().out
+
+
+def test_list_articles_ohne_schema_ist_exit_1(batch_env):
+    """Kein Schema ist ein anderer Zustand als 'keine Artikel' – ein
+    vertippter Sandbox-Name darf nicht wie ein leerer Bestand aussehen."""
+    with pytest.raises(SystemExit) as e:
+        cli.cmd_list_articles(Namespace(), batch_env)
+    assert e.value.code != 0
+    assert "init-db" in str(e.value)
+
+
+def test_list_articles_schreibt_nicht_in_die_datenbank(batch_env, monkeypatch):
+    """Auflisten muss lesend sein. Mit init_schema() liefe bei JEDEM Aufruf
+    recompute_all_stats() und schriebe alle reference_stats neu."""
+    _mit_einem_artikel(batch_env, monkeypatch)
+    db_datei = Path(batch_env["paths"]["db_file"])
+    vorher = db_datei.read_bytes()
+    cli.cmd_list_articles(Namespace(), batch_env)
+    assert db_datei.read_bytes() == vorher
+
+
+def test_list_articles_spalten_sind_ausgerichtet(batch_env, monkeypatch, capsys):
+    """Verschieden lange Nummern dürfen die Spalten nicht verschieben – sonst
+    ist die Liste bei 40 Artikeln nicht mehr lesbar."""
+    _answers(monkeypatch, ["", ""] * 11)
+    cli.cmd_batch_create(
+        Namespace(name_prefix="Löffel", count=11, height_mm=0.0, category=None),
+        batch_env)
+    capsys.readouterr()
+
+    cli.cmd_list_articles(Namespace(), batch_env)
+    zeilen = [z for z in capsys.readouterr().out.splitlines()
+              if z.startswith("LOEFFEL-")]
+    assert len(zeilen) == 11
+    # LOEFFEL-1 und LOEFFEL-11 verschieden lang -> Bezeichnung muss trotzdem
+    # in derselben Spalte beginnen
+    spalten = {z.index("Löffel ") for z in zeilen}
+    assert len(spalten) == 1
+
+
+def test_list_articles_geometrie_ohne_masse_wirft_nicht(batch_env, capsys):
+    """CSV-Import ohne Geometriespalten: die frühere Formatierung wäre an
+    None gescheitert."""
+    from docodetect.database import Article
+    db = Database(batch_env)
+    db.init_schema()
+    try:
+        db.create_article(Article(
+            article_number="OHNE-MASS", name="Nur Stammdaten", category=None,
+            diameter_mm=None, width_mm=None, depth_mm=None, height_mm=None,
+            color_desc=None, notes=None))
+    finally:
+        db.close()
+    capsys.readouterr()
+    cli.cmd_list_articles(Namespace(), batch_env)
+    zeile = next(z for z in capsys.readouterr().out.splitlines()
+                 if z.startswith("OHNE-MASS"))
+    assert "—" in zeile
 
 
 # ---------- ab-report ----------

@@ -46,7 +46,8 @@ from .plotstyle import (DIV, OUTLIER, PALETTE, SEQ, apply_style,  # noqa: E402,F
                         panel_label)
 from .database import Database  # noqa: E402
 from .features import height_corrected_scale  # noqa: E402
-from .matcher import CHANNELS, CandidateReport, MatchReport, channel_scores  # noqa: E402, F401
+from .matcher import (CHANNELS, CandidateReport, MatchReport,  # noqa: E402, F401
+                      _FLOOR_KEY, channel_scores)
 from .reporting import NO_MATCH, judgement, load_reports, predicted_article  # noqa: E402
 
 
@@ -1132,7 +1133,12 @@ def _analysis_discriminability(reports, out: Path, run_id: str, cfg: dict) -> _S
         sa, sb = stats.get(a), stats.get(b)
         if not sa or not sb:
             return np.nan
-        floor = float(floors.get(f, 0.0))
+        # ueber _FLOOR_KEY, nicht ueber den Merkmalsnamen: zwei Zonen teilen
+        # sich einen Floor (delta_e_center/-_rim -> delta_e, hist_* ->
+        # hist_bhattacharyya). Direkt nachgeschlagen liefern genau diese vier
+        # Farbmerkmale 0.0 und erscheinen dadurch 1,3-2,3x trennschaerfer als
+        # sie sind (docs/2026-08-01-analysis-floor-key-befund.md).
+        floor = float(floors.get(_FLOOR_KEY.get(f, f), 0.0))
         if f in SCALAR_FEATURES:
             ma, mb = sa.scalar_mean.get(f), sb.scalar_mean.get(f)
             if ma is None or mb is None:
@@ -1145,7 +1151,15 @@ def _analysis_discriminability(reports, out: Path, run_id: str, cfg: dict) -> _S
                 return np.nan
             loc = _PROTO_SRC[f][1](pa, pb)      # Prototyp-Distanz
             va, vb = sa.proto_std.get(f, 0.0), sb.proto_std.get(f, 0.0)
-        seff = math.sqrt((max(va, floor) ** 2 + max(vb, floor) ** 2) / 2) or 1e-9
+        seff = math.sqrt((max(va, floor) ** 2 + max(vb, floor) ** 2) / 2)
+        if seff <= 0:
+            # Kein Floor UND beidseitig keine Streuung (z.B. 1-Shot-Artikel:
+            # _proto_stats gibt bei <2 Vektoren 0 zurueck). Das ist keine
+            # sinnvolle Vergleichsseite. Frueher zog hier ein `or 1e-9` und
+            # erzeugte Trennschaerfen der Groessenordnung 1e10, die zusaetzlich
+            # Sortierung und Farbskala der Matrix bestimmten. NaN ist ehrlich
+            # und wird von cmap.set_bad bereits maskiert.
+            return np.nan
         return loc / seff
 
     mat = np.array([[sep(a, b, f) for f in feats] for a, b in sorted(pairs)],

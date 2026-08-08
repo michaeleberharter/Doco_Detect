@@ -8,8 +8,8 @@ falsch, sie ist nur nicht durchführbar.
 
 Die Karten rechnen NIE selbst. Alle Zahlen kommen fertig aus dem
 MatchReport; die mm-Strings stammen aus den zentralen Anzeige-Helfern in
-docodetect.pipeline (Re-Export aus display.py), damit die Qt- und die
-Streamlit-UI exakt denselben Text zeigen.
+docodetect.pipeline (Re-Export aus display.py), damit UI und CLI exakt
+denselben Text zeigen.
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ class ResultCard(QFrame):
         lay.addWidget(self.gauge)
 
         # Die zentralen Helfer bleiben sichtbar: sie nennen u.a., mit welcher
-        # Artikelhöhe der Ø korrigiert wurde – dieselbe Zeile wie in Streamlit.
+        # Artikelhöhe der Ø korrigiert wurde – dieselbe Zeile wie in der CLI.
         self._diameter_label = QLabel(format_diameter(candidate), self)
         self._diameter_label.setObjectName("cardMeasure")
         self._diameter_label.setWordWrap(True)
@@ -232,8 +232,8 @@ class ResultHeader(QWidget):
         self.badge.set_tone(tone)
         # Das führende ✓ aus dem gemeinsamen headline()-Helfer entfällt hier:
         # das Badge links sagt dasselbe, und IBM Plex Sans trägt das Zeichen
-        # nicht (Qt ersetzt es durch ein √). Der Wortlaut bleibt unangetastet
-        # und identisch zur Streamlit-UI.
+        # nicht (Qt ersetzt es durch ein √). Der Wortlaut selbst bleibt
+        # unangetastet und identisch zum zentralen Helfer.
         self.text.setText(text[1:].strip() if text.startswith("✓") else text)
         self.text.setProperty("tone", tone)
         self.text.style().unpolish(self.text)
@@ -355,9 +355,9 @@ class CandidateRow(QFrame):
         name = QLabel(f"{rank}. {candidate.name}", self)
         name.setObjectName("rowName")
         left.addWidget(name)
-        # Δ kommt aus dem zentralen Helfer, damit Qt und Streamlit dieselbe
-        # Zahl im selben Format zeigen (der Entwurf gibt nur das Layout vor,
-        # nicht die Formatierung).
+        # Δ kommt aus dem zentralen Helfer, damit UI und CLI dieselbe Zahl im
+        # selben Format zeigen (der Entwurf gibt nur das Layout vor, nicht die
+        # Formatierung).
         meta = QLabel(f"DB {_de(candidate.nominal_size_mm, 0)} · "
                       f"{format_delta(candidate, cfg)}", self)
         meta.setObjectName("rowMeta")

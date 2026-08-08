@@ -1,5 +1,37 @@
 # Aufgeschobene Messpfad-Änderungen — nächste Runde (Stand 2026-07-28)
 
+> ## NACHTRAG 2026-08-01: ERLEDIGT am 2026-07-29 — dieses Dokument ist kein offener Auftrag mehr
+>
+> Alle drei Änderungen sind mit Commit **`59edc46`** („Messpfad-Runde:
+> Prefilter-Liste, lat_p98, µs-timestamp im Report", 2026-07-29) umgesetzt:
+>
+> | Punkt | Stand heute |
+> |---|---|
+> | 1. Prefilter-Liste | `matcher.py` führt `prefiltered` als Feld des Reports und protokolliert **jeden** Kill mit Grund (`diameter`/`area`) und Abstand zur Toleranz |
+> | 2. `lat_p98` | `features.py` berechnet und speichert `lat_p98_mm`; `0.0` markiert Referenzen von vor der Einführung |
+> | 3. µs-`timestamp` | `matcher.py` schreibt `isoformat(timespec="microseconds")` |
+>
+> **Der Satz „Damit ist die risikotragende Größe derzeit nicht messbar" gilt
+> nicht mehr.** Der Fixpunkt-Test vom 2026-08-01 hat die Prefilter-Kills
+> ausgewertet — Befund 5: bei allen 15 Aufnahmen steht der wahre Artikel im
+> Kandidatenset, kein einziger Kill des korrekten Artikels
+> ([2026-08-01-fixpunkt-test-scoring.md](2026-08-01-fixpunkt-test-scoring.md)).
+> Und die Simulation vom selben Tag hat die Gegenrichtung gemessen: ein
+> **engerer** Vorfilter tötet den wahren Artikel und lässt einen falschen
+> konkurrenzlos gewinnen (`k_safe` 166 → 35 bei `diameter_tolerance_mm` 4,0,
+> [2026-08-01-scoring-simulation-widerlegte-thesen.md](2026-08-01-scoring-simulation-widerlegte-thesen.md),
+> Abschnitt 3).
+>
+> **Die Vorhersage aus „Warum gebündelt" hat gehalten:** es war ein
+> Cache-Recompute, kein Baseline-Update. Beide `--check`-Läufe am 2026-07-31
+> waren Exit 0, alle Tier-2-Quoten deckten sich exakt mit der unveränderten
+> Baseline ([2026-07-31-baseline-code-fingerprint.md](2026-07-31-baseline-code-fingerprint.md)).
+> Offen blieb allein die dort beschriebene Cache-Folge: die Baseline trägt noch
+> den `code_fingerprint` von **vor** dieser Runde, `--changed-only` rechnet
+> deshalb mehr neu als nötig.
+>
+> Der Text unten bleibt unverändert als Herleitung stehen.
+
 Drei Änderungen hängen am selben Ort (was in die Messung bzw. ins Report-JSON
 geschrieben wird) und lohnen sich **gebündelt**, nicht einzeln. Alle drei sind
 Messpfad-Eingriffe und wurden bewusst aufgeschoben — der Diagnose-Ausbau vom

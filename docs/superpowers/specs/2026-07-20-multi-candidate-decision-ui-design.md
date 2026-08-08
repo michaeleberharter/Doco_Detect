@@ -1,5 +1,12 @@
 # Spec: Mehrkandidaten-Entscheidungspfad sichtbar machen (beide UIs)
 
+> **HISTORISCH — Marker gesetzt 2026-08-01.** Inhalt unverändert. „Beide UIs"
+> meint Qt **und Streamlit**; die Streamlit-UI wurde am 2026-08-01 entfernt
+> (Commit `07586b5`). **Vorsicht beim Zitieren:** Diese Spec enthält
+> Layout-Entscheidungen für eine UI, die es nicht mehr gibt — sie sind Beleg
+> für die damalige Abwägung, keine geltende Vorgabe. Was in Qt tatsächlich
+> gebaut wurde, steht im Code (`docodetect/ui_qt/`).
+
 Datum: 2026-07-20 · Status: vom User freigegeben (Design-Gespräch)
 
 ## Kontext und Grundsatzentscheidungen

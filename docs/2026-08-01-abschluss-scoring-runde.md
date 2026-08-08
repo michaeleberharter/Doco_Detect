@@ -95,6 +95,26 @@ Fehlbuchungen bei baugleichen Artikeln.
   Nachschlag mit fixierter Reihenfolge, das Nullmodell bei D8. Jedes Mal war
   das die Zahl, die den Befund entschieden hat, statt ihn plausibel zu machen.
 
+### Nachtrag 2026-08-01: eine fehlerhafte Auswertungsschicht invertiert Empfehlungen, ohne rot zu werden
+
+Der [Floor-Key-Fehler](2026-08-01-analysis-floor-key-befund.md) in
+`analysis.py` hat nicht nur Zahlen überhöht. Er hat in den „Nächsten Schritten"
+von [fixpunkt-test-scoring.md](2026-08-01-fixpunkt-test-scoring.md) eine
+Empfehlung erzeugt, die **das Gegenteil des Richtigen** vorschlug — die
+ΔE-Merkmale erschienen als die tragenden, tatsächlich sind sie die
+schwächsten. Nirgends brach etwas ab, nirgends wurde etwas rot; die nächste
+Runde hätte darauf aufgesetzt.
+
+**Dass die Simulationen davon unberührt blieben, war Glück der Konstruktion,
+nicht Vorsicht.** Sie importieren `matcher._sigma_floor` und rechnen deshalb
+über `_FLOOR_KEY` — nicht, weil jemand diese Trennung geprüft hätte, sondern
+weil sie ohnehin am Matcher entlang gebaut wurden.
+
+**Die Regel, die daraus folgt:** Auswertungs-Artefakte und Simulationen müssen
+**dieselbe Floor-Quelle** benutzen. Zwei Wege zu denselben Schwellen sind zwei
+Wege, sich zu widersprechen — und der Widerspruch fällt nicht auf, weil beide
+Seiten für sich plausible Zahlen liefern.
+
 ---
 
 ## 4. Was bleibt: drei Wiederaufnahme-Kandidaten
@@ -139,13 +159,30 @@ Formalie — es ist der Grund, warum keine Änderung erfolgt.
 | **n ≈ 13 Artikel** | 169 Fälle sind 13 Aufnahmeserien. Rule of Three: Fehlerrate < 21 %. „false_accept = 0" belegt nichts. | **≥ 40 Artikel**, möglichst mit den engen Größenclustern des Produktivbestands |
 | **Fixpunkt-Referenzen** | σ_enroll enthält keine Positionsstreuung. Absolute Margins sind optimistisch; die Streuungs-Asymmetrie, an der Block D hängt, könnte im Betrieb gar nicht bestehen. | **Enrollment mit echter Positionsstreuung** — Artikel bewusst verteilt statt am Fixpunkt |
 | **Leave-one-out** | Messung stammt aus derselben Aufnahmeserie wie die Referenz. Keine unabhängige Prüfung. | **Getrennte Testaufnahmen**, mindestens n ≥ 5 je Artikel |
-| **Betriebs-Floor geschätzt** | 0,5–0,9 mm aus der Positionsdrift abgeleitet, nicht gemessen. Entscheidet allein über w(s). | **Gemessener Floor** aus wiederholten Auflagen an realen Positionen |
+| **Betriebs-Floor geschätzt** | **0,40–1,41 mm** je nach unterstellter Auflage-Streuung, nicht gemessen — der Bereich umspannt die Entscheidungsgrenze von 1,0 mm (Korrektur 2026-08-01, siehe Fussnote). Entscheidet allein über w(s). | **Gemessener Floor** aus wiederholten Auflagen an realen Positionen — die Rasterfahrt liefert ihn nebenbei |
 | **Kein Fokus-Lock (Mac)** | Kameraverbindung brach mehrfach ab, Fokus über die Session nicht garantiert. | **Windows-Box mit Fokus-Lock** |
 
 Alle fünf laufen auf denselben Schritt hinaus: **das Komplett-Neu-Enrollment an
 der Windows-Box**, mit verteilten statt fixierten Auflagen und getrennten
 Testaufnahmen. Danach — und erst danach — sind die drei Wiederaufnahme-Kandidaten
 entscheidbar.
+
+> **Fussnote zum Betriebs-Floor (Korrektur 2026-08-01).** Die Runde führte hier
+> „0,5–0,9 mm". Die zugrunde liegende Positionsmessung ist inzwischen aus den
+> Rohdaten ausgewertet
+> ([2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md)):
+> der Effekt ist **deutlicher belegt als angenommen** (r = −0,997 über eine
+> Positionsleiter von 109 mm), aber die Drift von 8,56 mm steht über **64 %**
+> der Feldhöhe, nicht über die halbe. Als Rate gerechnet spannt der Floor
+> **0,40–1,41 mm**, je nachdem wie weit die Auflage im Betrieb streut.
+>
+> Das verschiebt keine Entscheidung dieser Runde, aber es verschärft den
+> Befund: die Größe, die allein über w(s) entscheidet, hängt nicht nur an einer
+> fehlenden Messung, sondern an einer **unbeobachteten Betriebsannahme** mit
+> Faktor 3,5 zwischen den Extremen — und die Entscheidungsgrenze von 1,0 mm
+> liegt mittendrin. Die Rasterfahrt an der Windows-Box (5 × 3 Positionen, eine
+> halbe Stunde) liefert beides: den gemessenen Floor und die Ursache des
+> Gradienten.
 
 Vorher ist der Simulator (`scripts/simulate_scoring.py`, reproduziert
 `matcher.match()` bit-identisch) ein Werkzeug zum **Ausschließen** von Thesen,
@@ -158,7 +195,10 @@ einzige neue Aufnahme sind der Ertrag dieser Arbeit.
 
 - **[`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md)** —
   die `discriminability`-Zahlen aus Run `20260801-140818` sind für die
-  Farbmerkmale unbrauchbar. Nicht gefixt.
+  Farbmerkmale unbrauchbar. **Nachtrag: am 2026-08-01 gefixt**, Lauf neu
+  gerechnet nach `20260801-140818-floorfix`. Die Sortierung der Matrix hatte
+  die real schwierigen Paare verborgen; Aussagen dieser Runde beruhten bis auf
+  einen Vorschlag in `fixpunkt-test-scoring.md` (dort korrigiert) nicht darauf.
 - **Das Enrollment-Diagnoseblatt zeigt den `sigma_floor` nicht** (0 Treffer in
   `enrollment_sheet.py`). Wer beim Einlernen entscheiden soll, müsste acht
   Floor-Werte auswendig kennen. Vorschlag notiert, nicht umgesetzt.

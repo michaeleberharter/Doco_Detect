@@ -21,7 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from docodetect import cli  # noqa: E402
 from docodetect.config import (SANDBOX_ROOT, project_root,  # noqa: E402
-                               resolve, sandbox_cfg, validate_sandbox_name)
+                               resolve, sandbox_banner, sandbox_cfg,
+                               sandbox_pfade, sandbox_verzeichnisse_anlegen,
+                               validate_sandbox_name)
 
 
 def _cfg():
@@ -116,6 +118,104 @@ def test_startzeile_nennt_alle_fuenf_pfade(capsys):
     assert str(project_root() / SANDBOX_ROOT / "testlauf1") in zeile
 
 
+# ---------- Verzeichnisanlage ----------
+
+def _abs_cfg(tmp_path):
+    """Sandbox-Config mit ABSOLUTEN Pfaden unter tmp_path. `resolve()` reicht
+    absolute Pfade unverändert durch – so prüft die Anlage echtes Verhalten,
+    ohne im Projektbaum Verzeichnisse zu hinterlassen."""
+    root = tmp_path / "sandbox" / "testlauf1"
+    cfg = _cfg()
+    cfg["paths"]["db_file"] = str(root / "doco_detect.sqlite3")
+    cfg["paths"]["reference_dir"] = str(root / "reference")
+    cfg["paths"]["captures_dir"] = str(root / "captures")
+    cfg["analysis"]["output_dir"] = str(root / "reports")
+    cfg["sandbox"] = "testlauf1"
+    return cfg
+
+
+def test_alle_fuenf_ziele_existieren_nach_dem_anlegen(tmp_path):
+    cfg = _abs_cfg(tmp_path)
+    sandbox_verzeichnisse_anlegen(cfg)
+    p = sandbox_pfade(cfg)
+    assert p["db"].parent.is_dir()      # nur der Ordner – die Datei macht sqlite
+    assert not p["db"].exists()
+    for schluessel in ("referenzen", "verworfen", "captures", "berichte"):
+        assert p[schluessel].is_dir(), schluessel
+
+
+def test_anlegen_meldet_nur_das_neue_und_ist_idempotent(tmp_path):
+    """`neu` wird VOR dem ersten mkdir bestimmt: bei einer frischen Sandbox
+    sind das alle fünf, auch der Wurzelordner (Elternteil der DB-Datei), der
+    danach ohnehin durch parents=True mit entstünde."""
+    cfg = _abs_cfg(tmp_path)
+    assert len(sandbox_verzeichnisse_anlegen(cfg)) == 5
+    assert sandbox_verzeichnisse_anlegen(cfg) == []
+    # Teilfall: nur ein Ziel fehlt -> genau eines wird gemeldet
+    import shutil
+    shutil.rmtree(sandbox_pfade(cfg)["berichte"])
+    assert sandbox_verzeichnisse_anlegen(cfg) == [sandbox_pfade(cfg)["berichte"]]
+
+
+def test_sandbox_cfg_selbst_legt_nichts_an(tmp_path):
+    """Die Trennung ist der Schutz davor, dass ein Test, der nur die Pfadform
+    prüft, Verzeichnisse im echten Projektbaum anlegt."""
+    cfg = sandbox_cfg(_cfg(), "nur-formpruefung", verbose=False)
+    assert not (project_root() / SANDBOX_ROOT / "nur-formpruefung").exists()
+    assert not resolve(cfg["paths"]["reference_dir"]).exists()
+
+
+def test_frische_sandbox_traegt_eine_datenbank(tmp_path):
+    """Der gemeldete Fehler: ohne den Ordner scheitert schon das Öffnen mit
+    `unable to open database file` – sqlite legt die Datei an, nicht ihren
+    Ordner. Beide Richtungen geprüft, sonst belegt der Test nicht, dass er
+    genau dieses Symptom behebt."""
+    import sqlite3
+
+    from docodetect.database import Database
+
+    cfg = _abs_cfg(tmp_path)
+    with pytest.raises(sqlite3.OperationalError):
+        Database(cfg)                       # Gegenprobe: vorher unmöglich
+    sandbox_verzeichnisse_anlegen(cfg)
+    db = Database(cfg)
+    try:
+        db.init_schema()
+        assert db.all_articles() == []
+    finally:
+        db.close()
+
+
+def test_startmeldung_und_anlage_meinen_dieselben_pfade(tmp_path):
+    """Wächter gegen Drift: jeder Pfad, den die Startmeldung nennt, muss auch
+    angelegt werden. Kommt ein sechstes Ziel dazu und wird nur an einer der
+    beiden Stellen gepflegt, fällt genau das hier auf."""
+    cfg = _abs_cfg(tmp_path)
+    sandbox_verzeichnisse_anlegen(cfg)
+    zeile = sandbox_banner(cfg)
+    for pfad in sandbox_pfade(cfg).values():
+        assert str(pfad) in zeile
+        assert pfad.exists() or pfad.parent.is_dir()
+
+
+def test_gesperrter_befehl_legt_kein_verzeichnis_an():
+    """Die Reihenfolge Sperre -> Umlenken -> Anlegen ist der ganze Punkt:
+    sonst hinterliesse jeder abgewiesene Versuch einen leeren Sandbox-Baum
+    im Projektverzeichnis."""
+    name = "sperrtest-ohne-ordner"
+    ziel = project_root() / SANDBOX_ROOT / name
+    assert not ziel.exists(), "Vorbedingung: Name ist frei"
+    try:
+        with pytest.raises(SystemExit) as e:
+            cli.main(["--sandbox", name, "calibrate"])
+        assert e.value.code != 0
+        assert not ziel.exists()
+    finally:
+        if ziel.exists():                   # nur wenn der Test fehlschlägt
+            import shutil
+            shutil.rmtree(ziel)
+
+
 # ---------- Namensvalidierung ----------
 
 @pytest.mark.parametrize("name", ["a", "testlauf1", "test-1", "test_1",
@@ -177,8 +277,9 @@ def test_analyze_ohne_publish_erlaubt():
 
 
 @pytest.mark.parametrize("cmd", [
-    "init-db", "import-articles", "create-article", "batch-create", "enroll",
-    "batch-enroll", "delete-article", "enrollment-sheet", "contour-band",
+    "init-db", "import-articles", "list-articles", "create-article",
+    "batch-create", "enroll", "batch-enroll", "delete-article",
+    "delete-references", "enrollment-sheet", "contour-band",
     "sync-stammdaten", "analyze-floors", "identify", "evaluate", "ab-report",
     "list-cameras",
 ])

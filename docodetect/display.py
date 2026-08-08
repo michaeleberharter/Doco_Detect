@@ -1,8 +1,10 @@
-"""Zentrale Anzeige-Helfer für ALLE UIs (Qt + Streamlit).
+"""Zentrale Anzeige-Helfer für ALLE UIs (Qt) und die CLI.
 
-Eine Implementierung pro String — beide UIs zeigen exakt dieselben Texte
+Eine Implementierung pro String — jede Oberfläche zeigt exakt dieselben Texte
 (deutsch, Dezimalkomma). UI-Code importiert diese Funktionen über
-docodetect.pipeline (Re-Export), nie direkt Untermodule.
+docodetect.pipeline (Re-Export), nie direkt Untermodule. Die Regel stammt aus
+der Zeit zweier paralleler UIs (Qt und Streamlit, letzteres 2026-08-01
+entfernt) und bleibt gültig: Anzeigetexte werden nirgends dupliziert.
 
 Anzeige-Mapping (Wire-Namen bleiben unangetastet, siehe Spec 2026-07-20):
 accept -> "Automatisch übernommen", ambiguous -> "Bitte bestätigen",
@@ -12,6 +14,7 @@ reject -> "Kein Treffer".
 from __future__ import annotations
 
 import math
+import re
 
 from .matcher import CHANNELS, CandidateReport
 
@@ -19,6 +22,37 @@ from .matcher import CHANNELS, CandidateReport
 def _de(x: float, nd: int = 1) -> str:
     """Zahl deutsch formatieren (Dezimalkomma)."""
     return f"{x:.{nd}f}".replace(".", ",")
+
+
+_ZAHLENGRUPPE = re.compile(r"(\d+)")
+
+
+def natuerlicher_schluessel(text) -> tuple:
+    """Sortierschlüssel für Artikelnummern: Zahlenteile numerisch, Rest
+    alphabetisch. LOEFFEL-2 kommt damit vor LOEFFEL-11 statt danach.
+
+    NUR FÜR ANZEIGE. Die Reihenfolge aus `Database.all_articles()`
+    (`ORDER BY article_number`, also lexikografisch) darf damit NICHT
+    umsortiert werden: `matcher.match()` baut die Kandidatenliste in genau
+    dieser Reihenfolge auf, und `candidates.sort(key=log_score)` ist stabil —
+    bei gleichem (auf 4 Stellen GERUNDETEM) log_score entscheidet also die
+    DB-Reihenfolge, wer Top-1 wird. Das ist Messpfad, nicht Darstellung.
+
+    Wirft nie:
+    * ohne Ziffern ("TELLER") — ein einziges Textelement;
+    * mit mehreren Zahlengruppen ("A1-B2") — abwechselnde Elemente;
+    * bei Nicht-Strings — `str()` davor;
+    * gleichförmige 3-Tupel, damit nie `int` gegen `str` verglichen wird
+      (die übliche Falle bei selbstgebauten Naturalsorts).
+
+    Der angehängte Rohtext macht die Ordnung total: sonst wären LOEFFEL-01
+    und LOEFFEL-1 gleichwertig und ihre Reihenfolge hinge daran, wie sie
+    zufällig in die Liste kamen."""
+    s = str(text)
+    teile = _ZAHLENGRUPPE.split(s)      # ['GABEL-', '10', ''] — ungerade = Zahl
+    return (tuple((1, int(t), "") if i % 2 else (0, 0, t.casefold())
+                  for i, t in enumerate(teile)),
+            s.casefold())
 
 
 def format_diameter(c: CandidateReport) -> str:
@@ -54,7 +88,7 @@ def channel_percentages(c: CandidateReport) -> dict:
 
 def format_measured(measured: dict) -> str:
     """Rohmesswert-Diagnosezeile für NO_MATCH (kein Kandidat, also kein Ø
-    aus format_diameter verfügbar) — dieselbe Zeile in Qt und Streamlit.
+    aus format_diameter verfügbar) — dieselbe Zeile in jeder Oberfläche.
     Fehlende Keys werden wie bisher als 0 behandelt."""
     diameter = _de(measured.get("circle_diameter_mm", 0))
     circularity = _de(measured.get("circularity", 0), 2)

@@ -222,8 +222,18 @@ Floor-Sweep als Kontrolle:
 | 0,60 | 113 | **72** | **41 = Baseline** |
 
 Ab floor 1,50 ist der Gewinn vollständig weg. Bei floor 1,00 und Gewicht 0,60
-bleibt er — und dieser Bereich wurde im Negativbefund nie gerechnet. Der
-geschätzte Betriebs-Floor (0,5–0,9 mm) liegt vollständig darin.
+bleibt er — und dieser Bereich wurde im Negativbefund nie gerechnet. ~~Der
+geschätzte Betriebs-Floor (0,5–0,9 mm) liegt vollständig darin.~~
+
+> **KORREKTUR 2026-08-01 (nach der Positionsmessung):** Der letzte Satz gilt
+> nicht mehr. Die Drift von 8,56 mm steht über **64 %** der Feldhöhe, nicht über
+> die halbe; als Rate gerechnet spannt der plausible Betriebs-Floor
+> **0,40–1,41 mm** je nach unterstellter Auflage-Streuung. Er liegt damit
+> **nicht vollständig** in der Zone, in der ein hohes Gewicht wirkt, sondern
+> umspannt deren Grenze bei 1,0 mm. An D7 selbst ändert das nichts — die
+> Sweep-Zahlen oben stehen; es ändert, welche Zeile davon im Betrieb gilt, und
+> das ist offen. Messung:
+> [2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md).
 
 Vollständige Einordnung und die Kontrolle, dass Leave-one-out und die
 Testaufnahme-Konstruktion **nicht** auseinanderlaufen:

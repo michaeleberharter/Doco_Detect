@@ -28,7 +28,8 @@ def main(argv: list | None = None) -> int:
               "beide bewusst. Nur eines von beiden angeben.", file=sys.stderr)
         return 1
 
-    from docodetect.config import load_config, sandbox_cfg
+    from docodetect.config import (load_config, sandbox_cfg,
+                                   sandbox_verzeichnisse_anlegen)
 
     cfg = load_config(args.config)
     if args.demo:
@@ -42,6 +43,13 @@ def main(argv: list | None = None) -> int:
         except ValueError as e:
             print(f"[sandbox] {e}", file=sys.stderr)
             return 1
+        # Erst nach der Namensprüfung: ein ungültiger Name darf nichts anlegen.
+        # Anders als in der CLI gibt es hier keine Befehlssperre – gesperrt
+        # sind in der Qt-UI einzelne Knöpfe (Kalibrieren, Hintergrund), und
+        # die UI startet in der Sandbox immer.
+        neu = sandbox_verzeichnisse_anlegen(cfg)
+        if neu:   # die Pfade selbst stehen schon in der Startmeldung darüber
+            print(f"[sandbox] {len(neu)} Verzeichnis(se) neu angelegt.")
 
     # Qt erst NACH der Argumentprüfung laden: ein Bedienfehler soll ohne
     # PySide6-Import abbrechen (schneller, und testbar ohne GUI-Stack).

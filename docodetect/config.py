@@ -171,19 +171,54 @@ def sandbox_cfg(cfg: dict, name: str, *, verbose: bool = True) -> dict:
     return out
 
 
+def sandbox_pfade(cfg: dict) -> dict:
+    """Die fünf umgelenkten Ziele, aufgelöst – EINE Definition.
+
+    Startmeldung und Verzeichnisanlage müssen zwingend dieselben fünf Ziele
+    meinen. Getrennt gepflegt driften sie beim nächsten hinzugefügten Pfad
+    auseinander, und zwar in der unauffälligen Richtung: die Meldung nennt
+    ihn, angelegt wird er nicht."""
+    ref = resolve(cfg["paths"]["reference_dir"])
+    return {
+        "db": resolve(cfg["paths"]["db_file"]),
+        "referenzen": ref,
+        "verworfen": ref.parent / "verworfen",
+        "captures": resolve(cfg["paths"]["captures_dir"]),
+        "berichte": resolve(cfg["analysis"]["output_dir"]),
+    }
+
+
 def sandbox_banner(cfg: dict) -> str:
     """Die fünf aufgelösten Sandbox-Pfade als Startmeldung.
 
     Beantwortet den einzigen ernsthaften Einwand gegen das Umlenken von
     analysis.output_dir („dann liegt das Diagnoseblatt nicht am gewohnten
     Ort"): es steht beim Start da, wo es liegt."""
-    ref = resolve(cfg["paths"]["reference_dir"])
-    return ("[sandbox] '{name}' aktiv — db={db} · referenzen={ref} · "
-            "verworfen={verw} · captures={cap} · berichte={rep}").format(
-        name=cfg.get("sandbox"),
-        db=resolve(cfg["paths"]["db_file"]),
-        ref=ref,
-        verw=ref.parent / "verworfen",
-        cap=resolve(cfg["paths"]["captures_dir"]),
-        rep=resolve(cfg["analysis"]["output_dir"]),
-    )
+    return ("[sandbox] '{name}' aktiv — db={db} · referenzen={referenzen} · "
+            "verworfen={verworfen} · captures={captures} · "
+            "berichte={berichte}").format(name=cfg.get("sandbox"),
+                                          **sandbox_pfade(cfg))
+
+
+def sandbox_verzeichnisse_anlegen(cfg: dict) -> list:
+    """Die fünf umgelenkten Ziele anlegen. Gibt die NEU angelegten zurück.
+
+    Ohne das scheitert der erste Befehl in einer frischen Sandbox an
+    `sqlite3.OperationalError: unable to open database file`: sqlite legt die
+    DATEI an, nicht ihren Ordner. Die übrigen vier Ziele legen ihre Schreiber
+    zwar selbst an (`_save_capture_and_report`, `enroll`, `discard_enrollment`,
+    `analyze`), aber erst im Moment des ersten Schreibens – die Startmeldung
+    nennt dann fünf Pfade, von denen keiner existiert.
+
+    Bewusst NICHT in `sandbox_cfg`: die bleibt eine reine Config-Umformung
+    ohne Nebenwirkung. Sonst legte jeder Test, der nur die Pfadform prüft,
+    Verzeichnisse im echten Projektbaum an. Die Aufrufer (CLI `main`, Qt
+    `__main__`) rufen das hier ERST NACH ihrer Sperrprüfung – ein gesperrter
+    Befehl darf keinen Ordner hinterlassen."""
+    p = sandbox_pfade(cfg)
+    ordner = [p["db"].parent,        # nur der Ordner; die Datei macht sqlite
+              p["referenzen"], p["verworfen"], p["captures"], p["berichte"]]
+    neu = [d for d in ordner if not d.exists()]
+    for d in ordner:
+        d.mkdir(parents=True, exist_ok=True)
+    return neu

@@ -32,8 +32,8 @@ Für jedes gemessene Objekt:
 
 Der MatchReport enthält ALLE Zwischengrößen (pro Kandidat und Merkmal:
 Messwert, Referenz, Distanz, sigma, z, Log-Beitrag; dazu Fisher-D, Gewichte,
-Posterior, Gate-Status) und ist JSON-serialisierbar – die Streamlit-Seite
-"Scoring-Analyse" rendert ausschließlich diese Reports.
+Posterior, Gate-Status) und ist JSON-serialisierbar – `analyze` und die
+Korpus-Auswertung rechnen ausschließlich auf diesen Reports.
 """
 
 from __future__ import annotations

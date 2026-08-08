@@ -72,7 +72,7 @@ def _job_identify(frame, cfg: dict, preview_width: int) -> dict:
     """Der Job liefert das ROHE Bild, nicht das annotierte.
 
     `pipeline.render_report_overlay()` zeichnet Kontur und Maßlinie ins
-    Bild und wird mit der Streamlit-UI und der CLI geteilt – es bleibt
+    Bild und wird mit der CLI geteilt – es bleibt
     unverändert. Die Qt-Vorschau legt ihren eigenen Erkennungsrahmen samt
     Maß-Chips darüber (widgets/preview.Detection), weil der Entwurf eine
     andere Optik verlangt und ein Overlay im Bild sonst doppelt läge."""

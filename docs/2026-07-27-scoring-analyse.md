@@ -320,6 +320,45 @@ vgl. Abschnitt 5). Da Bildgeometrie ausscheidet und die Konturen vollständig
 sind, bleiben auflage- oder segmentierungsseitige Ursachen — mit den
 vorhandenen Daten (kein Enrollment-Bild) nicht weiter auflösbar.
 
+### NACHTRAG 2026-08-01: „Aufnahmegeometrie ausgeschlossen" ist zu weit formuliert
+
+**Der Text oben bleibt unverändert; seine Zahlen sind korrekt.** Was zu eng
+war, ist die Positionsvariable — und damit zu weit die Schlussfolgerung.
+
+Am 2026-07-28 wurde MESSER-2 in einer **Positionsleiter** aufgenommen: zwölf
+Shots über 109 mm vertikal durch das Feld. Dort fällt die gemessene Länge
+monoton um **8,56 mm**, mit **r = −0,997** gegen die **vorzeichenbehaftete**
+y-Position. Ausgewertet und belegt:
+[2026-08-01-positionsdrift-messung.md](2026-08-01-positionsdrift-messung.md),
+nachrechenbar über `scripts/positionsdrift_check.py`.
+
+Der Widerspruch zu den Fits oben ist **kein Fehler dieser Analyse**, sondern
+eine Eigenschaft der geprüften Größe: `r_end_max`, `r_quer_max` und
+`r_centroid` sind **radiale, vorzeichenlose** Abstände von der Bildmitte. Ein
+monotoner, vorzeichenbehafteter Gradient ist gegen sie strukturell unsichtbar
+— ein Objekt 40 mm oberhalb und eines 40 mm unterhalb der Mitte haben
+denselben Radius und **entgegengesetzte** Fehler, über beide Hälften gemittelt
+hebt sich die Korrelation auf.
+
+Vorgeführt an denselben zwölf Shots: gegen die vorzeichenbehaftete Position
+r = **−0,997**, gegen den radialen Abstand r = **−0,270** — also derselbe
+Nullbefund wie hier über 104 Bilder, auf Daten, die den Effekt nachweislich
+enthalten.
+
+**Was davon steht und was nicht:**
+
+- **Die Tail-Diagnose steht.** Die Messung von 2026-07-28 betrifft den Bulk,
+  nicht die acht anisotropen Ausreißer. Zu deren Ursache sagt sie nichts.
+- **Die Zahlen der Fit-Tabelle stehen.** Sie sind richtig gerechnet.
+- **Der Satz „Aufnahmegeometrie als Ursache ist ausgeschlossen" gilt nur für
+  radialsymmetrische Ursachen** (Verzeichnung, Parallaxe um die optische
+  Achse). Ein **linearer vertikaler Gradient** war nie geprüft — er ist es
+  jetzt, und er existiert.
+
+Für die Wiederholung: eine Positionsprüfung braucht die **signierte**
+Koordinate, nicht den Radius; besser noch ein Raster über das Feld statt einer
+Linie.
+
 ---
 
 ## 10. Nachtrag 2026-07-27: Korpus-Stand, Fidelitäts-Eingangstest, sync-Wirkung

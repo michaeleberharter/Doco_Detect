@@ -129,6 +129,11 @@ Er braucht keine Kamera und keine Testaufnahmen, nur die schon gespeicherten
 Referenz-PNGs. Voraussetzung ist gesetztes `reference_features.image_path` —
 im Qt- und CLI-Pfad gegeben, im Streamlit-Anlegepfad noch nicht.
 
+> **Nachtrag 2026-08-01:** Der Streamlit-Anlegepfad ist entfernt (Commit
+> `07586b5`). Alle verbliebenen Schreibwege setzen `image_path`; die
+> Einschränkung gilt nur noch für Altbestand, der vor der Umstellung
+> eingelernt wurde.
+
 Der Scan ist heute ein Ad-hoc-Skript. Ob er als CLI-Befehl fest eingebaut wird
 (`corpus`-Muster: reine Konsumentenschicht, kein Messpfad), ist eine offene
 Entscheidung und nicht Teil dieses Dokuments.

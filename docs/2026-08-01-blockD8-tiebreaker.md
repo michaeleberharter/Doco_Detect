@@ -165,7 +165,11 @@ nachgewiesen ist und nur die Datenbasis fehlt. Was zu messen wäre:
 1. die Top-2-Rangfehlerrate auf unabhängigen Testaufnahmen mit echter
    Positionsstreuung — sie ist die Obergrenze für die false-accept-Rate;
 2. ob w(s) seine Trennschärfe bei realem Betriebs-Floor behält (dieselbe offene
-   Größe wie im Negativbefund);
+   Größe wie im Negativbefund). **Stand 2026-08-01:** der plausible Bereich ist
+   **0,40–1,41 mm** und umspannt die Entscheidungsgrenze von 1,0 mm — D8 hängt
+   damit an derselben unbeobachteten Betriebsannahme wie w(s), denn ohne w(s) im
+   Pool fällt D8 auf fünf Fehlentscheidungen zurück
+   ([Positionsdrift-Messung](2026-08-01-positionsdrift-messung.md));
 3. ob D8 mit einer Schwelle > 0 einen messbaren Vorsprung vor dem Nullmodell
    behält, wenn die Rangfehlerrate nicht mehr bei 1/127 liegt.
 

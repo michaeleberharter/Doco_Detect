@@ -34,9 +34,15 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   report-only — Betriebskurven (auto_accept vs. false_accept) aus
   Replay-Reports; Schwellen-ENTSCHEIDUNG erst nach Teller-Daten.
 - **2026-07-24** — [stammdaten-Diagonal-Fix + sync-stammdaten](superpowers/reports/2026-07-24-stammdaten-sync-ergebnis.md):
-  `stammdaten.py` rechnet noch mit `hypot` (dritte Diagonal-Fundstelle);
-  `sync-stammdaten --apply` bleibt gesperrt, bis es dieselbe Nominalfunktion
-  wie der Matcher nutzt.
+  dritte und letzte Fundstelle der Diagonal-vs-Länge-Klasse **gefixt**
+  (`stammdaten.py` rechnet seither `max(width, depth)` wie der Matcher), und
+  **`sync-stammdaten --apply` ist am 2026-07-24 gelaufen** — Live-DB und
+  Bundle-DBs sind post-sync. Preis: eine bewusst akzeptierte fail-safe-
+  Regression (LOEFFEL-7 accept→reject), Fehlbuchungsrate bleibt 0. Enthält die
+  Residual-Analyse, die den Ära-Offset der **Kalibrier-Reproduzierbarkeit**
+  zuordnet (~1,3 % Skalen-Drift, Zweig K), nicht dem Sync.
+  *(Korrigiert 2026-08-01: dieser Eintrag beschrieb bis dahin den Zustand VOR
+  dem Dokument, auf das er zeigt — „`--apply` bleibt gesperrt".)*
 - **2026-07-24** — [Arbeitsplan ab 2026-07-24](arbeitsplan-2026-07-24.md):
   aktueller Plan (Mac-first, Windows-Tag, Blöcke 1–5) — der lebende Fahrplan.
 - **2026-07-31** — [`reference_stats` kennt keinen Session-Begriff](2026-07-31-reference-stats-keine-sessions.md):
@@ -134,11 +140,40 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   drei Wiederaufnahme-Kandidaten (D8, B2, D1/D3) und was die Datenbasis leisten
   müsste, damit die Fragen entscheidbar werden.
 - **2026-08-01** — [`analysis.py` liest `sigma_floors` ohne `_FLOOR_KEY`](2026-08-01-analysis-floor-key-befund.md):
-  Befund, nicht gefixt. Die vier Farbmerkmale bekommen in
-  `_analysis_discriminability` Floor 0,0 → Trennschärfen um 1,3–2,3× überhöht,
-  bei 1-Shot-Artikeln Werte um 10¹⁰. **Die `discriminability`-Zahlen aus Run
-  `20260801-140818` sind für die Farbmerkmale unbrauchbar.** Messpfad,
-  Entscheidungen und Korpus sind nicht betroffen.
+  **gefixt am 2026-08-01.** Die vier Farbmerkmale bekamen in
+  `_analysis_discriminability` Floor 0,0 → Trennschärfen überhöht, bei
+  1-Shot-Artikeln Werte um 10¹⁰. Folge war nicht nur eine falsche Zahl: die
+  nach Zeilenmaximum sortierte Matrix zeigte oben die Artefaktzeilen und
+  verbarg unten die real schwierigen Paare (`MESSER-5/7`, `GABEL-10/14`,
+  `LOEFFEL-2/5`). Lauf `20260801-140818` ist neu gerechnet nach
+  `20260801-140818-floorfix`; die alte Fassung bleibt als Beleg stehen.
+  Messpfad, Entscheidungen und Korpus waren nie betroffen, die Analyse-Skripte
+  auch nicht (sie nutzen `matcher._sigma_floor`).
+- **2026-08-01** — [Streamlit-Config-Tab konnte Schwellen setzen](2026-08-01-streamlit-config-tab-schreibt-config-yaml.md):
+  Schieberegler auf `min_llr_margin` plus ein Speichern-Knopf, der die
+  **gemergte** Config (inkl. `config.local.yaml`) in die geteilte
+  `config.yaml` zurückschrieb. Offene Tür, kein nachgewiesener Schaden —
+  aber der Grund, warum aus einer geplanten Teilsperre die **vollständige
+  Entfernung der Streamlit-UI** wurde (Commit `07586b5`: `app.py`, `pages/`,
+  `ui_common.py`, `requirements-ui.txt`, 1415 Zeilen). Ersatzwege stehen im
+  README; die Artikelliste wurde vorher als CLI-Befehl `list-articles`
+  nachgebaut.
+- **2026-08-01** — [Natürliche Sortierung: Stufe 1 umgesetzt, Stufe 2 offen](2026-08-01-natuerliche-sortierung-stufe2-offen.md):
+  `LOEFFEL-2` steht jetzt vor `LOEFFEL-11` — aber **nur in der Anzeige**
+  (`pipeline.list_articles`, `cli list-articles`; die beiden Qt-Dialoge kommen
+  ohne UI-Änderung mit). **`Database.all_articles()` bleibt lexikografisch:**
+  `matcher.match()` baut die Kandidaten in dieser Reihenfolge auf, die
+  Score-Sortierung ist stabil und `log_score` wird auf 4 Stellen gerundet —
+  bei Gleichstand baugleicher Artikel entscheidet also die DB-Reihenfolge über
+  Top-1. Positiv getestet. Stufe 2 (`analysis.py`, `corpus/review.py`) bewusst
+  offen: der Diff landete in `reports/archive/`, und das ist versioniert.
+- **2026-08-01** — [Einzelreport-Ansicht: Nachbau-Kandidat](2026-08-01-einzelreport-ansicht-nachbau.md):
+  die einzige Streamlit-Funktion ohne Äquivalent. Beschreibt die acht Felder
+  (Gate-Ampel, Kandidatentabelle, Log-Beitrags-Chart, Top-1-vs-Top-2,
+  Fisher-Panel) so, dass ein Nachbau ohne den alten Code möglich ist, und
+  belegt: alle Daten liegen vollständig im Report-JSON — reine Darstellung,
+  keine Rechenarbeit. Schätzung 1,5–2 Tage (nur Tabellen) bzw. 4–5 Tage
+  (mit Diagrammen).
 
 ## Referenz (nicht chronologisch)
 
