@@ -189,6 +189,14 @@ def _wait_until(qapp, cond, timeout=90.0):
     return False
 
 
+def _n_shots(dlg) -> int:
+    """Seit dem Session-Umbau liegt die Wahrheit auf der Platte, nicht in
+    dlg._shots: der Dialog haelt eine EnrollSession, deren info.n_shots die
+    Zahl der distinkten i im Journal ist. Die Aussage der Tests bleibt
+    dieselbe, nur die Quelle wechselt."""
+    return dlg._session.info.n_shots if dlg._session is not None else 0
+
+
 def _calibrate_via_dialog(qapp, win):
     """Kalibrieren laeuft seit dem UI-Redesign ueber einen Dialog: oeffnen,
     Hauptaktion druecken, schliessen. Fachlich derselbe Ablauf wie vorher der
@@ -220,7 +228,15 @@ def test_demo_end_to_end_identify(qapp, tmp_path):
     cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
     cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
                     "captures_dir": str(tmp_path / "captures"),
-                    "reference_dir": str(tmp_path / "reference")}
+                    "reference_dir": str(tmp_path / "reference"),
+                    # Seit dem Session-Umbau: sonst schriebe der Test in den
+                    # echten Projektbaum (resolve() gegen project_root()).
+                    "enroll_sessions_dir": str(tmp_path / "enroll_sessions"),
+                    "backups_dir": str(tmp_path / "backups")}
+    # analysis.output_dir MIT umlenken: der Test laedt die echte config.yaml
+    # und ueberschrieb bisher nur paths – persist_enrollment_sheet schrieb
+    # deshalb nach reports/analysis/enrollment/ IM PROJEKTBAUM.
+    cfg.setdefault("analysis", {})["output_dir"] = str(tmp_path / "reports")
     win = MainWindow(cfg, demo=True)
     assert win.state is UiState.NOT_READY
 
@@ -290,7 +306,15 @@ def test_demo_confirm_scene_is_ambiguous(qapp, tmp_path):
     cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
     cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
                     "captures_dir": str(tmp_path / "captures"),
-                    "reference_dir": str(tmp_path / "reference")}
+                    "reference_dir": str(tmp_path / "reference"),
+                    # Seit dem Session-Umbau: sonst schriebe der Test in den
+                    # echten Projektbaum (resolve() gegen project_root()).
+                    "enroll_sessions_dir": str(tmp_path / "enroll_sessions"),
+                    "backups_dir": str(tmp_path / "backups")}
+    # analysis.output_dir MIT umlenken: der Test laedt die echte config.yaml
+    # und ueberschrieb bisher nur paths – persist_enrollment_sheet schrieb
+    # deshalb nach reports/analysis/enrollment/ IM PROJEKTBAUM.
+    cfg.setdefault("analysis", {})["output_dir"] = str(tmp_path / "reports")
     win = MainWindow(cfg, demo=True)
     assert win.state is UiState.NOT_READY
 
@@ -326,7 +350,15 @@ def test_demo_no_match_scene_is_reject(qapp, tmp_path):
     cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
     cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
                     "captures_dir": str(tmp_path / "captures"),
-                    "reference_dir": str(tmp_path / "reference")}
+                    "reference_dir": str(tmp_path / "reference"),
+                    # Seit dem Session-Umbau: sonst schriebe der Test in den
+                    # echten Projektbaum (resolve() gegen project_root()).
+                    "enroll_sessions_dir": str(tmp_path / "enroll_sessions"),
+                    "backups_dir": str(tmp_path / "backups")}
+    # analysis.output_dir MIT umlenken: der Test laedt die echte config.yaml
+    # und ueberschrieb bisher nur paths – persist_enrollment_sheet schrieb
+    # deshalb nach reports/analysis/enrollment/ IM PROJEKTBAUM.
+    cfg.setdefault("analysis", {})["output_dir"] = str(tmp_path / "reports")
     win = MainWindow(cfg, demo=True)
     assert win.state is UiState.NOT_READY
 
@@ -448,7 +480,15 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
     cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
                     "captures_dir": str(tmp_path / "captures"),
-                    "reference_dir": str(tmp_path / "reference")}
+                    "reference_dir": str(tmp_path / "reference"),
+                    # Seit dem Session-Umbau: sonst schriebe der Test in den
+                    # echten Projektbaum (resolve() gegen project_root()).
+                    "enroll_sessions_dir": str(tmp_path / "enroll_sessions"),
+                    "backups_dir": str(tmp_path / "backups")}
+    # analysis.output_dir MIT umlenken: der Test laedt die echte config.yaml
+    # und ueberschrieb bisher nur paths – persist_enrollment_sheet schrieb
+    # deshalb nach reports/analysis/enrollment/ IM PROJEKTBAUM.
+    cfg.setdefault("analysis", {})["output_dir"] = str(tmp_path / "reports")
     capture_background(build_scene(cfg, "Hintergrund"), cfg)
     calibrate(build_scene(cfg, "Marker"), cfg)
     # Nur EINEN Demo-Artikel einlernen (schneller Test): dafür gilt für
@@ -476,11 +516,11 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     assert "Aufnahme 1 von 2" in dlg.progress_label.text()
 
     dlg._capture()
-    assert _wait_until(qapp, lambda: len(dlg._shots) == 1
+    assert _wait_until(qapp, lambda: _n_shots(dlg) == 1
                        and dlg._worker is None)
     assert "Ø" in dlg.thumbs.item(0).text()
     dlg._capture()
-    assert _wait_until(qapp, lambda: len(dlg._shots) == 2
+    assert _wait_until(qapp, lambda: _n_shots(dlg) == 2
                        and dlg._worker is None)
     assert "Speichern (2/2)" in dlg.save_button.text()
 
@@ -490,7 +530,7 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     dlg._capture()
     assert _wait_until(qapp, lambda: dlg._worker is None
                        and dlg._retake_index is None)
-    assert len(dlg._shots) == 2
+    assert _n_shots(dlg) == 2
 
     # Randbild -> Aufnahme verworfen mit Abhilfe-Text, Shots unverändert
     win.demo_scene_box.setCurrentText("Randbild")
@@ -499,7 +539,7 @@ def test_enroll_dialog_demo_flow(qapp, tmp_path, monkeypatch):
     assert _wait_until(qapp, lambda: dlg._worker is None
                        and dlg.hint_label.text() != "")
     assert "verworfen" in dlg.hint_label.text()
-    assert len(dlg._shots) == 2
+    assert _n_shots(dlg) == 2
 
     # Speichern -> STUFE 4: erst Diagnoseblatt + Review, dann DB. Den modalen
     # Review-Dialog im Test automatisch auf "Übernehmen" stellen (sonst haengt
@@ -544,7 +584,15 @@ def test_enroll_dialog_discard_flow(qapp, tmp_path, monkeypatch):
     cfg["calibration"]["background_file"] = str(tmp_path / "background.png")
     cfg["paths"] = {"db_file": str(tmp_path / "demo.sqlite3"),
                     "captures_dir": str(tmp_path / "captures"),
-                    "reference_dir": str(tmp_path / "reference")}
+                    "reference_dir": str(tmp_path / "reference"),
+                    # Seit dem Session-Umbau: sonst schriebe der Test in den
+                    # echten Projektbaum (resolve() gegen project_root()).
+                    "enroll_sessions_dir": str(tmp_path / "enroll_sessions"),
+                    "backups_dir": str(tmp_path / "backups")}
+    # analysis.output_dir MIT umlenken: der Test laedt die echte config.yaml
+    # und ueberschrieb bisher nur paths – persist_enrollment_sheet schrieb
+    # deshalb nach reports/analysis/enrollment/ IM PROJEKTBAUM.
+    cfg.setdefault("analysis", {})["output_dir"] = str(tmp_path / "reports")
     capture_background(build_scene(cfg, "Hintergrund"), cfg)
     calibrate(build_scene(cfg, "Marker"), cfg)
     art = DEMO_ARTICLES[0]
@@ -563,15 +611,15 @@ def test_enroll_dialog_discard_flow(qapp, tmp_path, monkeypatch):
     dlg = EnrollDialog(cfg, win.ui, win.source, win)
     dlg.shots_spin.setValue(2)
     dlg._capture()
-    assert _wait_until(qapp, lambda: len(dlg._shots) == 1 and dlg._worker is None)
+    assert _wait_until(qapp, lambda: _n_shots(dlg) == 1 and dlg._worker is None)
     dlg._capture()
-    assert _wait_until(qapp, lambda: len(dlg._shots) == 2 and dlg._worker is None)
+    assert _wait_until(qapp, lambda: _n_shots(dlg) == 2 and dlg._worker is None)
 
     # Review automatisch auf "Verwerfen"
     monkeypatch.setattr(EnrollmentSheetDialog, "exec",
                         lambda self: EnrollmentSheetDialog.VERWERFEN)
     dlg._save()
-    assert _wait_until(qapp, lambda: dlg._shots == [] and dlg._worker is None
+    assert _wait_until(qapp, lambda: dlg._session is None and dlg._worker is None
                        and "Verworfen" in dlg.hint_label.text())
 
     # gesichert unter data/verworfen/<art>/, NICHT in der DB

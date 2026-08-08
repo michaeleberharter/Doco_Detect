@@ -635,6 +635,182 @@ def cmd_contour_band(args, cfg):
     print(f"[contour-band] geschrieben: {out}")
 
 
+# ---------- Einlern-Sessions: der Rettungspfad OHNE GUI ----------
+#
+# Auflisten, Ansehen, Buchen und Verwerfen laufen ohne Qt und ohne Kamera.
+# Genau darum geht es: der Rettungsfall ist der, in dem Qt das kaputte Teil
+# ist. Nur ZUSAETZLICHE Aufnahmen brauchen eine Kamera und damit die GUI
+# (oder `enroll --images`).
+
+def _alter(sekunden: float) -> str:
+    if sekunden < 90:
+        return f"vor {int(sekunden)} s"
+    if sekunden < 5400:
+        return f"vor {int(sekunden // 60)} min"
+    if sekunden < 172800:
+        return f"vor {int(sekunden // 3600)} h"
+    return f"vor {int(sekunden // 86400)} Tagen"
+
+
+def _finde_session(cfg, article_number, ts=None):
+    """Genau EINE offene Session finden. Beendet den Prozess mit Klartext,
+    wenn keine, keine passende oder mehrere in Frage kommen.
+
+    `--ts` ist PFLICHT, sobald mehr als eine offene Session fuer den Artikel
+    existiert — zwei Abstuerze hintereinander erzeugen genau das. Bei
+    Mehrdeutigkeit wird NICHT geraten: eine falsch gewaehlte Session buchte
+    fremde Aufnahmen unter die Artikelnummer."""
+    from .pipeline import list_enroll_sessions, load_enroll_session
+
+    offen = list_enroll_sessions(cfg, article_number=article_number)
+    if not offen:
+        sys.exit(f"[enroll-session] Keine offene Einlern-Session fuer "
+                 f"'{article_number}'.")
+    if ts is not None:
+        treffer = [i for i in offen if str(i.ts) == str(ts)]
+        if not treffer:
+            vorhanden = ", ".join(str(i.ts) for i in offen)
+            sys.exit(f"[enroll-session] Keine Session {ts} fuer "
+                     f"'{article_number}'. Vorhanden: {vorhanden}")
+        return load_enroll_session(cfg, treffer[0].path)
+    if len(offen) > 1:
+        zeilen = "\n".join(
+            f"    --ts {i.ts}   {i.n_shots} Aufnahmen   {_alter(i.age_secs)}"
+            f"   {i.zustand}" for i in offen)
+        sys.exit(f"[enroll-session] {len(offen)} offene Sessions fuer "
+                 f"'{article_number}' – --ts ist dann Pflicht:\n{zeilen}")
+    return load_enroll_session(cfg, offen[0].path)
+
+
+def _session_fehler(e) -> None:
+    """EnrollSessionError als Klartext-Befund ausgeben und mit 1 enden.
+    Der Aufrufer verzweigt auf .kind nur fuer die angebotene Abhilfe und
+    rechnet nichts nach."""
+    import json as _json
+
+    print(f"[enroll-session] {e.kind.upper()}: {e}", file=sys.stderr)
+    if e.detail:
+        print(_json.dumps(e.detail, ensure_ascii=False, indent=2, default=str),
+              file=sys.stderr)
+    sys.exit(1)
+
+
+def cmd_list_enroll_sessions(args, cfg):
+    """Offene Einlern-Sessions, neueste zuerst. Die Existenz des Ordners IST
+    'offen' – es gibt kein Statusfeld, das damit auseinanderlaufen koennte."""
+    import json as _json
+
+    from .pipeline import list_enroll_sessions
+
+    offen = list_enroll_sessions(cfg, article_number=getattr(args, "article", None))
+    if args.json:
+        print(_json.dumps(
+            [{"article_number": i.article_number, "ts": i.ts,
+              "n_shots": i.n_shots, "target_shots": i.target_shots,
+              "zustand": i.zustand, "fingerprint_ok": i.fingerprint_ok,
+              "age_secs": round(i.age_secs, 1), "path": str(i.path)}
+             for i in offen], ensure_ascii=False, indent=2))
+        return
+    if not offen:
+        print("[enroll-sessions] Keine offene Einlern-Session.")
+        return
+    print(f"[enroll-sessions] {len(offen)} offen:\n")
+    for i in offen:
+        optik = "Optik unveraendert" if i.fingerprint_ok else \
+            "!! Kalibrierung geaendert – nicht fortsetzbar"
+        print(f"  {i.article_number:<14} ts {i.ts}  "
+              f"{i.n_shots}/{i.target_shots} Aufnahmen  "
+              f"{_alter(i.age_secs):<14} {i.zustand:<26} {optik}")
+
+
+def cmd_show_enroll_session(args, cfg):
+    """Detail einer Session: Zustand, Optik, Tabelle je Aufnahme mit dem Ort,
+    an dem die Datei gerade liegt."""
+    from pathlib import Path as _P
+
+    from .pipeline import _zielpfade
+    from .pipeline import EnrollSessionError
+
+    s = _finde_session(cfg, args.article_number, getattr(args, "ts", None))
+    i = s.info
+    print(f"[enroll-session] {i.article_number}  ts {i.ts}")
+    print(f"  Ordner:    {i.path}")
+    print(f"  Angelegt:  {i.created}   ({_alter(i.age_secs)})")
+    print(f"  Aufnahmen: {i.n_shots} von {i.target_shots} geplant")
+    print(f"  Zustand:   {i.zustand}")
+    print(f"  Optik:     {'unveraendert' if i.fingerprint_ok else 'GEAENDERT'}"
+          f"   mm_per_px {i.fingerprint.get('mm_per_px')}")
+    if not i.fingerprint_ok:
+        print(f"  -> Nicht fortsetzbar. Auswege: alte Kalibrierung aus "
+              f"{i.path / 'optik'} zurueckholen, verwerfen, oder neu einlernen.")
+    if not s.shots:
+        print("\n  (keine Aufnahme im Journal)")
+        return
+    print("\n    i   Ø mm     Datei liegt")
+    for e in _zielpfade(cfg, s):
+        idx, quelle, ziel = e
+        shot = next(sh for sh in s.shots if sh.i == idx)
+        ort = ("Session" if quelle.exists() else
+               "reference_dir" if _P(ziel).exists() else "!! VERSCHWUNDEN")
+        print(f"  {idx:3d}   {shot.d_mm:7.1f}   {ort}")
+
+
+def _plan_ausgeben(plan: list) -> None:
+    print("\n    i   Aktion                          Ziel")
+    for e in plan:
+        print(f"  {e['i']:3d}   {e['aktion']:<30}  {e['ziel']}")
+
+
+def cmd_commit_enroll_session(args, cfg):
+    """Session buchen (INVARIANTE U1) oder mit --dry-run nur pruefen.
+
+    --dry-run laesst ALLE VIER Pruefungen echt laufen und zeigt den Umzugsplan,
+    bewegt aber keine Datei und schreibt nichts."""
+    from .pipeline import (EnrollSessionError, commit_enroll_session,
+                           plan_commit_enroll_session)
+
+    s = _finde_session(cfg, args.article_number, getattr(args, "ts", None))
+    try:
+        if args.dry_run:
+            p = plan_commit_enroll_session(cfg, s)
+            print(f"[commit --dry-run] {p['article_number']} ts {p['ts']}: "
+                  f"{p['n']} Aufnahmen, Buchungsstand '{p['stand']}'")
+            _plan_ausgeben(p["plan"])
+            print("\n  Nichts bewegt, nichts gebucht.")
+            return
+        n = commit_enroll_session(cfg, s)
+    except EnrollSessionError as e:
+        _session_fehler(e)
+    print(f"[commit] {s.info.article_number}: {n} Referenzen gebucht, "
+          f"Session-Rest nach backups/ geraeumt.")
+
+
+def cmd_discard_enroll_session(args, cfg):
+    """Session verwerfen: Rueckumzug, dann der vollstaendige Ordner nach
+    data/verworfen/. Loescht nichts.
+
+    --dry-run zeigt die vollstaendige Gegenrichtungs-Tabelle je Aufnahme, ohne
+    eine Datei zu bewegen und ohne info.json zu schreiben. Der Rueckumzug
+    greift AUS reference_dir heraus – die gefaehrlichere Richtung."""
+    from .pipeline import (EnrollSessionError, discard_enroll_session,
+                           plan_discard_enroll_session)
+
+    s = _finde_session(cfg, args.article_number, getattr(args, "ts", None))
+    try:
+        if args.dry_run:
+            p = plan_discard_enroll_session(cfg, s)
+            print(f"[discard --dry-run] {p['article_number']} ts {p['ts']}: "
+                  f"{p['n']} Aufnahmen")
+            _plan_ausgeben(p["plan"])
+            print("\n  Nichts bewegt, kein info.json geschrieben.")
+            return
+        ziel = discard_enroll_session(cfg, s)
+    except EnrollSessionError as e:
+        _session_fehler(e)
+    print(f"[discard] {s.info.article_number}: Session verworfen, vollstaendig "
+          f"gesichert unter {ziel} (kein DB-Eintrag, nichts geloescht).")
+
+
 def cmd_corpus_build(args, cfg):
     """Regressions-Korpus aus Captures, archivierten Reports und Backups bauen."""
     from .corpus.build import build_corpus
@@ -1029,6 +1205,34 @@ def main(argv=None):
                    help="nur die letzten N Reports (nach Filter, neueste "
                         "zuerst) - z.B. die letzten 20 einer Messreihe")
 
+    # -- Einlern-Sessions: Rettungspfad ohne GUI --
+    p = sub.add_parser("list-enroll-sessions",
+                       help="offene Einlern-Sessions auflisten (neueste zuerst)")
+    p.add_argument("--article", help="nur Sessions dieses Artikels")
+    p.add_argument("--json", action="store_true", help="maschinenlesbar")
+
+    p = sub.add_parser("show-enroll-session",
+                       help="eine Einlern-Session im Detail (Zustand, Optik, "
+                            "Aufnahmen und wo ihre Dateien liegen)")
+    p.add_argument("article_number")
+    p.add_argument("--ts", help="Pflicht, sobald mehrere Sessions offen sind")
+
+    p = sub.add_parser("commit-enroll-session",
+                       help="eine Einlern-Session buchen (Dateien umziehen + "
+                            "eine Transaktion); --dry-run prueft nur")
+    p.add_argument("article_number")
+    p.add_argument("--ts", help="Pflicht, sobald mehrere Sessions offen sind")
+    p.add_argument("--dry-run", action="store_true",
+                   help="alle Pruefungen und den Umzugsplan zeigen, nichts bewegen")
+
+    p = sub.add_parser("discard-enroll-session",
+                       help="eine Einlern-Session verwerfen (Rueckumzug, dann "
+                            "nach data/verworfen/); --dry-run zeigt nur")
+    p.add_argument("article_number")
+    p.add_argument("--ts", help="Pflicht, sobald mehrere Sessions offen sind")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Gegenrichtungs-Tabelle zeigen, nichts bewegen")
+
     p = sub.add_parser("corpus-build",
                        help="Regressions-Korpus aufbauen/aktualisieren "
                             "(idempotent, dedupliziert per SHA-256)")
@@ -1121,6 +1325,10 @@ def main(argv=None):
         "sync-stammdaten": cmd_sync_stammdaten,
         "analyze": cmd_analyze,
         "analyze-floors": cmd_analyze_floors,
+        "list-enroll-sessions": cmd_list_enroll_sessions,
+        "show-enroll-session": cmd_show_enroll_session,
+        "commit-enroll-session": cmd_commit_enroll_session,
+        "discard-enroll-session": cmd_discard_enroll_session,
         "corpus-build": cmd_corpus_build,
         "corpus-run": cmd_corpus_run,
         "corpus-diff": cmd_corpus_diff,

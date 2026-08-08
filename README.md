@@ -386,6 +386,28 @@ python -m docodetect.cli enroll TELLER-27-WEISS
 #    data/verworfen/<nr>/<zeitstempel>/ verschoben (mit info.json).
 python -m docodetect.cli delete-references TELLER-27-WEISS
 
+# 3b. RETTUNGSPFAD: Einlern-Session nach einem Absturz zu Ende bringen.
+#     Jede Aufnahme im Qt-Einlerndialog wird sofort auf Platte verankert
+#     (Journal unter data/enroll_sessions/). Stirbt die App, ist nichts weg -
+#     diese vier Befehle brauchen WEDER Qt NOCH eine Kamera, der Rettungsfall
+#     ist ja gerade der, in dem Qt das kaputte Teil ist.
+python -m docodetect.cli list-enroll-sessions            # was ist offen?
+python -m docodetect.cli show-enroll-session TELLER-27-WEISS
+#     Zeigt je Aufnahme, WO ihre Datei gerade liegt (Session oder
+#     reference_dir) - damit ist ein halb erledigter Umzug sichtbar.
+python -m docodetect.cli commit-enroll-session TELLER-27-WEISS --dry-run
+python -m docodetect.cli commit-enroll-session TELLER-27-WEISS
+#     Verwerfen statt buchen: Rueckumzug, dann alles nach data/verworfen/.
+#     Es wird nichts geloescht.
+python -m docodetect.cli discard-enroll-session TELLER-27-WEISS --dry-run
+python -m docodetect.cli discard-enroll-session TELLER-27-WEISS
+#     --ts ist Pflicht, sobald mehrere Sessions fuer einen Artikel offen sind
+#     (zwei Abstuerze hintereinander); es wird nicht geraten.
+#     Hat sich die Kalibrierung seit der Session geaendert, verweigern
+#     Fortsetzen und Buchen: die Aufnahmen entstanden unter einem anderen
+#     Optikzustand, und sigma_enroll darf keine zwei Zustaende mischen. Die
+#     alte Kalibrierung liegt als Kopie im optik/-Ordner der Session.
+
 # 4. Identifizieren
 python -m docodetect.cli identify                # Live-Aufnahme
 python -m docodetect.cli identify --image foto.jpg

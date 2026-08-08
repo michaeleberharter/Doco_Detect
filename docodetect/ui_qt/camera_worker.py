@@ -81,6 +81,30 @@ class CameraWorker(QThread):
                 # leiser Reconnect: interruptierbares Warten
                 self._stop_event.wait(_RECONNECT_SECS)
                 continue
+            except Exception as e:      # noqa: BLE001
+                # Alles, was NICHT CameraError ist, verliesse sonst
+                # QThread.run(): der Thread waere tot, KEIN camera_error-Signal
+                # kaeme an, camera_ok bliebe dauerhaft False und stop() wartete
+                # spaeter 8 s auf einen toten Thread. BoxCamera.open()
+                # subskriptiert direkt (camera.py: index/width/height, dazu
+                # backend in capture_backend) und wirft dort KeyError -
+                # load_config prueft nur die Existenz von SEKTIONEN, nicht
+                # einzelner Keys.
+                #
+                # Bewusst KEIN Reconnect: ein CameraError ist voruebergehend
+                # (USB abgezogen) und rechtfertigt den 3-s-Takt. Ein fehlender
+                # Config-Key ist es nicht - alle drei Sekunden erneut daran zu
+                # scheitern erzeugte nur eine Endlosschleife hinter einer
+                # stummen Oberflaeche. Nicht-Transientes beendet den Thread mit
+                # stehender Meldung.
+                self.camera_ok = False
+                self._announced_error = True
+                self.camera_error.emit(
+                    f"Kamera kann nicht geöffnet werden "
+                    f"({type(e).__name__}: {e}). Das ist kein "
+                    "Verbindungsproblem – Konfiguration prüfen "
+                    "(camera.index / width / height / backend).")
+                return
             self.camera_ok = True
             self._announced_error = False
             self.camera_connected.emit()
@@ -96,23 +120,34 @@ class CameraWorker(QThread):
         interval = 1.0 / float(self.ui["preview_fps"])
         preview_w = int(self.ui["preview_max_width"])
         last_emit = 0.0
-        fails = 0
+        # ZWEI getrennte Zaehler, nicht einer: der bewusste Verwurf
+        # ueberzaehliger Frames (grab ohne retrieve, weiter unten) ist
+        # Normalbetrieb und darf einen Retrieve-Zaehler weder erhoehen noch
+        # zuruecksetzen. Mit einem geteilten Zaehler wurde jeder
+        # Retrieve-Fehler vom naechsten erfolgreichen grab() geloescht -
+        # _MAX_GRAB_FAILS war auf dem Retrieve-Pfad damit UNERREICHBAR, und
+        # eine Kamera, die greift aber nichts liefert (realer USB-Zustand),
+        # fror die Vorschau lautlos ein: kein Fehler, kein Reconnect-Versuch.
+        grab_fails = retrieve_fails = 0
         emitted = 0
         fps_t0 = time.monotonic()
 
+        def _verbindung_verloren() -> None:
+            self.camera_ok = False
+            self._announced_error = True
+            self.camera_error.emit(
+                "Kamera-Verbindung verloren – Verbindung wird "
+                "gesucht… (USB prüfen)")
+
         while not self._stop_event.is_set():
             if not cap.grab():
-                fails += 1
-                if fails >= _MAX_GRAB_FAILS:
-                    self.camera_ok = False
-                    self._announced_error = True
-                    self.camera_error.emit(
-                        "Kamera-Verbindung verloren – Verbindung wird "
-                        "gesucht… (USB prüfen)")
+                grab_fails += 1
+                if grab_fails >= _MAX_GRAB_FAILS:
+                    _verbindung_verloren()
                     return  # -> Reconnect-Schleife in run()
                 self._stop_event.wait(0.05)
                 continue
-            fails = 0
+            grab_fails = 0
 
             now = time.monotonic()
             want_full = self._want_full.is_set()
@@ -121,8 +156,12 @@ class CameraWorker(QThread):
 
             ok, frame = cap.retrieve()
             if not ok or frame is None:
-                fails += 1
+                retrieve_fails += 1
+                if retrieve_fails >= _MAX_GRAB_FAILS:
+                    _verbindung_verloren()
+                    return  # -> Reconnect-Schleife in run()
                 continue
+            retrieve_fails = 0
             if want_full:
                 self._want_full.clear()
                 self.full_frame_ready.emit(frame)
