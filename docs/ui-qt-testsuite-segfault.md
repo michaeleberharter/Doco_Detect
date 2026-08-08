@@ -96,9 +96,37 @@ Aussage steckt dann nur noch im XML. Wer das Gate baut, muss das wissen.
 
 **Nicht deterministisch:** dieselbe Codebasis lief in derselben Sitzung
 mehrfach mit **Exit 0** durch. Die Abbrüche traten unabhängig davon auf, welcher
-Schritt gerade gebaut wurde, und nie in einem Teillauf (Qt-Module einzeln,
-Nicht-Qt-Teilmenge) — nur im vollen Lauf am Stück, also genau in der
-Konstellation, die oben als vermutete Ursache beschrieben ist.
+Schritt gerade gebaut wurde.
+
+### 2026-08-08 — Exit 134 im EINZELLAUF eines Moduls
+
+**Das widerspricht der Beschreibung oben.** Die Notiz führt den Abbruch bisher
+auf die Konstellation „zwei oder mehr UI-Testmodule in EINEM pytest-Aufruf"
+zurück, mit dem persistenten QApplication-Singleton über Modulgrenzen als
+vermuteter Ursache. Am 2026-08-08 endete
+
+    QT_QPA_PLATFORM=offscreen pytest tests/test_ui_qt_smoke.py
+
+— **ein einzelnes Modul, ein einziger Aufruf** — mit **Exit 134**, bei
+`23 passed`, ohne einen einzigen Fehlschlag.
+
+**Was das für die vermutete Ursache heißt:** „gemischte Fixture-Scopes über
+Modulgrenzen" kann die alleinige Erklärung nicht mehr sein. Innerhalb von
+`test_ui_qt_smoke` gibt es allerdings ein **modul-scoped** `qapp`-Fixture und
+mehrere `MainWindow`-Instanzen mit je eigenen QThreads — die Kombination
+„persistentes Singleton + nicht abgeräumte Widgets/QThreads" ist also auch
+**innerhalb eines Moduls** herstellbar. Der Kandidaten-Fix (deterministisches
+Teardown mit QThread-Join) bleibt damit plausibel; die Modulgrenze ist nur
+nicht die Bedingung, für die sie gehalten wurde.
+
+**Gegenprobe, damit es niemand dem Session-Paket zurechnet:** derselbe
+Einzellauf wurde gegen den Commit **`092be2d`** gefahren, also OHNE die
+Qt-Arbeit von Schritt 7 — auch dort **Exit 134**. Zum Vergleich mit Schritt 7
+zweimal Exit 134. Der Abbruch ist vorbestehend und **nicht** von dieser Arbeit
+verursacht.
+
+**Nicht immer:** früher am selben Tag lief dasselbe Modul einzeln mit Exit 0
+durch. Nichtdeterministisch wie die Abbrüche im vollen Lauf.
 
 **Vorbestehend.** Die Session-Arbeit dieser Sitzung fasst keinen QThread an;
 sie fügt nur Tests hinzu, die ohne Qt laufen. Der Fix bleibt der oben
