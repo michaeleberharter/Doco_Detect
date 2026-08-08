@@ -30,6 +30,7 @@ liefert die Höhenkorrektur für beide Kandidaten symmetrisch 5 mm Abstand.
 
 from __future__ import annotations
 
+import math
 import zlib
 from dataclasses import dataclass
 
@@ -40,6 +41,8 @@ DEMO_MM_PER_PX = 0.2          # Demo-Maßstab: 1920 px -> 384 mm Boden
 _Z = 300.0                    # Kamerahöhe mm (wie geometry.camera_height_mm)
 _FLOOR_SEED = 42
 _FLOOR_FILL = 200
+_MIN_SHIFT_PX = 8             # Zusage von _jitter: Varianten > 0 liegen
+                              # mindestens so weit aus der Mitte
 
 
 @dataclass(frozen=True)
@@ -107,33 +110,49 @@ def _jitter(name: str, variant: int, max_x: int, max_y: int) -> tuple:
     und die Einlern-Shots als Randberührung scheitern lassen.
 
     Liefert zusätzlich einen kleinen Radius-Jitter (+-3 px, dritter
-    Rückgabewert, EIGENER RNG – siehe unten): ohne ihn sind alle 5
-    Einlern-Varianten eines Artikels im Ø pixelidentisch (Jitter bewegt
-    bisher nur die Position) -> der Hu-Moment-Prototyp (proto_std) friert
-    auf 0 ein. Bei den fast perfekten synthetischen Kreisen sind die
-    log-transformierten Hu-Momente 6/7 nahe eines Rohwerts von 0 numerisch
-    instabil (Vorzeichen kippt bei +-1 px); mit proto_std=0 bleibt nur der
-    sigma_floor (0.15) im Nenner -> jedes Zwischenbild reißt den z-Gate.
-    Gleiche Idee wie smoke_testset.ENROLL_JITTER = (-1, 0, 1) fürs
-    Einlernen dort.
+    Rückgabewert): ohne ihn sind alle 5 Einlern-Varianten eines Artikels im
+    Ø pixelidentisch (Jitter bewegt nur die Position) -> der Hu-Moment-
+    Prototyp (proto_std) friert auf 0 ein. Bei den fast perfekten
+    synthetischen Kreisen sind die log-transformierten Hu-Momente 6/7 nahe
+    eines Rohwerts von 0 numerisch instabil (Vorzeichen kippt bei +-1 px);
+    mit proto_std=0 bleibt nur der sigma_floor (0.15) im Nenner -> jedes
+    Zwischenbild reißt den z-Gate. Gleiche Idee wie
+    smoke_testset.ENROLL_JITTER = (-1, 0, 1) fürs Einlernen dort.
 
-    Der Radius-Jitter nutzt bewusst eine EIGENE, über zlib.crc32 auf dem
-    UTF-8-Bytestring geseedete RNG statt (wie die Position) Pythons
-    eingebautes hash(): Strings hashen dort per Default prozess-
-    randomisiert (PYTHONHASHSEED), d.h. `hash((name, variant))` liefert
-    bei jedem Interpreter-Start einen anderen Wert. Für die Position war
-    das bisher folgenlos (kein Test/Matcher-Pfad hängt an einem exakten
-    Positionswert); der Radius bestimmt aber direkt Ø/Hu-Momente/Gate-
-    Ergebnis – ein von Lauf zu Lauf anderer Wert würde Tests/Demo-
-    Erwartungen zufällig kippen lassen. crc32 ist ein fester Algorithmus
-    und liefert denselben Seed in jedem Prozess. (Die Positions-RNG bleibt
-    unverändert an hash(), um bestehende, an die exakten Positionswerte
-    gebundene Erwartungen nicht zu verschieben – siehe Task-7-Bericht.)"""
+    BEIDE Jitter werden über zlib.crc32 auf dem UTF-8-Bytestring geseedet.
+    Pythons eingebautes hash() ist für Strings prozess-randomisiert
+    (PYTHONHASHSEED) – `hash((name, variant))` liefert bei jedem
+    Interpreter-Start einen anderen Wert; crc32 ist ein fester Algorithmus
+    und liefert denselben Seed in jedem Prozess.
+
+    Bis 2026-08-08 hing die POSITION noch an hash(). Die dort notierte
+    Begründung („bestehende, an die exakten Positionswerte gebundene
+    Erwartungen nicht verschieben") war unhaltbar: an einen prozess-
+    randomisierten Wert KANN keine Erwartung gebunden sein, und ein grep
+    über tests/ findet genau eine Stelle, die Positionen überhaupt prüft –
+    einen ABSTAND, keinen Wert. Gekostet hat es einen Test, der in 2,2 %
+    der Läufe fiel (81 von 3721 Gitterpunkten liegen zu nah an der Mitte).
+
+    Die Verschiebung ist deshalb ZUGESAGT statt erwürfelt: eine Variante
+    > 0 liegt mindestens _MIN_SHIFT_PX aus der Mitte, solange die Box das
+    hergibt. Ohne die Zusage kann ein Zug (0, 1) treffen – formal bewegt,
+    praktisch derselbe Shot, und genau das soll der Jitter verhindern."""
     if variant == 0:
         return 0, 0, 0
-    rng = np.random.default_rng(abs(hash((name, variant))) % (2 ** 32))
-    jx = int(rng.integers(-max_x, max_x + 1)) if max_x > 0 else 0
-    jy = int(rng.integers(-max_y, max_y + 1)) if max_y > 0 else 0
+    rng = np.random.default_rng(
+        zlib.crc32(f"{name}:{variant}:position".encode("utf-8")) % (2 ** 32))
+    if math.hypot(max_x, max_y) < _MIN_SHIFT_PX:
+        # Box zu eng für die Zusage (bei keiner heutigen Demo-Szene der
+        # Fall). Dann die Ecke statt eines stillen Nullzugs.
+        jx, jy = max_x, max_y
+    else:
+        for _ in range(50):
+            jx = int(rng.integers(-max_x, max_x + 1)) if max_x > 0 else 0
+            jy = int(rng.integers(-max_y, max_y + 1)) if max_y > 0 else 0
+            if math.hypot(jx, jy) >= _MIN_SHIFT_PX:
+                break
+        else:
+            jx, jy = max_x, max_y   # per Konstruktion >= _MIN_SHIFT_PX
     r_seed = zlib.crc32(f"{name}:{variant}:radius".encode("utf-8")) % (2 ** 32)
     jr = int(np.random.default_rng(r_seed).integers(-3, 4))
     return jx, jy, jr
