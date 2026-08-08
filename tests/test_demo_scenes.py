@@ -20,7 +20,8 @@ from docodetect.calibration import Calibration, calibrate_from_image  # noqa: E4
 from docodetect.features import extract, height_corrected_scale  # noqa: E402
 from docodetect.segmentation import segment  # noqa: E402
 from docodetect.ui_qt.demo_scenes import (DEMO_ARTICLES, DEMO_MM_PER_PX,  # noqa: E402
-                                          SCENE_NAMES, build_scene)
+                                          SCENE_NAMES, _MIN_SHIFT_PX,
+                                          build_scene)
 
 CFG = {
     "camera": {"width": 1920, "height": 1080},
@@ -71,7 +72,12 @@ def test_border_scene_touches_border():
 
 def test_variants_jitter_but_measure_same():
     """Varianten (fürs Einlernen) verschieben das Objekt, ändern aber die
-    gemessene Größe praktisch nicht – Basis für enge Enrollment-Streuung."""
+    gemessene Größe praktisch nicht – Basis für enge Enrollment-Streuung.
+
+    Geprüft wird gegen die ZUSAGE von _jitter (_MIN_SHIFT_PX), nicht gegen
+    eine freie Zahl: bis 2026-08-08 stand hier `> 5.0` gegen einen
+    PYTHONHASHSEED-abhängigen Zufallszug, und der Test fiel in 2,2 % der
+    Läufe, wenn die Variante zufällig fast im Zentrum landete."""
     bg = scene("Hintergrund")
     d = []
     centers = []
@@ -83,7 +89,11 @@ def test_variants_jitter_but_measure_same():
         m = seg.contour.reshape(-1, 2).mean(axis=0)
         centers.append(m)
     assert max(d) - min(d) < 2.0
-    assert np.linalg.norm(centers[0] - centers[1]) > 5.0  # wirklich bewegt
+    # 2 px Messschlupf: der Kontur-Schwerpunkt ist nicht exakt der
+    # gezeichnete Mittelpunkt. BEIDE Varianten müssen sich bewegt haben –
+    # eine Variante, die still in der Mitte bleibt, ist derselbe Shot.
+    for v in (1, 2):
+        assert np.linalg.norm(centers[0] - centers[v]) > _MIN_SHIFT_PX - 2
 
 
 def test_background_variants_share_floor_statistics():
