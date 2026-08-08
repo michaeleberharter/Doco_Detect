@@ -499,6 +499,58 @@ sonst wieder erst, wenn etwas im Projektbaum landet.
 
 ---
 
+## 22. Drei Verfahrensregeln aus Beinahe-Ereignissen — an einer Stelle
+
+**Herkunft:** alle drei aus der Sitzung vom 2026-08-08 (Session-Paket und
+Merge-Sequenz) · **Aufwand:** ~15 min, wenn sie nach CLAUDE.md sollen
+
+**Warum überhaupt notiert:** diese drei Regeln stehen sonst verstreut — eine im
+Fließtext von Punkt 19, eine in einer Chat-Antwort zu Schritt 7, eine in einer
+Meldung von heute. Regeln, die nur dort stehen, wo sie entstanden sind, gelten
+genau so lange, wie sich jemand erinnert. Alle drei stammen aus
+**Beinahe-Ereignissen**: keines hat Schaden angerichtet, und genau deshalb ist
+die Versuchung groß, sie als „ging ja gut" abzuhaken.
+
+**1. Beweise sichern, BEVOR der nächste Lauf startet.** Bei einem nicht
+reproduzierbaren Suite-Fehler zuerst `.pytest_cache/v/cache/lastfailed` sichern
+und die volle Ausgabe in eine Datei schreiben. Ein erfolgreicher Diagnoselauf
+löscht die Namen, die er finden soll. Ausführlich in Punkt 19 — dort steht auch
+der Preis: fünf Fehlschlagnamen am 2026-08-06 zweimal verloren, erst durch ein
+`tail -8`, dann durch einen grünen Diagnoselauf. Am 2026-08-08 zum ersten Mal
+angewandt und sofort wirksam: der Name
+`test_variants_jitter_but_measure_same` stand nach dem Fehlschlag fest, statt
+geraten werden zu müssen.
+
+**2. Kein `git stash` während laufender Vergleichsläufe.** Wird ein Vergleich
+gegen einen anderen Stand gebraucht, gehört er in ein separates Worktree oder
+einen Clone. Anlass: bei der Gegenprobe zum Qt-Segfault (Schritt 7 des
+Session-Pakets) lag die Arbeit kurzzeitig im Stash, und ein
+10-Minuten-Timeout des Vergleichslaufs hätte sie dort unbemerkt liegen lassen.
+Sie war wiederherstellbar — Glück, keine Eigenschaft. Ein Worktree kostet
+Sekunden und hat kein solches Fenster.
+
+**3. Die Botschaftsdatei schreiben, BEVOR die Botschaft in die Nachricht geht.**
+Die Hausregel „Nachricht in eine Temp-Datei, dann `git commit -F`" (CLAUDE.md,
+„Umgebungen") gilt sinngemäß für Merges. Am 2026-08-08 wurde der Text einer
+Merge-Botschaft in die Chat-Nachricht geschrieben und anschließend eine Datei
+referenziert, die nie existierte. **Dass daraus kein Schaden wurde, verdankt
+sich `git merge -F`, das bei fehlender Datei abbricht — nicht dem Verfahren.**
+Die Korrektur dreht die Reihenfolge um, statt Aufmerksamkeit zu versprechen:
+erst die Datei, dann der Text in die Nachricht.
+
+**Der gemeinsame Nenner** ist keine Nachlässigkeit, sondern eine Bauform: alle
+drei Regeln schützen einen Zustand, der zwischen zwei Schritten kurz nur an
+EINER Stelle existiert — die Fehlschlagnamen im Cache, die Arbeit im Stash, die
+Botschaft im Kopf. Wer eine vierte Regel dieser Art findet, gehört hierher.
+
+**Wenn sie nach CLAUDE.md wandern** (eigener Schritt, nicht Teil dieses
+Pakets): Regel 1 und 2 zu „Daten & Tests", Regel 3 zu „Umgebungen" neben die
+bestehende `-F`-Regel. Ausdrücklich NICHT als vierter Abschnitt „Regeln aus
+Fehlern" — verstreute Regeln waren ja das Problem, ein eigener Abschnitt dafür
+wäre dasselbe in neu.
+
+---
+
 ## 20. ✅ ERLEDIGT 2026-08-08 — Ein Qt-Test schrieb in den echten Projektbaum
 
 > **Behoben in Schritt 7 des Session-Pakets.** Ursache war präziser als hier
