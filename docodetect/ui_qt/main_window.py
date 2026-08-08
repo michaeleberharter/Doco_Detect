@@ -565,9 +565,19 @@ class MainWindow(QMainWindow):
         Speichern wirken die neuen Referenzen sofort beim Identifizieren."""
         if self.state is not UiState.READY:
             return
+        from docodetect.pipeline import list_enroll_sessions
+
         from .widgets.enroll_dialog import EnrollDialog
 
-        dlg = EnrollDialog(self.cfg, self.ui, self.source, self)
+        # Unterbrochene Sessions kommen VOR dem Einlerndialog – ein eigener
+        # Dialog, kein Banner: eine Session gehoert zu IHREM Artikel, die
+        # Artikel-Combo zeigt aber irgendeinen.
+        fortsetzen = self._frage_offene_sessions()
+        if fortsetzen == "abgebrochen":
+            return
+
+        dlg = EnrollDialog(self.cfg, self.ui, self.source, self,
+                           fortsetzen=fortsetzen)
         dlg.exec()
         if dlg.saved_count:
             self.refresh_status()
@@ -575,6 +585,35 @@ class MainWindow(QMainWindow):
                 f"{dlg.saved_count} Referenz(en) gespeichert.", "accept")
             self._set_guide(
                 "Die neuen Referenzen wirken ab sofort beim Identifizieren.")
+
+    def _frage_offene_sessions(self):
+        """-> SessionInfo (fortsetzen) | None (neu einlernen) |
+        "abgebrochen" (Einlernen gar nicht oeffnen).
+
+        Liest nur Journale, misst nichts nach. Ist die Liste leer, oeffnet wie
+        bisher direkt der Einlerndialog."""
+        from docodetect.pipeline import (discard_enroll_session,
+                                         list_enroll_sessions,
+                                         load_enroll_session)
+
+        from .widgets.open_sessions_dialog import OpenSessionsDialog
+
+        offen = list_enroll_sessions(self.cfg)
+        if not offen:
+            return None
+        dlg = OpenSessionsDialog(offen, self)
+        dlg.exec()
+        if dlg.entscheidung == OpenSessionsDialog.FORTSETZEN:
+            return dlg.gewaehlt
+        if dlg.entscheidung == OpenSessionsDialog.VERWERFEN:
+            try:
+                ziel = discard_enroll_session(
+                    self.cfg, load_enroll_session(self.cfg, dlg.gewaehlt.path))
+                self._set_guide(f"Session verworfen, gesichert unter {ziel}.")
+            except Exception as e:                     # noqa: BLE001
+                self._set_guide(f"Session nicht verworfen: {e}")
+            return "abgebrochen"
+        return None                       # „Später“ – normal weiter einlernen
 
     # ---------- Job-Ergebnisse ----------
 

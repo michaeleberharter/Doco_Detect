@@ -460,7 +460,24 @@ sichern und die volle Ausgabe in eine Datei schreiben — **bevor** irgendein
 weiterer Lauf startet. Ein erfolgreicher Diagnoselauf löscht die Namen, die er
 finden soll.
 
-## 20. Ein Qt-Test schreibt in den echten Projektbaum
+## 20. ✅ ERLEDIGT 2026-08-08 — Ein Qt-Test schrieb in den echten Projektbaum
+
+> **Behoben in Schritt 7 des Session-Pakets.** Ursache war präziser als hier
+> beschrieben: `test_enroll_dialog_demo_flow` lädt die **echte `config.yaml`**
+> (`load_config()`) und überschrieb danach nur `paths` und `calibration` —
+> `analysis.output_dir` blieb auf dem Produktivwert `reports/analysis`, und
+> `persist_enrollment_sheet` schrieb folgerichtig dorthin. Fix: dieselbe
+> Umlenkung unter `tmp_path` wie für die Pfade, an allen fünf Stellen im
+> Modul. Verifiziert durch Beiseitelegen der Datei und erneuten Lauf: sie
+> entsteht nicht wieder.
+>
+> Die beiden Altbestände (`DEMO-T18.png` von 2026-08-06 und 2026-08-08) liegen
+> **verschoben, nicht gelöscht** unter `~/Documents/tmp/`. Der Text unten
+> bleibt als Herleitung stehen.
+
+---
+
+### (ursprünglicher Eintrag)
 
 **Fundstelle:** `reports/analysis/enrollment/DEMO-T18.png` (am 2026-08-06 um
 20:26 während eines Suite-Laufs entstanden), `pipeline.persist_enrollment_sheet`

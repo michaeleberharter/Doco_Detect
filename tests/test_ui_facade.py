@@ -139,6 +139,11 @@ def _marker_cfg(tmp_path):
                               marker_size_mm=136.0)
     cfg["geometry"] = {"camera_height_mm": 300.0}
     cfg["paths"]["reference_dir"] = str(tmp_path / "reference")
+    # Einlern-Sessions und ihr Archiv unter tmp_path: sonst schriebe der Test
+    # in den echten Projektbaum (resolve() loest relative Pfade gegen
+    # project_root() auf).
+    cfg["paths"]["enroll_sessions_dir"] = str(tmp_path / "enroll_sessions")
+    cfg["paths"]["backups_dir"] = str(tmp_path / "backups")
     return cfg
 
 
@@ -383,32 +388,40 @@ def test_persist_enrollment_sheet_missing_source_raises(tmp_path):
         persist_enrollment_sheet(cfg, "X-1", tmp_path / "does_not_exist.png")
 
 
-def _enroll_shots(cfg):
-    """Zwei vermessene Shots + fertig eingerichtete cfg (bg + Kalibrierung)."""
-    from docodetect.pipeline import calibrate, capture_background, measure_shot
+def _enroll_session(cfg):
+    """Eine Einlern-Session mit zwei Aufnahmen AUF DER PLATTE + eingerichtete
+    cfg (bg + Kalibrierung).
+
+    Seit dem Session-Umbau nimmt _job_commit eine EnrollSession statt einer
+    Liste von In-Memory-Shots — die Aussage der beiden Tests darunter bleibt
+    unveraendert (Blatt-Kopieren ist best-effort und darf das Buchen nie
+    blockieren), nur der Weg dorthin fuehrt jetzt ueber das Journal."""
+    from docodetect.pipeline import (append_shot, begin_enroll_session,
+                                     calibrate, capture_background,
+                                     measure_shot, stage_frame)
     from docodetect.ui_qt.demo_scenes import build_scene
 
     capture_background(build_scene(cfg, "Hintergrund"), cfg)
     calibrate(build_scene(cfg, "Marker"), cfg)
     _seed_db(cfg, with_reference=False)
-    shots = []
+    s = begin_enroll_session(cfg, "T-270", target_shots=2)
     for v in (1, 2):
         img = build_scene(cfg, "Teller 18", v)
         feats, _ = measure_shot(img, cfg)
-        shots.append({"frame": img, "feats": feats})
-    return shots
+        s = append_shot(cfg, s, stage_frame(cfg, s, img), feats)
+    return s
 
 
-def test_job_save_copies_sheet_on_uebernehmen(tmp_path):
-    from docodetect.ui_qt.widgets.enroll_dialog import _job_save
+def test_job_commit_copies_sheet_on_uebernehmen(tmp_path):
+    from docodetect.ui_qt.widgets.enroll_dialog import _job_commit
 
     cfg = _marker_cfg(tmp_path)
     cfg["analysis"] = {"output_dir": str(tmp_path / "reports")}
-    shots = _enroll_shots(cfg)
+    session = _enroll_session(cfg)
     sheet = tmp_path / "tmp_sheet.png"
     sheet.write_bytes(b"\x89PNG fake sheet")
 
-    result = _job_save(cfg, "T-270", shots, str(sheet))
+    result = _job_commit(cfg, session, str(sheet))
     assert result["n"] == 2
     assert result["warn"] is None
     dest = Path(cfg["analysis"]["output_dir"]) / "enrollment" / "T-270.png"
@@ -416,16 +429,16 @@ def test_job_save_copies_sheet_on_uebernehmen(tmp_path):
     assert result["sheet_dest"] == str(dest)
 
 
-def test_job_save_copy_failure_does_not_block_db_write(tmp_path):
+def test_job_commit_copy_failure_does_not_block_db_write(tmp_path):
     """Schlägt das Blatt-Kopieren fehl, wird trotzdem in die DB geschrieben
     (n korrekt, Referenzen da) und nur gewarnt — kein Abbruch."""
-    from docodetect.ui_qt.widgets.enroll_dialog import _job_save
+    from docodetect.ui_qt.widgets.enroll_dialog import _job_commit
 
     cfg = _marker_cfg(tmp_path)
     cfg["analysis"] = {"output_dir": str(tmp_path / "reports")}
-    shots = _enroll_shots(cfg)
+    session = _enroll_session(cfg)
 
-    result = _job_save(cfg, "T-270", shots, str(tmp_path / "gibt_es_nicht.png"))
+    result = _job_commit(cfg, session, str(tmp_path / "gibt_es_nicht.png"))
     assert result["n"] == 2                               # DB-Schreiben NICHT blockiert
     assert result["sheet_dest"] is None
     assert result["warn"] and "nicht gesichert" in result["warn"]
