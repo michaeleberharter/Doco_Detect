@@ -135,7 +135,20 @@ def save_enrollment(cfg: dict, article_number: str,
     """Zweite Hälfte des Einlern-Ablaufs: alle bestätigten Shots
     [(image, Features), ...] auf einmal persistieren – Referenzfoto nach
     paths.reference_dir/<artikel>/ (wie die CLI) + Features in die
-    DB (Enrollment-Statistik wird dabei aktualisiert)."""
+    DB (Enrollment-Statistik wird dabei aktualisiert).
+
+    OHNE PRODUKTIVAUFRUFER seit 2026-08-08 (Schritt 7 des Session-Pakets):
+    der Qt-Einlerndialog arbeitet jetzt auf einer EnrollSession und bucht ueber
+    commit_enroll_session, das die Dateien vor der Transaktion verschiebt
+    (Invariante U1). Diese Fassade nimmt dagegen In-Memory-Shots entgegen und
+    schreibt Datei und DB-Zeile ineinander verschraenkt – ein Absturz dazwischen
+    hinterliesse genau den Zustand, gegen den das Paket gebaut ist.
+
+    Sie bleibt trotzdem: drei Tests haengen daran (test_enrollment_sheet.py:91
+    und :217, test_ui_facade.py:226) und sind seither ihre EINZIGE Absicherung.
+    Wer sie „der neuen Welt anpasst", entfernt genau diese. Zusammenlegen oder
+    entfernen ist als eigener Schritt vorgemerkt (Vormerkliste 16) – bewusst
+    NICHT im selben Paket, das den Einlernpfad umbaut."""
     ref_dir = resolve(cfg["paths"]["reference_dir"]) / article_number
     ref_dir.mkdir(parents=True, exist_ok=True)
     pipe = Pipeline(cfg)
@@ -1242,7 +1255,17 @@ class Pipeline:
     def save_reference(self, article_number: str, feats: Features,
                        image_path: str | None = None) -> None:
         """Second half of the two-step enroll flow: persist an already-measured
-        (and user-approved) reference."""
+        (and user-approved) reference.
+
+        OHNE AUFRUFER seit 2026-08-08 (Schritt 7 des Session-Pakets): ihr
+        einziger war save_enrollment, und der Einlerndialog geht jetzt ueber
+        commit_enroll_session. Auch kein Test ruft sie direkt.
+
+        Sie bleibt trotzdem stehen: sie ist die dokumentierte zweite Haelfte der
+        Zwei-Schritt-Fassade (analyze -> save_reference, siehe enroll() oben),
+        und ein UI, das einzelne Referenzen nachtraegt, waere ein legitimer
+        kuenftiger Aufrufer. Zusammenlegen oder entfernen ist als eigener
+        Schritt vorgemerkt (Vormerkliste 16)."""
         self.db.add_reference(article_number, feats, image_path)
 
     def create_article(self, image: np.ndarray, name: str, *,

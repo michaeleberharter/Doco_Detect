@@ -148,6 +148,29 @@ Key invariants that explain a lot of the code:
   which must never be booked automatically. Candidates with enrollment
   stats are compared floor-plane vs. floor-plane (no double height
   correction); only the pre-filter uses `height_corrected_scale`.
+- **Einlern-Sessions überleben einen Absturz** (seit 2026-08-08, Design:
+  [superpowers/specs/2026-08-05-crashsichere-einlern-session-design.md](superpowers/specs/2026-08-05-crashsichere-einlern-session-design.md)).
+  Jede Aufnahme wird sofort als Roh-PNG unter
+  `paths.enroll_sessions_dir/<artikel>/<ts>/` verankert und per Zeile in ein
+  **append-only** `journal.jsonl` übernommen; die Platte ist die Wahrheit, nicht
+  der Arbeitsspeicher. Es gibt **kein Statusfeld** – jeder Zwischenzustand ist
+  aus (Journal, Dateisystem, DB) ableitbar, und keine Datei wird je zweimal
+  geschrieben (ein Retake schreibt `raw_<NNN+1>.png` und lässt die alte liegen).
+  `session.json` hält einen **Fingerabdruck** des Optikzustands (sha256 über
+  `calibration.json`, `background.png` und den kanonisierten `features`-Block);
+  er wird beim Anlegen gesetzt und bei jeder Aufnahme, beim Fortsetzen und
+  unmittelbar vor der Transaktion geprüft – sonst mischte eine `sigma_enroll`
+  zwei Optikzustände.
+  **Invariante U1 beim Buchen:** erst werden ALLE N Dateien per `os.rename` nach
+  `reference_dir` verschoben, DANN alle N Referenzzeilen samt
+  `reference_stats`-Neuberechnung in GENAU EINER Transaktion
+  (`database.add_references`). Ein Absturz dazwischen landet in „Umzug
+  vollständig, DB leer" und ist wiederaufnehmbar; die umgekehrte Reihenfolge
+  erzeugte Zeilen mit toten `image_path`.
+  Der Rettungspfad ist **ohne GUI vollständig**: `list-enroll-sessions`,
+  `show-enroll-session`, `commit-enroll-session`, `discard-enroll-session` (beide
+  schreibenden mit `--dry-run`). Der Rettungsfall ist genau der, in dem Qt das
+  kaputte Teil ist.
 - **`database.py`** is a thin SQLite wrapper (`articles` = master data
   imported from CSV, `reference_features` = enrolled photos' `Features` as
   JSON) explicitly designed to be swapped for the real DO&CO database

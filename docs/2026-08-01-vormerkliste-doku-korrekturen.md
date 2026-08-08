@@ -460,6 +460,45 @@ sichern und die volle Ausgabe in eine Datei schreiben — **bevor** irgendein
 weiterer Lauf startet. Ein erfolgreicher Diagnoselauf löscht die Namen, die er
 finden soll.
 
+## 21. Test-Configs lenken `paths` um — aber nicht jeden Schlüssel, der einen Pfad enthält
+
+**Fundstellen (vier, in vier Wochen):** `_raeume_nach_backups` gegen
+`project_root()` statt `paths.backups_dir` (Schritt 3), `_marker_cfg` in
+`test_ui_facade.py` und die fünf `paths`-Blöcke in `test_ui_qt_smoke.py` ohne
+`enroll_sessions_dir`/`backups_dir` (Schritt 7), `analysis.output_dir` in
+denselben fünf Blöcken (Schritt 7, Punkt 20) · **Aufwand:** ~1 h für einen
+Wächter, offen für die Methode
+
+**Das ist ein Muster, kein Einzelfall.** Vier Mal dieselbe Klasse: eine
+Test-Config überschreibt `paths.*` unter `tmp_path`, übersieht aber einen
+Schlüssel, der ebenfalls einen Pfad trägt — und der Test schreibt in den echten
+Projektbaum. Gefunden wurde es jedes Mal **zufällig**, weil etwas auffiel; zwei
+der vier Fundstellen sind gitignored (`backups/`, `reports/*`), `git status`
+bleibt also sauber und niemand merkt es.
+
+**Warum es zählt:** ein Test, der in den Produktivbaum schreibt, kann bei
+ungünstiger Reihenfolge auch Produktivzustand *lesen* — und dann misst er etwas
+anderes, als er behauptet. Beim Session-Paket war das jedes Mal harmlos
+(Artefakte, keine Überschreibungen), aber das ist Glück, keine Eigenschaft.
+
+**Kandidaten für die nächste Runde**, absteigend nach Nutzen:
+
+1. **Ein autouse-Wächter in `tests/conftest.py`**, der vor und nach jedem Test
+   den Projektbaum auf neue Dateien vergleicht und bei einer Abweichung
+   fehlschlägt. Findet die Klasse vollständig statt stichprobenartig. Kosten:
+   Laufzeit je Test, und die bekannten Ausnahmen (Korpus-Tests schreiben
+   absichtlich in `runs/`) müssen erlaubt werden.
+2. **Eine gemeinsame `test_cfg(tmp_path)`-Fabrik** statt sechs handgepflegter
+   `make_cfg`/`_marker_cfg`/inline-Blöcke. Dann existiert die Umlenkung an
+   einer Stelle — dieselbe Begründung wie für `sandbox_cfg` im Produktivcode.
+3. Minimal: eine Liste aller Config-Schlüssel, die einen Pfad tragen, plus ein
+   Test, der prüft, dass jede Test-Config sie vollständig umlenkt.
+
+**Nicht jetzt verfolgen, nur festhalten** — die nächste Fundstelle findet sich
+sonst wieder erst, wenn etwas im Projektbaum landet.
+
+---
+
 ## 20. ✅ ERLEDIGT 2026-08-08 — Ein Qt-Test schrieb in den echten Projektbaum
 
 > **Behoben in Schritt 7 des Session-Pakets.** Ursache war präziser als hier
