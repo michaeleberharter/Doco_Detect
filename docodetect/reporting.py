@@ -119,14 +119,30 @@ def summarize(reports: list[MatchReport]) -> BatchSummary:
 
 
 def load_reports(folder: str | Path,
-                 limit: int | None = None) -> list[tuple[Path, MatchReport]]:
-    """Alle Report-JSONs eines Ordners, nach mtime absteigend (neueste zuerst).
-    Defekte/fremde JSONs werden übersprungen statt die Ansicht zu killen."""
+                 limit: int | None = None,
+                 sort_by: str = "mtime") -> list[tuple[Path, MatchReport]]:
+    """Alle Report-JSONs eines Ordners, absteigend sortiert (neueste zuerst).
+    Defekte/fremde JSONs werden übersprungen statt die Ansicht zu killen.
+
+    `sort_by` wählt den Schlüssel — additiv eingeführt (2026-08-10,
+    Admin-Panel 1a), der Default bleibt das bisherige Verhalten:
+    - "mtime": Schreibzeitpunkt der Datei. Achtung: save_verdict schreibt
+      Report-JSONs neu — ein nachträglich bewerteter alter Report rückt
+      damit nach vorn.
+    - "name": Dateiname, lexikografisch. Capture-Namen sind ms-Zeitstempel
+      (pipeline._save_capture_and_report), die Ordnung bleibt damit auch
+      nach save_verdict stabil.
+    `limit` greift NACH dem Sortieren (behält die ersten n der Ordnung)."""
+    schluessel = {"mtime": (lambda p: p.stat().st_mtime),
+                  "name": (lambda p: p.name)}
+    if sort_by not in schluessel:
+        raise ValueError("sort_by muss 'mtime' oder 'name' sein, "
+                         f"nicht {sort_by!r}.")
     folder = Path(folder)
     if not folder.is_dir():
         return []
     out: list[tuple[Path, MatchReport]] = []
-    for p in sorted(folder.glob("*.json"), key=lambda p: p.stat().st_mtime,
+    for p in sorted(folder.glob("*.json"), key=schluessel[sort_by],
                     reverse=True):
         try:
             rep = MatchReport.from_json(p.read_text(encoding="utf-8"))

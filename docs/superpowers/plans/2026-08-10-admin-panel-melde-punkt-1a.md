@@ -42,6 +42,11 @@ Lesezugriffe.
   committet.
 - Testaufrufe seriell, UI-Module einzeln (Spec Abschnitt 10; Vollausgaben
   von Melde-Punkt-Läufen nach `~/Documents/tmp/`, nie `/tmp`).
+- **Python-Floor 3.9** (`pyproject.toml:8: requires-python = ">=3.9"`;
+  venv: 3.9.6): PEP-604-Annotationen (`X | Y`) nur in Dateien mit
+  `from __future__ import annotations` — alle fünf neuen Module dieses
+  Plans haben den Import; in Dateien ohne ihn (z. B. bestehende
+  Testmodule) keine solchen Annotationen schreiben (Befund Block 1).
 
 ---
 
@@ -50,6 +55,10 @@ Lesezugriffe.
 **Files:**
 - Modify: `docodetect/pipeline.py` (direkt nach `render_report_overlay`,
   vor `list_articles`, ~Zeile 1129)
+- Modify: `docodetect/reporting.py` (`load_reports` bekommt einen
+  ADDITIVEN `sort_by`-Parameter, Default `"mtime"` = bisheriges
+  Verhalten — Entscheidung 2026-08-10 nach dem mtime-Befund; kein
+  bestehender Aufrufer ändert sich)
 - Test: `tests/test_ui_facade.py` (bestehendes Zuhause der
   pipeline-Fassaden-Tests, ans Dateiende)
 
@@ -61,7 +70,9 @@ Lesezugriffe.
   (Zeile 368–394); `config.resolve`.
 - Produces (Fassaden-Signaturen — Pfadauflösung IMMER hier, nie beim
   Aufrufer):
-  - `load_saved_reports(cfg: dict, limit: int | None = None) -> list[tuple[Path, MatchReport]]` — löst `paths.captures_dir` auf
+  - `load_saved_reports(cfg: dict, limit: int | None = None) -> list[tuple[Path, MatchReport]]` — löst `paths.captures_dir` auf und wählt
+    ausdrücklich `sort_by="name"` (Dateiname = ms-Zeitstempel; stabil
+    gegen `save_verdict`-Neuschreiben, Befund 2026-08-10)
   - `report_judgement(report: MatchReport) -> bool | None`
   - `report_predicted_article(report: MatchReport) -> str`
   - `optics_fingerprint(cfg: dict) -> dict | None` — löst
@@ -80,8 +91,9 @@ from docodetect.pipeline import (load_saved_reports,  # noqa: E402
                                  report_predicted_article)
 
 
-def _schreibe_report(pfad: Path, decision: str,
-                     verdict: str | None = None) -> None:
+def _schreibe_report(pfad, decision, verdict=None):
+    # Ohne Typ-Annotationen: die Datei hat kein `from __future__ import
+    # annotations`, und unter Python 3.9 wäre `str | None` ein TypeError.
     rep = MatchReport(decision=decision, message="Test", verdict=verdict)
     pfad.parent.mkdir(parents=True, exist_ok=True)
     pfad.write_text(rep.to_json(), encoding="utf-8")
@@ -91,11 +103,9 @@ def test_load_saved_reports_neueste_zuerst_limit_und_defekte(tmp_path):
     cfg = make_cfg(tmp_path)
     caps = tmp_path / "captures"
     cfg["paths"]["captures_dir"] = str(caps)
+    # Die Fassade sortiert nach DATEINAME (absteigend) — Capture-Namen
+    # sind ms-Zeitstempel. Kein sleep nötig, mtime ist egal.
     _schreibe_report(caps / "a.json", "reject")
-    # mtime-Auflösung: load_reports sortiert nach Datei-mtime; ohne Pause
-    # bekämen a/b auf schnellen Dateisystemen denselben Stempel und die
-    # Reihenfolge wäre zufällig. Nicht wegkürzen.
-    time.sleep(0.05)
     _schreibe_report(caps / "b.json", "accept")
     (caps / "kaputt.json").write_text("{nix", encoding="utf-8")
     alle = load_saved_reports(cfg)
@@ -109,6 +119,48 @@ def test_load_saved_reports_ohne_ordner_ist_leer(tmp_path):
     cfg = make_cfg(tmp_path)
     cfg["paths"]["captures_dir"] = str(tmp_path / "gibtsnicht")
     assert load_saved_reports(cfg) == []
+
+
+def test_load_saved_reports_bewertung_aendert_reihenfolge_nicht(tmp_path):
+    """Befund 2026-08-10: save_verdict schreibt das Report-JSON neu. Mit
+    mtime-Sortierung springt ein nachträglich bewerteter alter Report in
+    „neueste zuerst" nach vorn — genau die bewerteten Reports sind aber
+    die, die man im Browser sucht. Maßgeblich ist der Dateiname
+    (ms-Zeitstempel), nicht der Schreibzeitpunkt."""
+    cfg = make_cfg(tmp_path)
+    caps = tmp_path / "captures"
+    cfg["paths"]["captures_dir"] = str(caps)
+    _schreibe_report(caps / "20260810-100000-000.json", "reject")
+    _schreibe_report(caps / "20260810-110000-000.json", "accept")
+    # Nachträgliche Bewertung: die ÄLTERE Datei wird neu geschrieben,
+    # ihr mtime ist jetzt der jüngste im Ordner.
+    _schreibe_report(caps / "20260810-100000-000.json", "reject",
+                     verdict="wrong")
+    alle = load_saved_reports(cfg)
+    assert [p.name for p, _ in alle] == ["20260810-110000-000.json",
+                                         "20260810-100000-000.json"]
+
+
+def test_load_saved_reports_fremddateien_crashen_nicht(tmp_path):
+    """Dateien ohne Zeitstempel-Muster im Namen: kein Crash, deterministische
+    Einsortierung (lexikografisch — 'z…' steht absteigend vor den
+    Ziffern-Zeitstempeln, unabhängig vom Schreibzeitpunkt)."""
+    cfg = make_cfg(tmp_path)
+    caps = tmp_path / "captures"
+    cfg["paths"]["captures_dir"] = str(caps)
+    _schreibe_report(caps / "zzz-fremd.json", "reject")   # zuerst geschrieben
+    _schreibe_report(caps / "20260810-120000-000.json", "accept")
+    alle = load_saved_reports(cfg)
+    assert [p.name for p, _ in alle] == ["zzz-fremd.json",
+                                         "20260810-120000-000.json"]
+
+
+def test_load_reports_unbekannter_sortierschluessel(tmp_path):
+    """Der additive sort_by-Parameter kennt genau 'mtime' und 'name' —
+    alles andere ist ein klarer Fehler, kein stilles Fallback."""
+    from docodetect.reporting import load_reports
+    with pytest.raises(ValueError):
+        load_reports(tmp_path, sort_by="quatsch")
 
 
 def test_report_judgement_und_prediction_delegieren():
@@ -151,7 +203,42 @@ def test_optics_fingerprint_liefert_hashes(tmp_path):
 Run: `.venv/bin/pytest tests/test_ui_facade.py -v`
 Expected: FAIL/ERROR mit `ImportError: cannot import name 'load_saved_reports'`
 
-- [ ] **Step 3: Fassaden implementieren** — in `docodetect/pipeline.py`
+- [ ] **Step 3a: Additiver `sort_by`-Parameter in `reporting.load_reports`**
+  (Default `"mtime"` = bisheriges Verhalten; `limit` greift dort NACH dem
+  Sortieren — `sorted()` läuft über alle Dateien, der `break` kappt erst
+  beim Einsammeln):
+
+```python
+def load_reports(folder: str | Path,
+                 limit: int | None = None,
+                 sort_by: str = "mtime") -> list[tuple[Path, MatchReport]]:
+    """Alle Report-JSONs eines Ordners, absteigend sortiert (neueste zuerst).
+    Defekte/fremde JSONs werden übersprungen statt die Ansicht zu killen.
+
+    `sort_by` wählt den Schlüssel — additiv eingeführt (2026-08-10,
+    Admin-Panel 1a), der Default bleibt das bisherige Verhalten:
+    - "mtime": Schreibzeitpunkt der Datei. Achtung: save_verdict schreibt
+      Report-JSONs neu — ein nachträglich bewerteter alter Report rückt
+      damit nach vorn.
+    - "name": Dateiname, lexikografisch. Capture-Namen sind ms-Zeitstempel
+      (pipeline._save_capture_and_report), die Ordnung bleibt damit auch
+      nach save_verdict stabil.
+    `limit` greift NACH dem Sortieren (behält die ersten n der Ordnung)."""
+    schluessel = {"mtime": (lambda p: p.stat().st_mtime),
+                  "name": (lambda p: p.name)}
+    if sort_by not in schluessel:
+        raise ValueError("sort_by muss 'mtime' oder 'name' sein, "
+                         f"nicht {sort_by!r}.")
+    folder = Path(folder)
+    if not folder.is_dir():
+        return []
+    out: list[tuple[Path, MatchReport]] = []
+    for p in sorted(folder.glob("*.json"), key=schluessel[sort_by],
+                    reverse=True):
+        # … Schleifenkörper unverändert (parse, skip, report_path, limit) …
+```
+
+- [ ] **Step 3b: Fassaden implementieren** — in `docodetect/pipeline.py`
   nach `render_report_overlay` einfügen:
 
 ```python
@@ -163,10 +250,13 @@ def load_saved_reports(cfg: dict,
                        limit: int | None = None
                        ) -> list[tuple[Path, MatchReport]]:
     """Gespeicherte Identifikations-Reports aus paths.captures_dir,
-    neueste zuerst (mtime); defekte JSONs werden übersprungen. `limit`
-    begrenzt auf die neuesten n."""
+    neueste zuerst nach DATEINAME (ms-Zeitstempel) — bewusst nicht mtime:
+    save_verdict schreibt Report-JSONs neu, ein bewerteter alter Report
+    stünde sonst fälschlich vorn (Befund 2026-08-10). Defekte JSONs werden
+    übersprungen; `limit` begrenzt auf die neuesten n."""
     from .reporting import load_reports
-    return load_reports(resolve(cfg["paths"]["captures_dir"]), limit=limit)
+    return load_reports(resolve(cfg["paths"]["captures_dir"]), limit=limit,
+                        sort_by="name")
 
 
 def report_judgement(report: MatchReport) -> bool | None:
@@ -1164,12 +1254,29 @@ Spec Abschnitt 10) — maßgeblich ist die Summary-Zeile.
   Sonderwert `NO_MATCH` (bestehende reporting-Semantik). Die
   Report-Browser-Tabelle darf das NICHT als Artikelnummer darstellen,
   sondern als eigenen Zustand (z. B. „kein Kandidat").
-- **Sortierschlüssel des Report-Browsers — Entscheidung offen (Mike):**
-  `reporting.load_reports` sortiert nach Datei-mtime. Deterministischere
-  Kandidaten existieren: (a) der Dateiname (ms-Zeitstempel
-  `%Y%m%d-%H%M%S-%f[:-3]`, `pipeline.py:1238`), lexikografisch sortierbar
-  ohne JSON-Parsen; (b) das Feld `report.timestamp` (µs-ISO seit
-  `59edc46`, Altbestand nur sekundengenau, erfordert Parsen aller
-  Dateien). mtime-Schwäche: `save_verdict` schreibt das JSON neu — ein
-  nachträglich bewerteter alter Report springt in „neueste zuerst" nach
-  vorn. Bis zur Entscheidung bleibt mtime (Task-1-Test dokumentiert das).
+- **Sortierschlüssel — entschieden (2026-08-10):** Der mtime-Befund
+  (`save_verdict` schreibt das JSON neu, bewertete alte Reports springen
+  nach vorn) ist in 1a ADDITIV gelöst: `load_reports(sort_by=…)` mit
+  Default `"mtime"` (bisheriges Verhalten, kein Aufrufer geändert), die
+  Fassade wählt ausdrücklich `"name"`. `test_floor_analysis.py` und sein
+  Docstring bleiben unangetastet — floor_analysis behält mtime.
+
+## Vorgemerkter eigener Vorgang (nicht Teil von 1a): globale Umstellung auf Dateiname
+
+Festgelegt 2026-08-10 nach dem mtime-Befund; Start nur mit eigener
+Freigabe. Inhalt:
+
+- **Umstellung des `load_reports`-Defaults auf den Dateinamen** (analysis
+  sortiert bereits selbst nach Stem, `analysis.py:642–649`; `save_verdict`
+  macht mtime unzuverlässig).
+- **Nachweis für floor_analysis:** `analyze-floors` auf identischem
+  Bestand vor/nach der Umstellung, Ergebnis-Floors numerisch verglichen.
+  Abweichung > 0 = Stopp und Meldung, keine stille Übernahme.
+- **Latenter Befund (eigenständig, unabhängig von der Umstellung):**
+  floor_analysis' `limit` greift heute auf „zuletzt geschrieben" statt
+  „zuletzt aufgenommen" — mit `save_verdict` im Spiel ist das für
+  bewertete Bestände falsch.
+- **`corpus/build.py`:** Append-Reihenfolge künftiger Manifest-Einträge
+  kann sich ändern (versioniertes Manifest, im Diff sichtbar) — vor der
+  Umstellung klären, ob die Reihenfolge dort Bedeutung hat oder rein
+  kosmetisch ist.

@@ -443,3 +443,115 @@ def test_job_commit_copy_failure_does_not_block_db_write(tmp_path):
     assert result["sheet_dest"] is None
     assert result["warn"] and "nicht gesichert" in result["warn"]
     assert get_status(cfg).articles_with_references == 1  # Referenzen sind da
+
+
+# ---------- Lese-Fassaden (Admin-Panel 1a) ----------
+
+from docodetect.matcher import MatchReport  # noqa: E402
+from docodetect.pipeline import (load_saved_reports,  # noqa: E402
+                                 optics_fingerprint, report_judgement,
+                                 report_predicted_article)
+
+
+def _schreibe_report(pfad, decision, verdict=None):
+    # Ohne Typ-Annotationen: die Datei hat kein `from __future__ import
+    # annotations`, und unter Python 3.9 wäre `str | None` ein TypeError.
+    rep = MatchReport(decision=decision, message="Test", verdict=verdict)
+    pfad.parent.mkdir(parents=True, exist_ok=True)
+    pfad.write_text(rep.to_json(), encoding="utf-8")
+
+
+def test_load_saved_reports_neueste_zuerst_limit_und_defekte(tmp_path):
+    cfg = make_cfg(tmp_path)
+    caps = tmp_path / "captures"
+    cfg["paths"]["captures_dir"] = str(caps)
+    # Die Fassade sortiert nach DATEINAME (absteigend) — Capture-Namen
+    # sind ms-Zeitstempel. Kein sleep nötig, mtime ist egal.
+    _schreibe_report(caps / "a.json", "reject")
+    _schreibe_report(caps / "b.json", "accept")
+    (caps / "kaputt.json").write_text("{nix", encoding="utf-8")
+    alle = load_saved_reports(cfg)
+    assert [p.name for p, _ in alle] == ["b.json", "a.json"]
+    assert alle[0][1].report_path == str(caps / "b.json")
+    nur_eins = load_saved_reports(cfg, limit=1)
+    assert [p.name for p, _ in nur_eins] == ["b.json"]
+
+
+def test_load_saved_reports_bewertung_aendert_reihenfolge_nicht(tmp_path):
+    """Befund 2026-08-10: save_verdict schreibt das Report-JSON neu. Mit
+    mtime-Sortierung springt ein nachträglich bewerteter alter Report in
+    „neueste zuerst" nach vorn — genau die bewerteten Reports sind aber
+    die, die man im Browser sucht. Maßgeblich ist der Dateiname
+    (ms-Zeitstempel), nicht der Schreibzeitpunkt."""
+    cfg = make_cfg(tmp_path)
+    caps = tmp_path / "captures"
+    cfg["paths"]["captures_dir"] = str(caps)
+    _schreibe_report(caps / "20260810-100000-000.json", "reject")
+    _schreibe_report(caps / "20260810-110000-000.json", "accept")
+    # Nachträgliche Bewertung: die ÄLTERE Datei wird neu geschrieben,
+    # ihr mtime ist jetzt der jüngste im Ordner.
+    _schreibe_report(caps / "20260810-100000-000.json", "reject",
+                     verdict="wrong")
+    alle = load_saved_reports(cfg)
+    assert [p.name for p, _ in alle] == ["20260810-110000-000.json",
+                                         "20260810-100000-000.json"]
+
+
+def test_load_saved_reports_ohne_ordner_ist_leer(tmp_path):
+    cfg = make_cfg(tmp_path)
+    cfg["paths"]["captures_dir"] = str(tmp_path / "gibtsnicht")
+    assert load_saved_reports(cfg) == []
+
+
+def test_load_saved_reports_fremddateien_crashen_nicht(tmp_path):
+    """Dateien ohne Zeitstempel-Muster im Namen: kein Crash, deterministische
+    Einsortierung (lexikografisch — 'z…' steht absteigend vor den
+    Ziffern-Zeitstempeln, unabhängig vom Schreibzeitpunkt)."""
+    cfg = make_cfg(tmp_path)
+    caps = tmp_path / "captures"
+    cfg["paths"]["captures_dir"] = str(caps)
+    _schreibe_report(caps / "zzz-fremd.json", "reject")   # zuerst geschrieben
+    _schreibe_report(caps / "20260810-120000-000.json", "accept")
+    alle = load_saved_reports(cfg)
+    assert [p.name for p, _ in alle] == ["zzz-fremd.json",
+                                         "20260810-120000-000.json"]
+
+
+def test_load_reports_unbekannter_sortierschluessel(tmp_path):
+    """Der additive sort_by-Parameter kennt genau 'mtime' und 'name' —
+    alles andere ist ein klarer Fehler, kein stilles Fallback."""
+    from docodetect.reporting import load_reports
+    with pytest.raises(ValueError):
+        load_reports(tmp_path, sort_by="quatsch")
+
+
+def test_report_judgement_und_prediction_delegieren():
+    rep = MatchReport(decision="accept", message="", verdict="correct")
+    assert report_judgement(rep) is True
+    assert report_predicted_article(rep) == "NO_MATCH"  # keine Kandidaten
+    assert report_judgement(MatchReport(decision="reject", message="")) is None
+
+
+def test_optics_fingerprint_none_ohne_einrichtung(tmp_path):
+    assert optics_fingerprint(make_cfg(tmp_path)) is None
+
+
+def test_optics_fingerprint_liefert_hashes(tmp_path):
+    import hashlib
+
+    cfg = make_cfg(tmp_path)
+    cfg["features"] = {"ring_zones": 3, "hs_hist_bins": [8, 8]}
+    Calibration(mm_per_px=0.5, camera_height_mm=300.0, image_width=1920,
+                image_height=1080, marker_size_mm=72.5,
+                created_unix=time.time()).save(cfg["calibration"]["file"])
+    cv2.imwrite(cfg["calibration"]["background_file"],
+                np.zeros((8, 8, 3), dtype=np.uint8))
+    fp = optics_fingerprint(cfg)
+    assert fp is not None
+    assert fp["mm_per_px"] == 0.5
+    erwartet = hashlib.sha256(
+        Path(cfg["calibration"]["background_file"]).read_bytes()).hexdigest()
+    assert fp["background_sha256"] == erwartet
+    assert set(fp) == {"calibration_sha256", "background_sha256",
+                       "features_cfg_sha256", "mm_per_px",
+                       "camera_height_mm"}
