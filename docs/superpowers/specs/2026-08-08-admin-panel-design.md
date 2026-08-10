@@ -42,7 +42,7 @@ vierte Auswertungswahrheit (siehe Abnahmekriterien, Abschnitt 8).
   der vier Arbeitsschritte, oberhalb des Zahnrads. Immer aktiv — der
   Admin-Bereich muss gerade dann erreichbar sein, wenn die Kamera fehlt
   (Diagnose).
-- **Was das Passwort ist — und was nicht:** Der scrypt-Hash ist
+- **Was das Passwort ist — und was nicht:** Der Passwort-Hash ist
   **Fehlklick-Schutz gegen versehentliches Betreten, keine
   Sicherheitsgrenze.** DB, Config und Captures liegen unverschlüsselt
   direkt daneben; wer Dateisystem-Zugriff hat, braucht das Panel nicht.
@@ -51,8 +51,13 @@ vierte Auswertungswahrheit (siehe Abnahmekriterien, Abschnitt 8).
   Einlernen, Hintergrund aufnehmen und Kalibrieren bleiben vollständig
   außerhalb des Admin-Bereichs.
 - **Mechanik:** Das Passwort wird nie im Klartext gespeichert, nur als
-  scrypt-Hash (stdlib `hashlib.scrypt`, Salt + Parameter) in einer eigenen
-  gitignorten Datei **`config/admin_auth.local.json`**. Bewusst NICHT in
+  PBKDF2-HMAC-SHA256-Hash (stdlib `hashlib.pbkdf2_hmac`, 200 000
+  Iterationen; Algo, Iterationszahl und Salt stehen mit in der Datei) in
+  einer eigenen gitignorten Datei **`config/admin_auth.local.json`**.
+  Bewusst PBKDF2 statt scrypt (Befund 2026-08-10): `hashlib.scrypt`
+  fehlt bei LibreSSL-Builds (macOS-Systempython), und die Auth-Datei
+  muss auf Mac UND Windows-Box mit demselben Verfahren prüfbar sein —
+  ein Algorithmus auf beiden Plattformen. Bewusst NICHT in
   `config.local.yaml`: die müsste per YAML-Roundtrip neu geschrieben werden
   und verlöre Kommentare — dieselbe Klasse Nebenwirkung wie beim
   Streamlit-Befund.
