@@ -1276,6 +1276,50 @@ def nominal_size_mm(article) -> float | None:
     return _nominal_size_mm(article)
 
 
+def export_analysis_run(run_dir: str | Path, ziel: str | Path,
+                        als_zip: bool = False) -> Path:
+    """Analyse-Lauf KOMPLETT an einen frei gewählten Ort AUSSERHALB des
+    Projekts exportieren (Ordner-Kopie oder ZIP). Freigabe 2026-08-11.
+
+    Bewusst NICHT --publish: publish kopiert Aggregate ins VERSIONIERTE
+    reports/archive (CLI-only, Spec Punkt 6) — der Export ist eine
+    private Komplett-Kopie. Regeln:
+    - Quelle muss ein gültiger Lauf sein (report.md UND metrics.json,
+      Listbarkeits-Kriterium) — fängt auch den zwischen Auswahl und
+      Export verschwundenen Ordner ab.
+    - Ziel im aufgelösten Projekt-Root ist gesperrt: der Export würde
+      als vermeintlicher Lauf in der Historie auftauchen oder den
+      Git-Status verschmutzen. Path.resolve() folgt Symlinks — der
+      Symlink-Umweg ins Projekt ist damit mit abgedeckt.
+    - Ziel existiert: Fehler, nie stumm überschreiben (Semantik von
+      publish_run/publish_review).
+    Guard-Verstöße: ValueError mit Hinweistext; IO-Fehler (OSError,
+    z. B. Ziel nicht beschreibbar) propagieren — die Seite zeigt beide
+    als Fehlertext."""
+    from .config import project_root
+    src = Path(run_dir)
+    if not ((src / "report.md").is_file()
+            and (src / "metrics.json").is_file()):
+        raise ValueError("Kein gültiger Analyse-Lauf (report.md und "
+                         f"metrics.json erwartet): {src}")
+    ziel = Path(ziel).expanduser().resolve()
+    if als_zip and ziel.suffix.lower() != ".zip":
+        ziel = ziel.with_name(ziel.name + ".zip")
+    wurzel = Path(project_root()).resolve()
+    if ziel == wurzel or wurzel in ziel.parents:
+        raise ValueError("Export ins Projektverzeichnis ist gesperrt "
+                         f"({wurzel}) — bitte einen Ort ausserhalb "
+                         "wählen.")
+    if ziel.exists():
+        raise ValueError(f"Ziel existiert bereits: {ziel}. Export "
+                         "überschreibt nie.")
+    if als_zip:
+        ziel.parent.mkdir(parents=True, exist_ok=True)
+        return Path(shutil.make_archive(str(ziel)[:-len(".zip")], "zip",
+                                        root_dir=src))
+    return Path(shutil.copytree(src, ziel))
+
+
 def _thin_contour(seg: SegmentationResult | None) -> list | None:
     """Konturpolygon fürs Report-Overlay – ausgedünnt, ein 4K-Teller braucht
     keine 10k Punkte im JSON."""

@@ -660,3 +660,91 @@ def test_list_articles_liefert_breite_und_tiefe(tmp_path):
     infos = list_articles(cfg)
     assert infos[0].width_mm == 186.9
     assert infos[0].depth_mm == 45.0
+
+
+# ---------- Export von Analyse-Läufen (Freigabe 2026-08-11) ----------
+
+import os  # noqa: E402
+import zipfile  # noqa: E402
+
+from docodetect.pipeline import export_analysis_run  # noqa: E402
+
+
+def _mini_lauf(tmp_path, name="lauf"):
+    d = tmp_path / name
+    d.mkdir(parents=True)
+    (d / "report.md").write_text("# Bericht", encoding="utf-8")
+    (d / "metrics.json").write_text("{}", encoding="utf-8")
+    (d / "a.png").write_bytes(b"png-a")
+    (d / "b.csv").write_text("x;y", encoding="utf-8")
+    return d
+
+
+def test_export_ordner_kopiert_komplett(tmp_path):
+    src = _mini_lauf(tmp_path)
+    ziel = export_analysis_run(src, tmp_path / "raus" / "kopie")
+    assert sorted(p.name for p in ziel.iterdir()) == [
+        "a.png", "b.csv", "metrics.json", "report.md"]
+    assert (ziel / "a.png").read_bytes() == b"png-a"
+
+
+def test_export_zip_enthaelt_alles_und_ergaenzt_endung(tmp_path):
+    src = _mini_lauf(tmp_path)
+    ziel = export_analysis_run(src, tmp_path / "raus" / "archiv",
+                               als_zip=True)
+    assert ziel.name == "archiv.zip"
+    with zipfile.ZipFile(ziel) as z:
+        assert sorted(z.namelist()) == ["a.png", "b.csv",
+                                        "metrics.json", "report.md"]
+
+
+def test_export_ziel_im_projekt_wird_abgelehnt(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    projekt = tmp_path / "projekt"
+    projekt.mkdir()
+    monkeypatch.setattr(cfgmod, "project_root", lambda: projekt)
+    src = _mini_lauf(tmp_path)
+    with pytest.raises(ValueError, match="Projektverzeichnis"):
+        export_analysis_run(src, projekt / "reports" / "kopie")
+
+
+def test_export_symlink_ins_projekt_wird_abgelehnt(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    projekt = tmp_path / "projekt"
+    (projekt / "unter").mkdir(parents=True)
+    monkeypatch.setattr(cfgmod, "project_root", lambda: projekt)
+    link = tmp_path / "harmlos"
+    link.symlink_to(projekt / "unter")
+    src = _mini_lauf(tmp_path)
+    with pytest.raises(ValueError, match="Projektverzeichnis"):
+        export_analysis_run(src, link / "kopie")
+
+
+def test_export_ziel_existiert_nie_ueberschreiben(tmp_path):
+    src = _mini_lauf(tmp_path)
+    ziel = tmp_path / "raus" / "kopie"
+    ziel.mkdir(parents=True)
+    with pytest.raises(ValueError, match="existiert bereits"):
+        export_analysis_run(src, ziel)
+
+
+def test_export_quelle_ungueltig_oder_verschwunden(tmp_path):
+    kaputt = tmp_path / "kaputt"
+    kaputt.mkdir()
+    (kaputt / "report.md").write_text("x", encoding="utf-8")  # ohne metrics
+    with pytest.raises(ValueError, match="gültiger Analyse-Lauf"):
+        export_analysis_run(kaputt, tmp_path / "raus1")
+    with pytest.raises(ValueError, match="gültiger Analyse-Lauf"):
+        export_analysis_run(tmp_path / "wegga", tmp_path / "raus2")
+
+
+def test_export_ziel_nicht_beschreibbar(tmp_path):
+    src = _mini_lauf(tmp_path)
+    gesperrt = tmp_path / "gesperrt"
+    gesperrt.mkdir()
+    os.chmod(gesperrt, 0o500)
+    try:
+        with pytest.raises(OSError):
+            export_analysis_run(src, gesperrt / "kopie")
+    finally:
+        os.chmod(gesperrt, 0o700)
