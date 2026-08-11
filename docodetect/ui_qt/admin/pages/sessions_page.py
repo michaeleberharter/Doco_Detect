@@ -90,7 +90,17 @@ class SessionsPage(QWidget):
     # ---------- Laden ----------
 
     def reload(self) -> None:
-        self._infos = list_enroll_sessions(self.cfg)
+        try:
+            self._infos = list_enroll_sessions(self.cfg)
+        except KeyError:
+            # Schlanke Config (z. B. Demo/Test ohne enroll_sessions_dir):
+            # Leerzustand statt Crash.
+            self._infos = []
+            self.tabelle.setRowCount(0)
+            self.hinweis.setText("enroll_sessions_dir nicht konfiguriert "
+                                 "— keine Session-Anzeige.")
+            self._update_buttons()
+            return
         self.tabelle.setRowCount(len(self._infos))
         for r, info in enumerate(self._infos):
             werte = [info.article_number, info.created,

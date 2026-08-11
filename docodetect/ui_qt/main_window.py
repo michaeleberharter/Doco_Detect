@@ -627,6 +627,51 @@ class MainWindow(QMainWindow):
             return "Demo"
         return "verbunden" if self.camera_ok else "getrennt"
 
+    def _kamera_warnungs_text(self) -> str:
+        """Letzte Fokus-/Readback-Warnung der Kamera (Statusleiste) für
+        die Admin-Kamera-Diagnose — Teil der Kamera-Zustands-Meldung."""
+        return self.status_content.warn.text()
+
+    def _frame_fuer_admin(self, empfaenger) -> bool:
+        """Meldekanal 2 (Spec §4, Stufe 4): EIN Voll-Frame auf
+        Anforderung über die BESTEHENDE Frame-Quelle — dasselbe Muster
+        wie der Kalibrier-Dialog (_on_full_frame lässt Frames ohne
+        _pending-Aktion ausdrücklich für andere Empfänger durch).
+        False = keine Quelle/Kamera (Seite zeigt Hinweis)."""
+        if self.source is None or not (self.camera_ok or self.demo):
+            return False
+        quelle = self.source
+
+        def einmal(frame):
+            quelle.full_frame_ready.disconnect(einmal)
+            empfaenger(frame)
+
+        quelle.full_frame_ready.connect(einmal)
+        quelle.request_full_frame()
+        return True
+
+    def _fortsetzen_pruefen(self):
+        """None = Einlern-Dialog kann öffnen (Zustand READY); sonst
+        Hinweistext für die Sessions-Seite (Spec Punkt 13)."""
+        if self.state is UiState.READY:
+            return None
+        return ("Fortsetzen erst bei Zustand READY (Kamera verbunden "
+                "und kalibriert) — aktuell nicht gegeben.")
+
+    def _fortsetzen_aus_admin(self, session_info) -> None:
+        """Delegation an den BESTEHENDEN Einlern-Dialog (Spec Punkt 13):
+        exakt der Weg von _open_enroll_dialog, nur mit vorgewählter
+        Session — kein neuer Ablauf."""
+        if self._fortsetzen_pruefen() is not None:
+            return
+        from .widgets.enroll_dialog import EnrollDialog
+
+        dlg = EnrollDialog(self.cfg, self.ui, self.source, self,
+                           fortsetzen=session_info)
+        dlg.exec()
+        if dlg.saved_count:
+            self.refresh_status()
+
     def _open_admin_panel(self) -> None:
         """Schloss-Knopf: Passwort-Gate, dann EIN Admin-Fenster.
         Nicht-modal; erneutes Öffnen fokussiert die bestehende Instanz."""
@@ -640,7 +685,11 @@ class MainWindow(QMainWindow):
             return
         from .admin.admin_window import AdminWindow
 
-        win = AdminWindow(self.cfg, self._camera_status_text, parent=self)
+        win = AdminWindow(self.cfg, self._camera_status_text, parent=self,
+                          frame_anfordern=self._frame_fuer_admin,
+                          kamera_warnung=self._kamera_warnungs_text,
+                          fortsetzen_pruefen=self._fortsetzen_pruefen,
+                          fortsetzen=self._fortsetzen_aus_admin)
         win.destroyed.connect(
             lambda *_: setattr(self, "_admin_window", None))
         self._admin_window = win
