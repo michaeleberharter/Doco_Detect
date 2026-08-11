@@ -180,3 +180,72 @@ def test_analysis_page_hat_beide_tabs(qapp, tmp_path):
     assert page.tabs.count() == 2
     assert page.tabs.tabText(0) == "Analyse-Lauf"
     assert page.tabs.tabText(1) == "Bewertungs-Übersicht"
+
+
+# ---------- Export (Freigabe 2026-08-11) ----------
+
+def test_export_knoepfe_erst_mit_auswahl_aktiv(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    _lauf(cfg["analysis"]["output_dir"], "lauf-a")
+    tab = LaufTab(cfg)
+    assert not tab.export_ordner_button.isEnabled()
+    assert not tab.export_zip_button.isEnabled()
+    tab.historie.setCurrentRow(0)
+    assert tab.export_ordner_button.isEnabled()
+    assert tab.export_zip_button.isEnabled()
+
+
+def test_export_ordner_und_zip_ueber_dialognaht(qapp, tmp_path, monkeypatch):
+    import zipfile
+
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    _lauf(cfg["analysis"]["output_dir"], "lauf-a", pngs=("x.png",))
+    tab = LaufTab(cfg)
+    tab.historie.setCurrentRow(0)
+    ziel_eltern = tmp_path / "raus"
+    ziel_eltern.mkdir()
+    monkeypatch.setattr(tab, "_frage_ordner_ziel",
+                        lambda: str(ziel_eltern / "lauf-a"))
+    tab._export(als_zip=False)
+    assert "Export fertig" in tab.werte()["status"]
+    assert sorted(p.name for p in (ziel_eltern / "lauf-a").iterdir()) == [
+        "metrics.json", "report.md", "x.png"]
+    monkeypatch.setattr(tab, "_frage_zip_ziel",
+                        lambda vorschlag: str(ziel_eltern / "lauf-a.zip"))
+    tab._export(als_zip=True)
+    assert "Export fertig" in tab.werte()["status"]
+    with zipfile.ZipFile(ziel_eltern / "lauf-a.zip") as z:
+        assert sorted(z.namelist()) == ["metrics.json", "report.md",
+                                        "x.png"]
+
+
+def test_export_projekt_root_wird_abgelehnt_mit_text(qapp, tmp_path,
+                                                     monkeypatch):
+    from docodetect.config import project_root
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    _lauf(cfg["analysis"]["output_dir"], "lauf-a")
+    tab = LaufTab(cfg)
+    tab.historie.setCurrentRow(0)
+    verboten = str(Path(project_root()) / "reports" / "export-test")
+    monkeypatch.setattr(tab, "_frage_ordner_ziel", lambda: verboten)
+    tab._export(als_zip=False)
+    w = tab.werte()
+    assert "Export fehlgeschlagen" in w["status"]
+    assert "Projektverzeichnis" in w["status"]
+    assert not Path(verboten).exists()
+
+
+def test_export_abbruch_im_dialog_aendert_nichts(qapp, tmp_path,
+                                                 monkeypatch):
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    _lauf(cfg["analysis"]["output_dir"], "lauf-a")
+    tab = LaufTab(cfg)
+    tab.historie.setCurrentRow(0)
+    vorher = tab.werte()["status"]
+    monkeypatch.setattr(tab, "_frage_ordner_ziel", lambda: "")
+    tab._export(als_zip=False)
+    assert tab.werte()["status"] == vorher
