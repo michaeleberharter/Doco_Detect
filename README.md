@@ -103,9 +103,10 @@ bei „Falsch" optional mit dem wahren Artikel — das Urteil wird ins Report-JS
 zurückgeschrieben und fließt in Erfolgsrate, Fehlerliste und
 Verwechslungsmatrix ein. Ganze Ordner aggregiert `analyze` zu
 Genauigkeit/Verwechslungsmatrix – dieselbe Logik wie `evaluate`
-(`docodetect/reporting.py`). Eine interaktive Aufschlüsselung des EINZELNEN
-Reports gibt es derzeit nicht mehr (siehe
-[Nachbau-Notiz](docs/2026-08-01-einzelreport-ansicht-nachbau.md)).
+(`docodetect/reporting.py`). Den EINZELNEN Report schlüsselt der
+Admin-Bereich der Qt-UI auf (Reports → Doppelklick); ohne Ersatz bleiben
+dort nur die Chart-Panels (siehe
+[Nachbau-Doc](docs/2026-08-01-einzelreport-ansicht-nachbau.md)).
 
 ### sigma_floors aus einer echten Messreihe bestimmen
 
@@ -450,7 +451,7 @@ geteilte `config.yaml` zurückschreiben
 | Artikeltabelle mit Referenzzahl | `list-articles` |
 | CSV-Import | `import-articles <pfad>` |
 | Scoring-Analyse (Batch) | `analyze` → PNG/CSV unter `reports/analysis/<run_id>/` |
-| Scoring-Analyse (Einzelreport, interaktiv) | **kein Ersatz** — siehe [offener Nachbau](docs/2026-08-01-einzelreport-ansicht-nachbau.md) |
+| Scoring-Analyse (Einzelreport, interaktiv) | Qt-Admin-Panel → Reports → Doppelklick (acht Tabellen-Felder); ohne Ersatz bleiben die Chart-Panels (Log-Beiträge, Top-1-vs-Top-2, Fisher) — siehe [Nachbau-Doc](docs/2026-08-01-einzelreport-ansicht-nachbau.md) |
 | Korpus-Ansicht | `corpus-report` → `reports/corpus/<id>/index.html` |
 | Parameter per Schieberegler | bewusst kein Ersatz — `config/config.yaml` von Hand |
 
