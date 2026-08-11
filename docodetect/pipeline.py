@@ -1346,6 +1346,67 @@ def export_analysis_run(run_dir: str | Path, ziel: str | Path,
     return Path(shutil.copytree(src, ziel))
 
 
+def reference_statistics(cfg: dict, article_number: str):
+    """Enrollment-Statistik eines Artikels aus reference_stats (Stufe 3
+    Teil B1): EnrollmentStats (n_shots, scalar_mean/std, proto_std) oder
+    None. Die UI liest nur Attribute — kein features-Import in ui_qt."""
+    if not resolve(cfg["paths"]["db_file"]).exists():
+        return None
+    db = Database(cfg)
+    try:
+        return db.stats_for(article_number)
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
+def min_shots_floor() -> int:
+    """MIN_N der Floor-Analyse (floor_analysis.py) für den
+    „n < MIN_N"-Marker der Referenz-Kennzahlen — lazy, damit pipeline
+    floor_analysis nicht beim Import zieht (Konstanten über pipeline,
+    Zugriffsweg-Präzedenz NO_MATCH)."""
+    from .floor_analysis import MIN_N
+    return int(MIN_N)
+
+
+def config_with_origin(config_path: str | Path | None = None
+                       ) -> list[tuple[str, str, str]]:
+    """Effektive Config als (key_pfad, wert, herkunft) je Blatt-Key —
+    Herkunft durch GETRENNTES Laden von Basis- und Lokal-Schicht
+    (config.local_override), Merge nur auf Anzeige-Ebene. Read-only,
+    kein Schreibpfad, kein Export (Spec Punkt 11)."""
+    import yaml
+
+    from .config import DEFAULT_CONFIG_PATH, _deep_merge, local_override
+    pfad = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    with open(pfad, "r", encoding="utf-8") as fh:
+        basis = yaml.safe_load(fh) or {}
+    lokal = local_override(pfad)
+
+    def _blaetter(d: dict, prefix: str = ""):
+        for k in sorted(d, key=str):
+            v = d[k]
+            key = f"{prefix}{k}"
+            if isinstance(v, dict):
+                yield from _blaetter(v, key + ".")
+            else:
+                yield key, v
+
+    def _hat(d: dict, key_pfad: str) -> bool:
+        teil = d
+        for t in key_pfad.split("."):
+            if not isinstance(teil, dict) or t not in teil:
+                return False
+            teil = teil[t]
+        return True
+
+    effektiv = _deep_merge(basis, lokal) if lokal else basis
+    return [(key, str(wert),
+             "config.local.yaml" if _hat(lokal, key) else "config.yaml")
+            for key, wert in _blaetter(effektiv)]
+
+
 def _thin_contour(seg: SegmentationResult | None) -> list | None:
     """Konturpolygon fürs Report-Overlay – ausgedünnt, ein 4K-Teller braucht
     keine 10k Punkte im JSON."""
