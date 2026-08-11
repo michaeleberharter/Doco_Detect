@@ -168,7 +168,14 @@ die Pakete sind gleich schwer):
 **Melde-Punkt 1b:**
 
 3. **Report-Browser:** lädt die Identifikationen über die neue
-   pipeline-Fassade (Abschnitt 4) im Worker; Tabelle mit Datum,
+   pipeline-Fassade (Abschnitt 4) **synchron im GUI-Thread** — Revision
+   2026-08-11, vorher „im Worker": gemessen 9 ms für den vollen Bestand
+   (23 Reports), und ein Worker-Thread wäre neben dem offenen
+   Qt-Teardown-Befund
+   ([ui-qt-testsuite-segfault.md](../../ui-qt-testsuite-segfault.md))
+   reine Teardown-Fläche ohne Nutzen. **Neu zu bewerten**, sobald
+   Box-Bestände die 500er-Obergrenze überschreiten und der
+   Zeitraum-Filter spürbar nachlädt. Tabelle mit Datum,
    Entscheidung (accept/ambiguous/reject/border), Top-1-Artikel, Bewertung
    (Richtig/Falsch/unbewertet). Filter: Entscheidung, Artikel, Bewertung,
    Zeitraum. Doppelklick öffnet die Einzelreport-Ansicht.
@@ -183,8 +190,16 @@ die Pakete sind gleich schwer):
    (Entscheidungs-Badge, Gate-Ampel max|z|/LLR-Margin/Posterior, Aufnahme +
    Kontur-Overlay via `pipeline.render_report_overlay`, Kandidatentabelle,
    z je Merkmal, Rohmesswerte, Prefilter-Kills aus `prefiltered`,
-   Verdict-Zeile). Quelle: Auswahl im Browser oder letzte
-   Live-Identifikation.
+   Verdict-Zeile). Quelle: Auswahl im Browser — die „letzte
+   Live-Identifikation" ist nach „Aktualisieren" der oberste
+   Browser-Eintrag, denn jede Identifikation liegt als Report-JSON in
+   `captures_dir`; ein dritter Meldekanal Hauptfenster → Admin über die
+   zwei aus Abschnitt 4 hinaus entfällt bewusst (Revision 2026-08-11).
+   Maßgeblich sind DIESE acht Felder: die zusätzlichen Panels des
+   Nachbau-Dokuments (Log-Beitrags-Chart, Top-1-vs-Top-2-Kontrast,
+   Fisher-Panel) sind bewusst nicht Teil von 1b — die Tabellen
+   beantworten die Forensik-Frage „warum diese Entscheidung", die
+   Diagramme wären eigener Aufwand mit eigener Abnahme.
 5. **Prefilter-Kill-Seite:** eigene Sicht über alle geladenen Reports —
    Tabelle mit Artikel, Kill-Grund (`diameter` | `area`) und gemessenem
    Abstand zur Toleranz („um x gerissen"); Datenquelle ist die
@@ -193,6 +208,13 @@ die Pakete sind gleich schwer):
    markiert, ob **der wahre Artikel** unter den Kills war — die Auswertung
    des Fixpunkt-Tests vom 2026-08-01 (Befund 5) als stehende Sicht. Laut
    C-Serie sitzt dort das gesamte False-Accept-Risiko.
+   **Umsetzung (Revision 2026-08-11):** eigener Tab neben dem Browser in
+   der Reports-Sektion — „eigene Sicht, kein Filter" bleibt erfüllt,
+   ohne die Sidebar aus Abschnitt 4 zu erweitern. **Offener Punkt:** die
+   Wahrer-Artikel-Markierung ist bisher nur per Test-Fixture belegt —
+   kein realer Report trägt ein Label. Gegen echte Daten geprüft ist sie
+   erst nach der nächsten Bewertungsrunde, und genau auf diese
+   Markierung kommt es bei der False-Accept-Analyse an.
 
 ### Stufe 2 — Auswertung
 
