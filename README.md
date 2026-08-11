@@ -292,6 +292,15 @@ python -m pytest tests/ -v                              # ohne Hardware
 DOCODETECT_HW_TESTS=1 python -m pytest tests/ -v -m hardware -s   # mit Kamera
 ```
 
+**Korpus-Reproduktion läuft nicht im Default-Testlauf.** Die beiden teuren
+Reproduktionstests (tier1/tier2, ~550 s) sind per Default deselektiert —
+die Suite meldet das mit einer `[korpus]`-Zeile. **Das Merge-Gate ist
+deshalb ausschließlich `corpus-run --tier 1 --check` und
+`--tier 2 --check` (CLAUDE.md, „Regressions-Korpus") — wer mergt, ohne
+beide gefahren zu haben, mergt ungeprüft.**
+`DOCODETECT_CORPUS_REPRO=1 pytest tests/` holt die Tests vollständig
+zurück.
+
 > **Segmentierungs-Backstop — Mechanik steht, Fixtures fehlen noch
 > (Stand 2026-07-22 abends).** `tests/test_real_captures.py` prüft die
 > Segmentierung auf echten Aufnahmen gegen visuell abgenommene Flächen.

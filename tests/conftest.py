@@ -26,10 +26,15 @@ import os
 import pytest
 
 HW_ENV = "DOCODETECT_HW_TESTS"
+CORPUS_REPRO_ENV = "DOCODETECT_CORPUS_REPRO"
 
 
 def hardware_tests_enabled() -> bool:
     return os.environ.get(HW_ENV, "").strip() == "1"
+
+
+def corpus_repro_enabled() -> bool:
+    return os.environ.get(CORPUS_REPRO_ENV, "").strip() == "1"
 
 
 def pytest_configure(config):
@@ -44,9 +49,27 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "corpus_smoke: festes 20-Bilder-Subset des Korpus fuer den Alltag")
+    config.addinivalue_line(
+        "markers",
+        f"corpus_repro: volle Korpus-Reproduktion (tier1/tier2, ~550 s) — "
+        f"per Default deselektiert, weil das Merge-Gate corpus-run --tier "
+        f"1/2 --check strikt mehr prueft (Nachweis 2026-08-11). "
+        f"Zurueckholen: {CORPUS_REPRO_ENV}=1")
 
 
 def pytest_collection_modifyitems(config, items):
+    # Korpus-Entdopplung (2026-08-11): die beiden teuren Reproduktionstests
+    # laufen per Default NICHT mit — das Merge-Gate ist corpus-run --tier 1
+    # --check UND --tier 2 --check, und das prueft strikt mehr (Drift,
+    # Baseline-Quoten, Vollstaendigkeit). Echte Deselektion statt Skip,
+    # damit die Zaehlung („2 deselected") in jeder Summary steht; die
+    # Klartext-Zeile dazu druckt pytest_terminal_summary IMMER.
+    if not corpus_repro_enabled():
+        weg = [i for i in items if "corpus_repro" in i.keywords]
+        if weg:
+            items[:] = [i for i in items if "corpus_repro" not in i.keywords]
+            config.hook.pytest_deselected(items=weg)
+            config._corpus_repro_deselektiert = [i.nodeid for i in weg]
     if hardware_tests_enabled():
         return
     skip_hw = pytest.mark.skip(
@@ -54,6 +77,20 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "hardware" in item.keywords:
             item.add_marker(skip_hw)
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Sichtbarkeit des corpus_repro-Deselects: IMMER eine Klartext-Zeile,
+    auch bei gruenem Lauf und ohne -rs. Entfaellt nur, wenn die
+    Korpus-Tests gar nicht kollektiert wurden (Auswahl-Lauf einzelner
+    Module) — dann gab es nichts zu deselektieren."""
+    weg = getattr(config, "_corpus_repro_deselektiert", None)
+    if weg:
+        terminalreporter.write_line(
+            f"[korpus] Reproduktionstests tier1/tier2 (~550 s) nicht "
+            f"gelaufen ({len(weg)} deselektiert) — Merge-Gate ist "
+            f"corpus-run --tier 1 --check UND --tier 2 --check; "
+            f"zurueckholen: {CORPUS_REPRO_ENV}=1")
 
 
 @pytest.fixture(autouse=True)

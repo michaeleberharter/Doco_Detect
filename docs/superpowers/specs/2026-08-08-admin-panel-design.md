@@ -297,11 +297,16 @@ das Panel nicht — das Panel zeigt den Korpus-Baum nie an.
 - **Korpus-Klärung `runs/_invalid/`** (19 Einträge, Cross-Run-Effekte):
   eigener offener Vorgang, unabhängig vom Panel. **Befund 2026-08-10
   dazu:** der serielle Suite-Volllauf hinterließ `runs/20260810-193545`
-  (leer, ohne `metrics.json`) im Korpus-Baum — die Testsuite schreibt
-  also in den Korpus-Baum, und das ist die naheliegende Quelle der
+  ohne `metrics.json` im Korpus-Baum — die Testsuite schreibt also in
+  den Korpus-Baum, und das ist die naheliegende Quelle der
   `_invalid`-Einträge (deckt sich mit dem CLAUDE.md-Hinweis auf
   `test_corpus_tier2_decisions_reproduce`, das `run_corpus()` direkt
-  ruft und `write_run` nie erreicht). Nur Notiz, keine Untersuchung.
+  ruft und `write_run` nie erreicht). *Korrektur 2026-08-11: der Ordner
+  ist nicht leer — er enthält `replay/` mit 104 Replay-JSONs
+  (`runner.py:306–312`); es fehlt nur `metrics.json`. Seit der
+  Korpus-Entdopplung läuft der Tier-2-Test im Default-Lauf nicht mehr,
+  neue Ordner dieser Bauform entstehen also nur noch mit
+  `DOCODETECT_CORPUS_REPRO=1`.* Nur Notiz, keine Untersuchung.
 
 ## 8. Abnahmekriterien
 
