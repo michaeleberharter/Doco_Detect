@@ -793,5 +793,8 @@ def test_export_ziel_nicht_beschreibbar(tmp_path):
     try:
         with pytest.raises(OSError):
             export_analysis_run(src, gesperrt / "kopie")
+        with pytest.raises(OSError):        # ZIP-Zweig: eigener Codepfad
+            export_analysis_run(src, gesperrt / "tiefer" / "kopie",
+                                als_zip=True)
     finally:
         os.chmod(gesperrt, 0o700)
