@@ -464,6 +464,19 @@ einen frisch aufgeräumten `runs/`-Stand anders ausgeht als gegen den
 gewachsenen. Aufräumen heißt hier **verschieben**, nicht löschen — der Korpus
 liegt außerhalb des Repos und ist nicht wiederherstellbar.
 
+**Nachtrag 2026-08-11 (aus dem Entdopplungs-Nachweis):** Der Mechanismus ist
+jetzt zeilengenau belegt — `test_corpus_tier2_decisions_reproduce` →
+`run_corpus` (auto-`run_id`, `runner.py:405`) → `run_one` schreibt je Bild
+ein Replay-JSON nach `runs/<id>/replay/` (`runner.py:306–312`, als
+Quoten-Datenquelle gewollt), `write_run` läuft aber nur im CLI-Pfad
+(`cli.py:883`). Der Suite-Ordner vom 2026-08-10 enthält entsprechend
+`replay/` mit 104 JSONs, ihm fehlt nur `metrics.json` (frühere Meldung
+„leer" war falsch). Der Tier-1-Test schreibt keinen Laufordner. Seit der
+Korpus-Entdopplung (Deselect per Default, `DOCODETECT_CORPUS_REPRO=1` holt
+zurück) entstehen solche Ordner im Normallauf nicht mehr — der Bestand
+(19 `_invalid` + die aufgelaufenen metrics-losen) bleibt Gegenstand dieses
+Punkts.
+
 **Regel für die nächste Untersuchung, teuer gelernt:** bei einem nicht
 reproduzierbaren Suite-Fehler zuerst `.pytest_cache/v/cache/lastfailed`
 sichern und die volle Ausgabe in eine Datei schreiben — **bevor** irgendein

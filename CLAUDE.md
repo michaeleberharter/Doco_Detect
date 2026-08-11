@@ -65,6 +65,11 @@ Projekt-Dauerregeln für Claude Code. Architektur-Details:
   `corpus-run --tier 2 --check`.** Exit 1 = Regression. Tier 1 allein
   genügt nicht: dort ist `quotas` leer, die Baseline-Quoten werden nie
   ausgewertet und die Entscheidungs-Reproduktion läuft gar nicht.
+  Die Suite lässt die beiden Korpus-Reproduktionstests per Default aus
+  (`DOCODETECT_CORPUS_REPRO=1` holt sie zurück) — der Doppel-Check ist
+  damit keine Redundanz, sondern die einzige Korpus-Prüfung vor dem
+  Merge und deckt den Deselect ausdrücklich mit ab (Nachweis
+  2026-08-11: der CLI-Check prüft strikt mehr, inkl. DRIFT und Quoten).
   DRIFT bricht per Default mit — auf gepinnter Umgebung ist jede
   Abweichung code-verursacht. `--accept-drift` nur bei bewusstem
   Bibliotheks-Update oder Plattformwechsel Mac↔Windows, danach

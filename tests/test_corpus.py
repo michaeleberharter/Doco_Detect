@@ -66,6 +66,7 @@ def test_corpus_smoke_subset_reproduces():
 
 
 @pytest.mark.corpus
+@pytest.mark.corpus_repro
 def test_corpus_tier1_full_reproduces():
     grund = _grund()
     if grund:
@@ -78,6 +79,7 @@ def test_corpus_tier1_full_reproduces():
 
 
 @pytest.mark.corpus
+@pytest.mark.corpus_repro
 def test_corpus_tier2_decisions_reproduce():
     grund = _grund()
     if grund:
