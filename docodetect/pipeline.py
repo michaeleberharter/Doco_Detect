@@ -1139,10 +1139,14 @@ def load_saved_reports(cfg: dict,
     neueste zuerst nach DATEINAME (ms-Zeitstempel) — bewusst nicht mtime:
     save_verdict schreibt Report-JSONs neu, ein bewerteter alter Report
     stünde sonst fälschlich vorn (Befund 2026-08-10). Defekte JSONs werden
-    übersprungen; `limit` begrenzt auf die neuesten n."""
+    übersprungen; `limit` begrenzt auf die neuesten n. Ohne
+    paths.captures_dir: leere Liste — konsistent mit
+    _save_capture_and_report, das dann nichts speichert."""
     from .reporting import load_reports
-    return load_reports(resolve(cfg["paths"]["captures_dir"]), limit=limit,
-                        sort_by="name")
+    cap = cfg.get("paths", {}).get("captures_dir")
+    if not cap:
+        return []
+    return load_reports(resolve(cap), limit=limit, sort_by="name")
 
 
 def report_judgement(report: MatchReport) -> bool | None:

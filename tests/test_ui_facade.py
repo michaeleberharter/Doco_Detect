@@ -497,6 +497,13 @@ def test_load_saved_reports_bewertung_aendert_reihenfolge_nicht(tmp_path):
                                          "20260810-100000-000.json"]
 
 
+def test_load_saved_reports_ohne_captures_key_ist_leer(tmp_path):
+    """Konsistent mit dem Schreibpfad: ohne paths.captures_dir speichert
+    _save_capture_and_report nichts — die Lesefassade liefert dann []
+    statt KeyError (Befund 2026-08-11, Integration Admin-Panel 1b)."""
+    assert load_saved_reports(make_cfg(tmp_path)) == []
+
+
 def test_load_saved_reports_ohne_ordner_ist_leer(tmp_path):
     cfg = make_cfg(tmp_path)
     cfg["paths"]["captures_dir"] = str(tmp_path / "gibtsnicht")
