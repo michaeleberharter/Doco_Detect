@@ -219,18 +219,21 @@ class LaufTab(QWidget):
 
     def _frage_ordner_ziel(self) -> str:
         """Dialog-Naht: Elternordner wählen, Ziel = <eltern>/<run_id>.
-        Leerer String = Abbruch."""
+        Leerer String = Abbruch. Startet im Home-Verzeichnis — nicht im
+        CWD, das beim üblichen Start das (gesperrte) Projekt wäre."""
         lauf = self._laeufe[self.historie.currentRow()]
         eltern = QFileDialog.getExistingDirectory(
             self, "Zielordner wählen — der Lauf wird als Unterordner "
-                  f"„{lauf.run_id}“ angelegt")
+                  f"„{lauf.run_id}“ angelegt", str(Path.home()))
         return str(Path(eltern) / lauf.run_id) if eltern else ""
 
     def _frage_zip_ziel(self, vorschlag: str) -> str:
-        """Dialog-Naht: ZIP-Ziel wählen. DontConfirmOverwrite — ob
-        überschrieben wird, entscheidet die Fassade (nie)."""
+        """Dialog-Naht: ZIP-Ziel wählen, Start im Home-Verzeichnis.
+        DontConfirmOverwrite — ob überschrieben wird, entscheidet die
+        Fassade (nie)."""
         pfad, _filter = QFileDialog.getSaveFileName(
-            self, "Lauf als ZIP exportieren", vorschlag,
+            self, "Lauf als ZIP exportieren",
+            str(Path.home() / vorschlag),
             "ZIP-Archiv (*.zip)", options=QFileDialog.DontConfirmOverwrite)
         return pfad
 
@@ -246,6 +249,9 @@ class LaufTab(QWidget):
         try:
             pfad = export_analysis_run(lauf.path, ziel, als_zip=als_zip)
         except Exception as e:  # noqa: BLE001 — jeder Fehler als Text
+            if not ((lauf.path / "report.md").is_file()
+                    and (lauf.path / "metrics.json").is_file()):
+                self.reload_historie()      # toter Eintrag raus (Review 7d)
             self.status.setText(f"Export fehlgeschlagen: {e}")
             return
         self.status.setText(f"Export fertig: {pfad}")

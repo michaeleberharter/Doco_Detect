@@ -217,8 +217,10 @@ def test_export_ordner_und_zip_ueber_dialognaht(qapp, tmp_path, monkeypatch):
     tab._export(als_zip=True)
     assert "Export fertig" in tab.werte()["status"]
     with zipfile.ZipFile(ziel_eltern / "lauf-a.zip") as z:
-        assert sorted(z.namelist()) == ["metrics.json", "report.md",
-                                        "x.png"]
+        # run_id als oberste Ebene (Review 2026-08-11, wie Fassaden-Test)
+        dateien = sorted(n for n in z.namelist() if not n.endswith("/"))
+        assert dateien == ["lauf-a/metrics.json", "lauf-a/report.md",
+                           "lauf-a/x.png"]
 
 
 def test_export_projekt_root_wird_abgelehnt_mit_text(qapp, tmp_path,
@@ -249,3 +251,52 @@ def test_export_abbruch_im_dialog_aendert_nichts(qapp, tmp_path,
     monkeypatch.setattr(tab, "_frage_ordner_ziel", lambda: "")
     tab._export(als_zip=False)
     assert tab.werte()["status"] == vorher
+
+
+def test_export_knoepfe_nach_reload_wieder_inaktiv(qapp, tmp_path):
+    """Review 2026-08-11: reload_historie() nimmt die Auswahl weg —
+    die Knoepfe muessen mit zurueckfallen (blockSignals unterdrueckt
+    das currentRowChanged aus clear())."""
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    _lauf(cfg["analysis"]["output_dir"], "lauf-a")
+    tab = LaufTab(cfg)
+    tab.historie.setCurrentRow(0)
+    assert tab.export_ordner_button.isEnabled()
+    tab.reload_historie()
+    assert not tab.export_ordner_button.isEnabled()
+    assert not tab.export_zip_button.isEnabled()
+
+
+def test_export_zip_abbruch_im_dialog_aendert_nichts(qapp, tmp_path,
+                                                     monkeypatch):
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    _lauf(cfg["analysis"]["output_dir"], "lauf-a")
+    tab = LaufTab(cfg)
+    tab.historie.setCurrentRow(0)
+    vorher = tab.werte()["status"]
+    monkeypatch.setattr(tab, "_frage_zip_ziel", lambda vorschlag: "")
+    tab._export(als_zip=True)
+    assert tab.werte()["status"] == vorher
+
+
+def test_export_verschwundener_lauf_meldet_und_raeumt_historie(
+        qapp, tmp_path, monkeypatch):
+    """Review 2026-08-11 (7d): verschwindet der Lauf zwischen Auswahl
+    und Export, zeigt die Seite den Fehler UND aktualisiert die
+    Historie — kein toter Eintrag mit aktivem Knopf."""
+    import shutil as sh
+    from docodetect.ui_qt.admin.pages.analysis_page import LaufTab
+    cfg = _cfg(tmp_path)
+    d = _lauf(cfg["analysis"]["output_dir"], "lauf-a")
+    tab = LaufTab(cfg)
+    tab.historie.setCurrentRow(0)
+    sh.rmtree(d)
+    monkeypatch.setattr(tab, "_frage_ordner_ziel",
+                        lambda: str(tmp_path / "raus" / "lauf-a"))
+    tab._export(als_zip=False)
+    w = tab.werte()
+    assert "Export fehlgeschlagen" in w["status"]
+    assert w["historie"] == []
+    assert not tab.export_ordner_button.isEnabled()

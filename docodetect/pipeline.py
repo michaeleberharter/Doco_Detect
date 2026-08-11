@@ -1303,20 +1303,46 @@ def export_analysis_run(run_dir: str | Path, ziel: str | Path,
         raise ValueError("Kein gültiger Analyse-Lauf (report.md und "
                          f"metrics.json erwartet): {src}")
     ziel = Path(ziel).expanduser().resolve()
-    if als_zip and ziel.suffix.lower() != ".zip":
-        ziel = ziel.with_name(ziel.name + ".zip")
+    if als_zip:
+        # Endung normalisieren, BEVOR geprüft wird — auch '.ZIP':
+        # make_archive schreibt immer kleingeschrieben, exists() muss
+        # denselben Pfad prüfen (Review-Befund 2026-08-11).
+        ziel = (ziel.with_suffix(".zip") if ziel.suffix.lower() == ".zip"
+                else ziel.with_name(ziel.name + ".zip"))
     wurzel = Path(project_root()).resolve()
+    gesperrt = ("Export ins Projektverzeichnis ist gesperrt "
+                f"({wurzel}) — bitte einen Ort ausserhalb wählen.")
     if ziel == wurzel or wurzel in ziel.parents:
-        raise ValueError("Export ins Projektverzeichnis ist gesperrt "
-                         f"({wurzel}) — bitte einen Ort ausserhalb "
-                         "wählen.")
+        raise ValueError(gesperrt)
+    # Case-insensitive Dateisysteme (APFS/NTFS): resolve() kanonisiert
+    # die Schreibweise nicht — ein handgetipptes 'DOCUMENTS/…' umginge
+    # den Pfadvergleich. Deshalb zusätzlich Inode-Vergleich des tiefsten
+    # EXISTIERENDEN Vorfahren des Ziels gegen den Root.
+    try:
+        wstat = wurzel.stat()
+        probe = ziel
+        while not probe.exists():
+            probe = probe.parent
+        while True:
+            s = probe.stat()
+            if (s.st_dev, s.st_ino) == (wstat.st_dev, wstat.st_ino):
+                raise ValueError(gesperrt)
+            if probe == probe.parent:
+                break
+            probe = probe.parent
+    except OSError:
+        pass    # Root/Vorfahr nicht statbar — Pfadvergleich oben bleibt
     if ziel.exists():
         raise ValueError(f"Ziel existiert bereits: {ziel}. Export "
                          "überschreibt nie.")
     if als_zip:
         ziel.parent.mkdir(parents=True, exist_ok=True)
-        return Path(shutil.make_archive(str(ziel)[:-len(".zip")], "zip",
-                                        root_dir=src))
+        # base_dir=src.name: das Archiv trägt die run_id als oberste
+        # Ebene — symmetrisch zum Ordner-Export, Entpacken kippt nichts
+        # ins aktuelle Verzeichnis (Review 2026-08-11).
+        return Path(shutil.make_archive(str(ziel.with_suffix("")), "zip",
+                                        root_dir=src.parent,
+                                        base_dir=src.name))
     return Path(shutil.copytree(src, ziel))
 
 
