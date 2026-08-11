@@ -185,6 +185,16 @@ als „SCAN NICHT FAHRBAR".
 **Das ist ein Argument mehr für das Komplett-Neu-Enrollment**, und es gehört
 dort notiert, wo über dessen Umfang entschieden wird.
 
+**Nachtrag 2026-08-11 — Datenpunkt aus der 1a-Abnahme des Admin-Panels:**
+Produktivbestand laut Status-Seite und `list-articles`: **41 Artikel, 40
+eingelernt, 359 Referenzen** — im Schnitt unter 9 Shots je Artikel und damit
+unter dem MIN_N=10-Guardrail von `analyze-floors`
+(`floor_analysis.py:59`, „unter dieser Stichprobengroesse: Warnung"). Der
+Altbestand trägt also im Mittel zu wenige Shots je Artikel für belastbare
+Floor-Schätzungen. Stützt die geplante Re-Enrollment-Sequenz mit 12 Shots
+(`ui.enroll_shots: 12`). Artikelnummern beziehen sich auf den
+Produktivbestand.
+
 ---
 
 ## 7. Artikelnummern-Namensraum ist nirgends festgehalten
