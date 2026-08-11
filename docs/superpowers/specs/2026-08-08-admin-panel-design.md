@@ -264,6 +264,21 @@ das Panel nicht — das Panel zeigt den Korpus-Baum nie an.
    nach der DATEIZEIT von `report.md` und beschriftet sie so — run_ids
    sind teils frei vergeben; `report.md` wird genau einmal am Laufende
    geschrieben (Audit 2026-08-11: kein Pfad schreibt es neu).*
+   *Export (Freigabe 2026-08-11): Der ausgewählte gültige Lauf ist als
+   Ordner-Kopie ODER ZIP exportierbar — Ziel je Export über den
+   Datei-Dialog, kein gespeicherter Default. Das ist ausdrücklich NICHT
+   `--publish`: publish kopiert Aggregate ins VERSIONIERTE
+   `reports/archive` und bleibt CLI-only; der Export ist eine private
+   Komplett-Kopie (alle PNGs, CSVs, metrics.json, report.md) an einen
+   frei gewählten Ort AUSSERHALB des Projekts. Ziele im aufgelösten
+   Projekt-Root lehnt `pipeline.export_analysis_run` mit Hinweistext ab
+   (sonst tauchte der Export als vermeintlicher Lauf in der Historie auf
+   oder verschmutzte den Git-Status; `resolve()` folgt Symlinks und
+   deckt den Symlink-Umweg mit ab); existierende Ziele werden nie
+   überschrieben (publish-Präzedenz). Synchron, kein Worker: gemessen
+   2026-08-11 am echten Lauf (35 Artefakte, 1,26 MiB) — Ordner-Kopie
+   4–10 ms, ZIP 23–24 ms; Präzedenzfall synchrones Report-Laden (9 ms).
+   Neu zu bewerten, wenn Läufe um Größenordnungen wachsen.*
 7. **Bewertungs-Übersicht:** Aggregation der Verdicts aus den geladenen
    Reports (richtig/falsch/unbewertet je Artikel, Gesamtquote). Reine
    Zählung auf Anzeige-Ebene, keine Kennzahlen-Nachrechnung.
