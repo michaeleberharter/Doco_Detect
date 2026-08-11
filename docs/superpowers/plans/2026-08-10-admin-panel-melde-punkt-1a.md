@@ -371,8 +371,8 @@ def test_klartext_steht_nicht_in_der_datei(tmp_path):
     inhalt = f.read_text(encoding="utf-8")
     assert "geheim" not in inhalt
     d = json.loads(inhalt)
-    assert d["algo"] == "scrypt"
-    assert set(d) >= {"salt", "hash", "n", "r", "p"}
+    assert d["algo"] == "pbkdf2-sha256"
+    assert set(d) >= {"algo", "iterations", "salt", "hash"}
 ```
 
 - [ ] **Step 2: Fehlschlag verifizieren**
@@ -387,9 +387,15 @@ Expected: ERROR `ModuleNotFoundError: No module named 'docodetect.admin_auth'`
 
 Fehlklick-Schutz, KEINE Sicherheitsgrenze (Spec Abschnitt 3): DB, Config
 und Captures liegen unverschlüsselt daneben. Gespeichert wird nur ein
-scrypt-Hash mit Salt in einer gitignorten JSON-Datei. Recovery bei
-vergessenem Passwort: Datei löschen — beim nächsten Öffnen wird neu
-vergeben (README, Abschnitt Qt-UI)."""
+PBKDF2-HMAC-SHA256-Hash mit Salt in einer gitignorten JSON-Datei.
+
+Bewusst PBKDF2 statt scrypt (Befund 2026-08-10): `hashlib.scrypt` fehlt
+bei LibreSSL-Builds (macOS-Systempython), `pbkdf2_hmac` ist auf allen
+Builds garantiert — und die Auth-Datei muss auf Mac UND Windows-Box mit
+demselben Verfahren prüfbar sein. Algo, Iterationen und Salt stehen mit
+in der Datei, damit ein späterer Parameterwechsel Altdateien nicht
+unlesbar macht. Recovery bei vergessenem Passwort: Datei löschen — beim
+nächsten Öffnen wird neu vergeben (README, Abschnitt Qt-UI)."""
 
 from __future__ import annotations
 
@@ -402,7 +408,8 @@ from pathlib import Path
 from .config import resolve
 
 AUTH_FILE = "config/admin_auth.local.json"
-_SCRYPT = {"n": 16384, "r": 8, "p": 1}
+_ALGO = "pbkdf2-sha256"
+_ITERATIONS = 200_000
 _DKLEN = 32
 
 
@@ -421,12 +428,12 @@ def set_password(password: str,
     if not password:
         raise ValueError("Leeres Admin-Passwort ist nicht erlaubt.")
     salt = os.urandom(16)
-    h = hashlib.scrypt(password.encode("utf-8"), salt=salt,
-                       dklen=_DKLEN, **_SCRYPT)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt,
+                            _ITERATIONS, dklen=_DKLEN)
     p = _pfad(auth_file)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"algo": "scrypt", **_SCRYPT,
+    tmp.write_text(json.dumps({"algo": _ALGO, "iterations": _ITERATIONS,
                                "salt": salt.hex(), "hash": h.hex()}),
                    encoding="utf-8")
     os.replace(tmp, p)
@@ -436,14 +443,17 @@ def set_password(password: str,
 def verify_password(password: str,
                     auth_file: str | Path | None = None) -> bool:
     """False bei falschem Passwort UND bei fehlender/defekter Datei — eine
-    defekte Datei crasht nie und sperrt nie aus (Recovery: löschen)."""
+    defekte Datei crasht nie und sperrt nie aus (Recovery: löschen).
+    Iterationen kommen aus der Datei, nicht aus der Konstante: so bleibt
+    eine mit anderen Parametern geschriebene Datei prüfbar."""
     try:
         d = json.loads(_pfad(auth_file).read_text(encoding="utf-8"))
+        if d.get("algo") != _ALGO:
+            return False
         salt = bytes.fromhex(d["salt"])
         soll = bytes.fromhex(d["hash"])
-        params = {k: int(d[k]) for k in ("n", "r", "p")}
-        ist = hashlib.scrypt(password.encode("utf-8"), salt=salt,
-                             dklen=len(soll), **params)
+        ist = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt,
+                                  int(d["iterations"]), dklen=len(soll))
     except (OSError, ValueError, KeyError, TypeError,
             json.JSONDecodeError):
         return False

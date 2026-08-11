@@ -417,6 +417,17 @@ python -m docodetect.cli identify --image foto.jpg
 python -m docodetect.cli evaluate data/testset/
 ```
 
+### Admin-Bereich der Qt-UI (Schloss-Symbol in der Icon-Schiene)
+
+Der Wartungsbereich ist passwortgeschützt. Beim ersten Öffnen wird das
+Passwort festgelegt; gespeichert wird nur ein Hash (PBKDF2-HMAC-SHA256)
+in der gitignorten Datei `config/admin_auth.local.json`. **Passwort
+vergessen:** diese Datei löschen — beim nächsten Öffnen wird neu
+vergeben. Der Schutz ist ein Fehlklick-Schutz für die Fotobox, keine
+Sicherheitsgrenze, und sperrt nichts, was während einer Box-Session
+gebraucht wird (Identifizieren, Bewerten, Einlernen, Hintergrund,
+Kalibrieren bleiben frei zugänglich).
+
 ## Die Streamlit-Test-UI wurde entfernt (2026-08-01)
 
 `app.py`, `pages/`, `ui_common.py` und `requirements-ui.txt` sind mit Commit
