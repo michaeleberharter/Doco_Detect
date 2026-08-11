@@ -94,8 +94,18 @@ def _alert(path: QPainterPath) -> None:
     path.lineTo(12.0, 18.4)
 
 
+def _lock(path: QPainterPath) -> None:
+    """Schloss – Admin-Bereich (ToolRail, Spec Abschnitt 3)."""
+    path.addRoundedRect(6.0, 11.0, 12.0, 8.0, 2.0, 2.0)
+    path.moveTo(8.5, 11.0)
+    path.lineTo(8.5, 8.0)
+    path.arcTo(8.5, 4.5, 7.0, 7.0, 180.0, -180.0)
+    path.lineTo(15.5, 11.0)
+
+
 _BUILDERS = {"scan": _scan, "camera": _camera, "target": _target,
-             "plus": _plus, "gear": _gear, "check": _check, "alert": _alert}
+             "plus": _plus, "gear": _gear, "check": _check, "alert": _alert,
+             "lock": _lock}
 
 
 def paint(painter: QPainter, name: str, rect: QRectF, color: str,

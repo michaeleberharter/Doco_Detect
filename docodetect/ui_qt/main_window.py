@@ -122,6 +122,7 @@ class MainWindow(QMainWindow):
         self._diagnose_label = None          # Rohmesswert-Diagnose (reject)
         self._verdict_bar = None             # Richtig/Falsch (accept, reject)
         self._calibrate_dialog = None        # offener Kalibrier-Dialog
+        self._admin_window = None            # offenes Admin-Fenster (1a)
         # Sandbox-Marker (config.sandbox_cfg). Kalibrierung und Hintergrund
         # bleiben in der Sandbox GETEILT und damit produktiver Zustand – beide
         # Aktionen sind deshalb hier gesperrt, nicht nur in der CLI.
@@ -290,6 +291,7 @@ class MainWindow(QMainWindow):
         self.tool_rail.triggered.connect(
             lambda key: self._rail_actions[key]())
         self.tool_rail.theme_toggle.connect(self.toggle_theme)
+        self.tool_rail.admin_requested.connect(self._open_admin_panel)
         # Tastatur: Leertaste UND Eingabetaste identifizieren, egal wo der
         # Fokus im Fenster liegt – an der Box wird oft blind bedient.
         for key in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
@@ -614,6 +616,35 @@ class MainWindow(QMainWindow):
                 self._set_guide(f"Session nicht verworfen: {e}")
             return "abgebrochen"
         return None                       # „Später“ – normal weiter einlernen
+
+    # ---------- Admin-Bereich (Spec Admin-Panel, 1a) ----------
+
+    def _camera_status_text(self) -> str:
+        """Einseitige Meldung Hauptfenster → Admin (Spec §4): Pull über
+        Callable, abgeleitet aus vorhandenem Zustand — kein geteiltes
+        Objekt, kein Rückkanal."""
+        if self.demo:
+            return "Demo"
+        return "verbunden" if self.camera_ok else "getrennt"
+
+    def _open_admin_panel(self) -> None:
+        """Schloss-Knopf: Passwort-Gate, dann EIN Admin-Fenster.
+        Nicht-modal; erneutes Öffnen fokussiert die bestehende Instanz."""
+        from .admin.auth_dialog import ensure_admin_access
+
+        if self._admin_window is not None:
+            self._admin_window.raise_()
+            self._admin_window.activateWindow()
+            return
+        if not ensure_admin_access(self):
+            return
+        from .admin.admin_window import AdminWindow
+
+        win = AdminWindow(self.cfg, self._camera_status_text, parent=self)
+        win.destroyed.connect(
+            lambda *_: setattr(self, "_admin_window", None))
+        self._admin_window = win
+        win.show()
 
     # ---------- Job-Ergebnisse ----------
 

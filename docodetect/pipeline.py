@@ -1128,6 +1128,50 @@ def render_report_overlay(image: np.ndarray, report: MatchReport) -> np.ndarray:
     return out
 
 
+# ---------- Lese-Fassaden für UIs (Admin-Panel, Spec Abschnitt 4) ----------
+# Gegenstück zu confirm_result & Co.: UIs importieren reporting.py auch zum
+# LESEN nie direkt, und Pfade löst ausschliesslich diese Schicht auf.
+
+def load_saved_reports(cfg: dict,
+                       limit: int | None = None
+                       ) -> list[tuple[Path, MatchReport]]:
+    """Gespeicherte Identifikations-Reports aus paths.captures_dir,
+    neueste zuerst nach DATEINAME (ms-Zeitstempel) — bewusst nicht mtime:
+    save_verdict schreibt Report-JSONs neu, ein bewerteter alter Report
+    stünde sonst fälschlich vorn (Befund 2026-08-10). Defekte JSONs werden
+    übersprungen; `limit` begrenzt auf die neuesten n. Ohne
+    paths.captures_dir: leere Liste — konsistent mit
+    _save_capture_and_report, das dann nichts speichert."""
+    from .reporting import load_reports
+    cap = cfg.get("paths", {}).get("captures_dir")
+    if not cap:
+        return []
+    return load_reports(resolve(cap), limit=limit, sort_by="name")
+
+
+def report_judgement(report: MatchReport) -> bool | None:
+    """War die Top-1-Vorhersage richtig? True/False, None = unbewertet."""
+    from .reporting import judgement
+    return judgement(report)
+
+
+def report_predicted_article(report: MatchReport) -> str:
+    """Top-1-Artikelnummer des Reports; NO_MATCH ohne Kandidaten."""
+    from .reporting import predicted_article
+    return predicted_article(report)
+
+
+def optics_fingerprint(cfg: dict) -> dict | None:
+    """Optik-Fingerprint der aktuellen Konfiguration (Status-Seite).
+
+    None, wenn Kalibrierung oder Hintergrund fehlen — das ist der
+    Leerzustand „nicht kalibriert", kein Fehler (Spec Abschnitt 6)."""
+    if not (resolve(cfg["calibration"]["file"]).exists()
+            and resolve(cfg["calibration"]["background_file"]).exists()):
+        return None
+    return _fingerabdruck(cfg)
+
+
 def list_articles(cfg: dict) -> list[ArticleInfo]:
     """Artikel + Referenzanzahl fürs UI, NATÜRLICH sortiert (LOEFFEL-2 vor
     LOEFFEL-11). Leere Liste, solange keine DB existiert (kein Anlegen als
