@@ -35,6 +35,7 @@ _ACTIONS = (
 class ToolRail(QWidget):
     triggered = Signal(str)          # "identify" | "background" | ...
     theme_toggle = Signal()
+    admin_requested = Signal()       # Schloss: Admin-Bereich (Spec §3)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,6 +58,13 @@ class ToolRail(QWidget):
             lay.addWidget(b, alignment=Qt.AlignHCenter)
 
         lay.addStretch(1)             # Zahnrad unten angeheftet (Entwurf)
+        # Schloss unterhalb der Arbeitsschritte, oberhalb des Zahnrads
+        # (Spec Abschnitt 3). Immer aktiv – der Admin-Bereich muss auch
+        # ohne Kamera erreichbar sein (Diagnose).
+        self._admin = self._make_button("lock", "Admin")
+        self._admin.setToolTip("Admin-Bereich öffnen (passwortgeschützt)")
+        self._admin.clicked.connect(self.admin_requested.emit)
+        lay.addWidget(self._admin, alignment=Qt.AlignHCenter)
         self._gear = self._make_button("gear", "")
         self._gear.setToolTip("Zwischen dunklem und hellem Erscheinungsbild "
                               "wechseln")
@@ -85,7 +93,7 @@ class ToolRail(QWidget):
     def retheme(self) -> None:
         """Icons in den Farben des aktiven Themes neu zeichnen."""
         t = current_theme()
-        for b in list(self._buttons.values()) + [self._gear]:
+        for b in list(self._buttons.values()) + [self._gear, self._admin]:
             color = t["accent"] if b.isChecked() else t["dim"]
             b.setIcon(icons.icon(b.property("iconName"), _ICON, color))
 
