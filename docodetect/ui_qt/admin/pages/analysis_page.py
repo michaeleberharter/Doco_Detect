@@ -22,14 +22,15 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                               QPlainTextEdit, QProgressBar, QPushButton,
-                               QTableWidget, QTableWidgetItem, QTabWidget,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QLineEdit,
+                               QListWidget, QPlainTextEdit, QProgressBar,
+                               QPushButton, QTableWidget, QTableWidgetItem,
+                               QTabWidget, QVBoxLayout, QWidget)
 
-from docodetect.pipeline import (NO_MATCH, list_analysis_runs,
-                                 load_saved_reports, natuerlicher_schluessel,
-                                 report_judgement, report_predicted_article,
+from docodetect.pipeline import (NO_MATCH, export_analysis_run,
+                                 list_analysis_runs, load_saved_reports,
+                                 natuerlicher_schluessel, report_judgement,
+                                 report_predicted_article,
                                  run_report_analysis)
 
 from ...pipeline_worker import PipelineWorker
@@ -92,6 +93,21 @@ class LaufTab(QWidget):
         self.refresh_button = QPushButton("Aktualisieren")
         self.refresh_button.clicked.connect(self.reload_historie)
         links.addWidget(self.refresh_button, alignment=Qt.AlignLeft)
+        # Export (Freigabe 2026-08-11): nur mit ausgewähltem Lauf aktiv —
+        # die Historie listet ohnehin nur gültige Läufe. Ziel je Export
+        # über den Dialog, kein gespeicherter Default.
+        export_zeile = QHBoxLayout()
+        self.export_ordner_button = QPushButton("Exportieren als Ordner …")
+        self.export_ordner_button.clicked.connect(
+            lambda: self._export(als_zip=False))
+        self.export_zip_button = QPushButton("Exportieren als ZIP …")
+        self.export_zip_button.clicked.connect(
+            lambda: self._export(als_zip=True))
+        for b in (self.export_ordner_button, self.export_zip_button):
+            b.setEnabled(False)
+            export_zeile.addWidget(b)
+        links.addLayout(export_zeile)
+        self.historie.currentRowChanged.connect(self._update_export_buttons)
         rumpf.addLayout(links)
 
         rechts = QVBoxLayout()
@@ -137,6 +153,7 @@ class LaufTab(QWidget):
             if ungueltig else "")
         if not self._laeufe and self._worker is None:
             self.status.setText(_LEER_STATUS)
+        self._update_export_buttons(self.historie.currentRow())
 
     # ---------- Lauf ----------
 
@@ -192,6 +209,52 @@ class LaufTab(QWidget):
         self.start_button.setEnabled(True)
         self.status.setText(f"Analyse-Lauf fehlgeschlagen: {text} — "
                             "Quellordner prüfen, dann erneut starten.")
+
+    # ---------- Export (Freigabe 2026-08-11) ----------
+
+    def _update_export_buttons(self, row: int) -> None:
+        aktiv = 0 <= row < len(self._laeufe)
+        self.export_ordner_button.setEnabled(aktiv)
+        self.export_zip_button.setEnabled(aktiv)
+
+    def _frage_ordner_ziel(self) -> str:
+        """Dialog-Naht: Elternordner wählen, Ziel = <eltern>/<run_id>.
+        Leerer String = Abbruch. Startet im Home-Verzeichnis — nicht im
+        CWD, das beim üblichen Start das (gesperrte) Projekt wäre."""
+        lauf = self._laeufe[self.historie.currentRow()]
+        eltern = QFileDialog.getExistingDirectory(
+            self, "Zielordner wählen — der Lauf wird als Unterordner "
+                  f"„{lauf.run_id}“ angelegt", str(Path.home()))
+        return str(Path(eltern) / lauf.run_id) if eltern else ""
+
+    def _frage_zip_ziel(self, vorschlag: str) -> str:
+        """Dialog-Naht: ZIP-Ziel wählen, Start im Home-Verzeichnis.
+        DontConfirmOverwrite — ob überschrieben wird, entscheidet die
+        Fassade (nie)."""
+        pfad, _filter = QFileDialog.getSaveFileName(
+            self, "Lauf als ZIP exportieren",
+            str(Path.home() / vorschlag),
+            "ZIP-Archiv (*.zip)", options=QFileDialog.DontConfirmOverwrite)
+        return pfad
+
+    def _export(self, als_zip: bool) -> None:
+        row = self.historie.currentRow()
+        if not (0 <= row < len(self._laeufe)):
+            return
+        lauf = self._laeufe[row]
+        ziel = (self._frage_zip_ziel(f"{lauf.run_id}.zip") if als_zip
+                else self._frage_ordner_ziel())
+        if not ziel:
+            return                          # Abbruch im Dialog
+        try:
+            pfad = export_analysis_run(lauf.path, ziel, als_zip=als_zip)
+        except Exception as e:  # noqa: BLE001 — jeder Fehler als Text
+            if not ((lauf.path / "report.md").is_file()
+                    and (lauf.path / "metrics.json").is_file()):
+                self.reload_historie()      # toter Eintrag raus (Review 7d)
+            self.status.setText(f"Export fehlgeschlagen: {e}")
+            return
+        self.status.setText(f"Export fertig: {pfad}")
 
     # ---------- Betrachter ----------
 

@@ -660,3 +660,141 @@ def test_list_articles_liefert_breite_und_tiefe(tmp_path):
     infos = list_articles(cfg)
     assert infos[0].width_mm == 186.9
     assert infos[0].depth_mm == 45.0
+
+
+# ---------- Export von Analyse-Läufen (Freigabe 2026-08-11) ----------
+
+import os  # noqa: E402
+import zipfile  # noqa: E402
+
+from docodetect.pipeline import export_analysis_run  # noqa: E402
+
+
+def _mini_lauf(tmp_path, name="lauf"):
+    d = tmp_path / name
+    d.mkdir(parents=True)
+    (d / "report.md").write_text("# Bericht", encoding="utf-8")
+    (d / "metrics.json").write_text("{}", encoding="utf-8")
+    (d / "a.png").write_bytes(b"png-a")
+    (d / "b.csv").write_text("x;y", encoding="utf-8")
+    return d
+
+
+def test_export_ordner_kopiert_komplett(tmp_path):
+    src = _mini_lauf(tmp_path)
+    ziel = export_analysis_run(src, tmp_path / "raus" / "kopie")
+    assert sorted(p.name for p in ziel.iterdir()) == [
+        "a.png", "b.csv", "metrics.json", "report.md"]
+    assert (ziel / "a.png").read_bytes() == b"png-a"
+
+
+def test_export_zip_enthaelt_alles_und_ergaenzt_endung(tmp_path):
+    """Das Archiv traegt die run_id als oberste Ebene (Review 2026-08-11:
+    symmetrisch zum Ordner-Export; Entpacken kippt nichts ins CWD)."""
+    src = _mini_lauf(tmp_path)
+    ziel = export_analysis_run(src, tmp_path / "raus" / "archiv",
+                               als_zip=True)
+    assert ziel.name == "archiv.zip"
+    with zipfile.ZipFile(ziel) as z:
+        dateien = sorted(n for n in z.namelist() if not n.endswith("/"))
+        assert dateien == ["lauf/a.png", "lauf/b.csv",
+                           "lauf/metrics.json", "lauf/report.md"]
+
+
+def test_export_zip_grossschreibung_und_bestehendes_zip(tmp_path):
+    """Review-Befund 2026-08-11: '.ZIP' wird auf '.zip' normalisiert
+    (vorher prueften exists() und make_archive VERSCHIEDENE Pfade);
+    'x' bei existierendem 'x.zip' wird abgelehnt."""
+    src = _mini_lauf(tmp_path)
+    ziel = export_analysis_run(src, tmp_path / "raus" / "archiv.ZIP",
+                               als_zip=True)
+    assert ziel.name == "archiv.zip"
+    with pytest.raises(ValueError, match="existiert bereits"):
+        export_analysis_run(src, tmp_path / "raus" / "archiv",
+                            als_zip=True)
+
+
+def test_export_root_selbst_und_geschwister_praefix(tmp_path, monkeypatch):
+    """Der Root selbst ist gesperrt; ein GESCHWISTER-Ordner mit gleichem
+    Namens-Praefix (Doco_Detect_corpus neben Doco_Detect) muss durch —
+    Schutz gegen einen Rueckfall auf String-Praefix-Vergleich."""
+    import docodetect.config as cfgmod
+    projekt = tmp_path / "projekt"
+    projekt.mkdir()
+    monkeypatch.setattr(cfgmod, "project_root", lambda: projekt)
+    src = _mini_lauf(tmp_path)
+    with pytest.raises(ValueError, match="Projektverzeichnis"):
+        export_analysis_run(src, projekt)
+    ziel = export_analysis_run(src, tmp_path / "projekt_corpus" / "kopie")
+    assert (ziel / "report.md").is_file()
+
+
+def test_export_case_variante_des_projektpfads(tmp_path, monkeypatch):
+    """macOS/APFS ist case-insensitiv, resolve() kanonisiert die
+    Schreibweise nicht — ein Ziel unter 'PROJEKT/' landet real im
+    Projekt. Der Inode-Vergleich faengt das (Review 2026-08-11).
+    Auf case-sensitivem FS existiert der Pfad nicht: Skip."""
+    import docodetect.config as cfgmod
+    projekt = tmp_path / "projekt"
+    projekt.mkdir()
+    if not (tmp_path / "PROJEKT").exists():
+        pytest.skip("Dateisystem ist case-sensitiv")
+    monkeypatch.setattr(cfgmod, "project_root", lambda: projekt)
+    src = _mini_lauf(tmp_path)
+    with pytest.raises(ValueError, match="Projektverzeichnis"):
+        export_analysis_run(src, tmp_path / "PROJEKT" / "kopie")
+
+
+def test_export_ziel_im_projekt_wird_abgelehnt(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    projekt = tmp_path / "projekt"
+    projekt.mkdir()
+    monkeypatch.setattr(cfgmod, "project_root", lambda: projekt)
+    src = _mini_lauf(tmp_path)
+    with pytest.raises(ValueError, match="Projektverzeichnis"):
+        export_analysis_run(src, projekt / "reports" / "kopie")
+
+
+def test_export_symlink_ins_projekt_wird_abgelehnt(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    projekt = tmp_path / "projekt"
+    (projekt / "unter").mkdir(parents=True)
+    monkeypatch.setattr(cfgmod, "project_root", lambda: projekt)
+    link = tmp_path / "harmlos"
+    link.symlink_to(projekt / "unter")
+    src = _mini_lauf(tmp_path)
+    with pytest.raises(ValueError, match="Projektverzeichnis"):
+        export_analysis_run(src, link / "kopie")
+
+
+def test_export_ziel_existiert_nie_ueberschreiben(tmp_path):
+    src = _mini_lauf(tmp_path)
+    ziel = tmp_path / "raus" / "kopie"
+    ziel.mkdir(parents=True)
+    with pytest.raises(ValueError, match="existiert bereits"):
+        export_analysis_run(src, ziel)
+
+
+def test_export_quelle_ungueltig_oder_verschwunden(tmp_path):
+    kaputt = tmp_path / "kaputt"
+    kaputt.mkdir()
+    (kaputt / "report.md").write_text("x", encoding="utf-8")  # ohne metrics
+    with pytest.raises(ValueError, match="gültiger Analyse-Lauf"):
+        export_analysis_run(kaputt, tmp_path / "raus1")
+    with pytest.raises(ValueError, match="gültiger Analyse-Lauf"):
+        export_analysis_run(tmp_path / "wegga", tmp_path / "raus2")
+
+
+def test_export_ziel_nicht_beschreibbar(tmp_path):
+    src = _mini_lauf(tmp_path)
+    gesperrt = tmp_path / "gesperrt"
+    gesperrt.mkdir()
+    os.chmod(gesperrt, 0o500)
+    try:
+        with pytest.raises(OSError):
+            export_analysis_run(src, gesperrt / "kopie")
+        with pytest.raises(OSError):        # ZIP-Zweig: eigener Codepfad
+            export_analysis_run(src, gesperrt / "tiefer" / "kopie",
+                                als_zip=True)
+    finally:
+        os.chmod(gesperrt, 0o700)
