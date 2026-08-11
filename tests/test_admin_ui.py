@@ -80,7 +80,9 @@ def test_auth_dialog_pruefen_falsch_dann_richtig(qapp, tmp_path):
 # ---------- Fenster-Gerüst + Status-Seite (Task 5) ----------
 
 def _admin_cfg(tmp_path):
-    """Minimal-Config wie test_ui_facade.make_cfg, plus captures_dir."""
+    """Minimal-Config wie test_ui_facade.make_cfg, plus captures_dir.
+    analysis/matching seit Stufe 2: Analyse- und Artikel-Seite laufen
+    damit gegen tmp_path, nie gegen reports/analysis/ des Repos."""
     return {
         "calibration": {
             "file": str(tmp_path / "calibration.json"),
@@ -88,6 +90,8 @@ def _admin_cfg(tmp_path):
         },
         "paths": {"db_file": str(tmp_path / "db.sqlite3"),
                   "captures_dir": str(tmp_path / "captures")},
+        "analysis": {"output_dir": str(tmp_path / "runs")},
+        "matching": {"diameter_tolerance_mm": 6.0, "top_k": 3},
         "stage2": {"enabled": False},
     }
 
@@ -172,4 +176,17 @@ def test_schloss_oeffnet_admin_nur_mit_zugang(qapp, tmp_path, monkeypatch):
     win._open_admin_panel()                       # fokussiert nur
     assert win._admin_window is erstes
     win._admin_window.close()
+    win.close()
+
+
+def test_admin_window_stufe2_seiten_real(qapp, tmp_path):
+    from docodetect.ui_qt.admin.admin_window import AdminWindow
+    from docodetect.ui_qt.admin.pages.analysis_page import AnalysisPage
+    from docodetect.ui_qt.admin.pages.articles_page import ArticlesPage
+    win = AdminWindow(_admin_cfg(tmp_path), camera_status=lambda: "Demo")
+    assert win.sidebar.count() == 5
+    assert isinstance(win.analysis_page, AnalysisPage)
+    assert isinstance(win.articles_page, ArticlesPage)
+    assert win.stack.widget(2) is win.analysis_page
+    assert win.stack.widget(3) is win.articles_page
     win.close()
