@@ -235,3 +235,30 @@ def test_main_window_meldekanaele_fuer_admin(qapp, tmp_path):
     assert len(empfangen) == 1
     assert empfangen[0] is not None
     win.close()
+
+
+def test_admin_window_close_wartet_auf_laufende_worker(qapp, tmp_path,
+                                                       monkeypatch):
+    """Review 2026-08-11: WA_DeleteOnClose darf keinen QThread im Lauf
+    zerstoeren — beim Verwerfen waere das mitten in Dateibewegungen.
+    Der Test beweist durch Ueberleben (ein zerstoerter laufender QThread
+    waere ein qFatal-Abbruch des Prozesses)."""
+    import time
+
+    from docodetect.ui_qt.admin import admin_window as aw
+    from docodetect.ui_qt.pipeline_worker import PipelineWorker
+    win = aw.AdminWindow(_admin_cfg(tmp_path), camera_status=lambda: "Demo")
+    tab = win.analysis_page.lauf_tab
+    w = PipelineWorker(lambda: time.sleep(0.3) or "fertig", tab)
+    w.finished.connect(lambda: setattr(tab, "_worker", None))
+    tab._worker = w
+    w.start()
+    win.close()                                   # wartet via closeEvent
+    assert tab._worker is None or not tab._worker.isRunning()
+
+
+def test_main_window_kamera_frei_im_demo(qapp, tmp_path):
+    from docodetect.ui_qt import main_window as mw_mod
+    win = mw_mod.MainWindow(make_main_cfg(tmp_path), demo=True)
+    assert win._kamera_frei_fuer_suche() is True   # DemoSource haelt nichts
+    win.close()

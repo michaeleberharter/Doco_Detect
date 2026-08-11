@@ -80,15 +80,22 @@ def test_kamera_diagnose_statik_und_mac_hinweis(qapp, tmp_path):
     assert "erwartbar" in w["hinweis"]
 
 
-def test_kamera_suche_nur_bei_getrennter_kamera(qapp, tmp_path):
+def test_kamera_suche_nur_mit_kamera_frei_kanal(qapp, tmp_path):
+    """Review 2026-08-11: „getrennt" heisst NICHT „haelt keine Kamera" —
+    der CameraWorker reconnectet alle 3 s. Gating deshalb ueber den
+    expliziten kamera_frei-Kanal des Hauptfensters; ohne Kanal oder bei
+    kamera_frei=False bleibt die Suche gesperrt (probe oeffnet Geraete)."""
     from docodetect.ui_qt.admin.pages.camera_page import CameraPage
-    verbunden = CameraPage(_cfg(tmp_path),
-                           camera_status=lambda: "verbunden")
-    assert not verbunden.suche_button.isEnabled()
-    assert "in Benutzung" in verbunden.werte()["suche_hinweis"]
-    getrennt = CameraPage(_cfg(tmp_path),
-                          camera_status=lambda: "getrennt")
-    assert getrennt.suche_button.isEnabled()
+    ohne_kanal = CameraPage(_cfg(tmp_path),
+                            camera_status=lambda: "getrennt")
+    assert not ohne_kanal.suche_button.isEnabled()
+    belegt = CameraPage(_cfg(tmp_path), camera_status=lambda: "getrennt",
+                        kamera_frei=lambda: False)
+    assert not belegt.suche_button.isEnabled()
+    assert "kollidieren" in belegt.werte()["suche_hinweis"]
+    frei = CameraPage(_cfg(tmp_path), camera_status=lambda: "Demo",
+                      kamera_frei=lambda: True)
+    assert frei.suche_button.isEnabled()
 
 
 def test_kamera_suche_zeigt_gefundene(qapp, tmp_path, monkeypatch):
@@ -99,7 +106,8 @@ def test_kamera_suche_zeigt_gefundene(qapp, tmp_path, monkeypatch):
                         lambda camera_cfg=None, max_index=3: [
                             (0, True, 1920, 1080), (1, False, 0, 0)])
     seite = mod.CameraPage(_cfg(tmp_path),
-                           camera_status=lambda: "getrennt")
+                           camera_status=lambda: "getrennt",
+                           kamera_frei=lambda: True)
     seite.suche_starten()
     ende = time.monotonic() + 10.0
     while seite._worker is not None and time.monotonic() < ende:
@@ -190,3 +198,26 @@ def test_segtest_segmentierungsfehler_als_text(qapp, tmp_path, monkeypatch):
     w = seite.werte()
     assert "Nicht messbar" in w["status"]
     assert "zu dunkel" in w["status"]
+
+
+def test_kamera_suche_fehlertext_ueberlebt_refresh(qapp, tmp_path,
+                                                   monkeypatch):
+    """Review 2026-08-11: _worker_beendet -> refresh() darf den
+    Fehlertext der Suche nicht ueberschreiben."""
+    import time
+
+    from docodetect.ui_qt.admin.pages import camera_page as mod
+
+    def kaputt(camera_cfg=None, max_index=3):
+        raise RuntimeError("Backend nicht verfuegbar")
+
+    monkeypatch.setattr(mod, "probe_cameras", kaputt)
+    seite = mod.CameraPage(_cfg(tmp_path),
+                           camera_status=lambda: "getrennt",
+                           kamera_frei=lambda: True)
+    seite.suche_starten()
+    ende = time.monotonic() + 10.0
+    while seite._worker is not None and time.monotonic() < ende:
+        qapp.processEvents()
+    assert "Suche fehlgeschlagen" in seite.werte()["suche_hinweis"]
+    assert "Backend nicht verfuegbar" in seite.werte()["suche_hinweis"]

@@ -632,6 +632,16 @@ class MainWindow(QMainWindow):
         die Admin-Kamera-Diagnose — Teil der Kamera-Zustands-Meldung."""
         return self.status_content.warn.text()
 
+    def _kamera_frei_fuer_suche(self) -> bool:
+        """True nur, wenn dieses Fenster KEINE echte Kamera-Quelle
+        betreibt (source fehlt oder Demo). „getrennt" reicht NICHT:
+        der CameraWorker verbindet dann alle 3 s neu, eine parallele
+        Geräte-Suche würde kollidieren (Review 2026-08-11). Im Demo ist
+        die Suche frei — die DemoSource hält kein Gerät; dass probe am
+        Mac die FaceTime-Kamera öffnet (Berechtigungsdialog), ist
+        derselbe dokumentierte Effekt wie beim CLI list-cameras."""
+        return self.source is None or self.demo
+
     def _frame_fuer_admin(self, empfaenger) -> bool:
         """Meldekanal 2 (Spec §4, Stufe 4): Voll-Frame auf Anforderung
         über die BESTEHENDE Frame-Quelle — dasselbe Muster wie der
@@ -698,6 +708,7 @@ class MainWindow(QMainWindow):
         win = AdminWindow(self.cfg, self._camera_status_text, parent=self,
                           frame_anfordern=self._frame_fuer_admin,
                           kamera_warnung=self._kamera_warnungs_text,
+                          kamera_frei=self._kamera_frei_fuer_suche,
                           fortsetzen_pruefen=self._fortsetzen_pruefen,
                           fortsetzen=self._fortsetzen_aus_admin)
         win.destroyed.connect(

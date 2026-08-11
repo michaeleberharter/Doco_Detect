@@ -1349,10 +1349,16 @@ def export_analysis_run(run_dir: str | Path, ziel: str | Path,
 def reference_statistics(cfg: dict, article_number: str):
     """Enrollment-Statistik eines Artikels aus reference_stats (Stufe 3
     Teil B1): EnrollmentStats (n_shots, scalar_mean/std, proto_std) oder
-    None. Die UI liest nur Attribute — kein features-Import in ui_qt."""
-    if not resolve(cfg["paths"]["db_file"]).exists():
+    None — auch bei fehlender/kaputter DB oder schlanker Config (die UI
+    ruft aus einem Qt-Slot; Review 2026-08-11). Die UI liest nur
+    Attribute — kein features-Import in ui_qt."""
+    db_file = cfg.get("paths", {}).get("db_file")
+    if not db_file or not resolve(db_file).exists():
         return None
-    db = Database(cfg)
+    try:
+        db = Database(cfg)
+    except Exception:
+        return None
     try:
         return db.stats_for(article_number)
     except Exception:

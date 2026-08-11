@@ -13,7 +13,6 @@ Zustand READY; sonst — oder ohne Anbindung — Hinweistext STATT Knopf."""
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
@@ -205,11 +204,15 @@ class SessionsPage(QWidget):
 
     def fortsetzen(self) -> None:
         info = self._auswahl()
-        if (info is None or self._fortsetzen is None
+        if (info is None or self._worker is not None
+                or self._fortsetzen is None
                 or self._fortsetzen_pruefen is None
                 or self._fortsetzen_pruefen()):
             return
         self._fortsetzen(info)
+        # Der Dialog lief modal im Hauptfenster; die Session kann jetzt
+        # gebucht/verändert sein — Stand nachladen (Review 2026-08-11).
+        self.reload()
 
     # ---------- Testhilfen ----------
 

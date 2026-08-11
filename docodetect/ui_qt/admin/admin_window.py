@@ -33,6 +33,7 @@ class AdminWindow(QMainWindow):
                  parent=None,
                  frame_anfordern: Optional[Callable] = None,
                  kamera_warnung: Optional[Callable] = None,
+                 kamera_frei: Optional[Callable] = None,
                  fortsetzen_pruefen: Optional[Callable] = None,
                  fortsetzen: Optional[Callable] = None):
         super().__init__(parent)
@@ -75,10 +76,23 @@ class AdminWindow(QMainWindow):
         self.config_page = ConfigPage(cfg)
         self.diagnose_tabs.addTab(self.config_page, "Config")
         self.camera_page = CameraPage(cfg, camera_status,
-                                      kamera_warnung=kamera_warnung)
+                                      kamera_warnung=kamera_warnung,
+                                      kamera_frei=kamera_frei)
         self.diagnose_tabs.addTab(self.camera_page, "Kamera")
         self.stack.addWidget(self.diagnose_tabs)
         lay.addWidget(self.stack, stretch=1)
         self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.sidebar.setCurrentRow(0)
         self.setCentralWidget(central)
+
+    def closeEvent(self, event) -> None:
+        """Laufende Seiten-Worker zu Ende laufen lassen (Review
+        2026-08-11): WA_DeleteOnClose zerstörte sonst einen QThread im
+        Lauf — beim Verwerfen mitten in den Dateibewegungen. Muster wie
+        das Hauptfenster beim eigenen Worker."""
+        for seite in (self.sessions_page, self.segtest_page,
+                      self.camera_page, self.analysis_page.lauf_tab):
+            w = getattr(seite, "_worker", None)
+            if w is not None:
+                w.wait()
+        super().closeEvent(event)

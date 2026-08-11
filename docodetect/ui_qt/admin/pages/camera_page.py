@@ -31,9 +31,12 @@ _MAC_HINWEIS = ("Hinweis: Auf Mac/AVFoundation ist die Readback-Warnung "
                 "erwartbar und kein Fehler — Kamera-Eigenschaften sind "
                 "per cv2 nicht setzbar, das Profil kommt aus dem "
                 "CameraController.")
-_SUCHE_GESPERRT = ("Kamera in Benutzung durch die Bedienoberfläche — "
-                   "Suche ist nur bei getrennter Kamera möglich "
-                   "(die Suche öffnet Geräte).")
+_SUCHE_BELEGT = ("Suche gesperrt: das Hauptfenster betreibt eine "
+                 "Kamera-Quelle (auch der Getrennt-Zustand verbindet "
+                 "alle 3 s neu — die Suche würde kollidieren). App ohne "
+                 "Kamera starten oder CLI list-cameras nutzen.")
+_SUCHE_OHNE_KANAL = ("Suche gesperrt: keine Freigabe-Meldung vom "
+                     "Hauptfenster (Admin ohne Anbindung).")
 
 
 class CameraPage(QWidget):
@@ -41,13 +44,19 @@ class CameraPage(QWidget):
 
     def __init__(self, cfg: dict, camera_status: Callable[[], str],
                  kamera_warnung: Callable[[], str] | None = None,
+                 kamera_frei: Callable[[], bool] | None = None,
                  parent=None):
         super().__init__(parent)
         self.cfg = cfg
         self._camera_status = camera_status
         self._kamera_warnung = kamera_warnung
+        # Review 2026-08-11: „getrennt" heisst NICHT „hält keine Kamera"
+        # (Reconnect-Loop). Freigabe der Suche NUR über diesen expliziten
+        # Kanal des Hauptfensters; ohne Kanal bleibt sie gesperrt.
+        self._kamera_frei = kamera_frei
         self._worker: PipelineWorker | None = None
         self._suche_zeilen: list = []
+        self._suche_fehler_text: str | None = None
         self._werte: dict = {}
 
         lay = QVBoxLayout(self)
@@ -105,19 +114,29 @@ class CameraPage(QWidget):
             lab.setTextInteractionFlags(Qt.TextSelectableByMouse)
             self._form.addRow(QLabel(titel), lab)
 
-        gesperrt = w["zustand"] == "verbunden"
-        self.suche_button.setEnabled(not gesperrt
-                                     and self._worker is None)
-        self.suche_hinweis.setText(_SUCHE_GESPERRT if gesperrt else
-                                   "Probiert die Indizes 0–3 durch und "
-                                   "gibt die Geräte sofort wieder frei.")
+        frei = bool(self._kamera_frei()) if self._kamera_frei else False
+        self.suche_button.setEnabled(frei and self._worker is None)
+        if self._suche_fehler_text:
+            # Review 2026-08-11: Fehlertext überlebt den refresh nach
+            # Worker-Ende — bis zur nächsten Suche.
+            self.suche_hinweis.setText(self._suche_fehler_text)
+        elif self._kamera_frei is None:
+            self.suche_hinweis.setText(_SUCHE_OHNE_KANAL)
+        elif not frei:
+            self.suche_hinweis.setText(_SUCHE_BELEGT)
+        else:
+            self.suche_hinweis.setText(
+                "Probiert die Indizes 0–3 durch und gibt die Geräte "
+                "sofort wieder frei (am Mac ggf. Berechtigungsdialog).")
         self._werte["suche_hinweis"] = self.suche_hinweis.text()
 
     # ---------- Suche (gegated, im Worker) ----------
 
     def suche_starten(self) -> None:
-        if self._worker is not None or self._camera_status() == "verbunden":
+        if (self._worker is not None or self._kamera_frei is None
+                or not self._kamera_frei()):
             return
+        self._suche_fehler_text = None
         self.suche_button.setEnabled(False)
         kamera_cfg = self.cfg.get("camera")
         w = PipelineWorker(lambda: probe_cameras(kamera_cfg), self)
@@ -147,8 +166,9 @@ class CameraPage(QWidget):
         self._tabelle.resizeColumnsToContents()
 
     def _suche_fehler(self, text: str) -> None:
-        self.suche_hinweis.setText(f"Suche fehlgeschlagen: {text}")
-        self._werte["suche_hinweis"] = text
+        self._suche_fehler_text = f"Suche fehlgeschlagen: {text}"
+        self.suche_hinweis.setText(self._suche_fehler_text)
+        self._werte["suche_hinweis"] = self._suche_fehler_text
 
     # ---------- Testhilfen ----------
 

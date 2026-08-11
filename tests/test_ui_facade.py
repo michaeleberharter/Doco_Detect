@@ -841,3 +841,23 @@ def test_config_with_origin_ohne_local(tmp_path):
     basis.write_text("camera:\n  index: 0\n", encoding="utf-8")
     assert config_with_origin(basis) == [("camera.index", "0",
                                           "config.yaml")]
+
+
+def test_reference_statistics_schlanke_config_ist_none(tmp_path):
+    """Review 2026-08-11: die UI ruft aus einem Qt-Slot — fehlende
+    paths-Keys duerfen nicht werfen."""
+    assert reference_statistics({}, "X") is None
+    assert reference_statistics({"paths": {}}, "X") is None
+
+
+def test_config_with_origin_key_nur_in_local(tmp_path):
+    """Review 2026-08-11: ein Key, den NUR die lokale Schicht kennt,
+    erscheint mit Herkunft config.local.yaml (deep_merge nimmt ihn auf)."""
+    basis = tmp_path / "config.yaml"
+    basis.write_text("camera:\n  index: 0\n", encoding="utf-8")
+    (tmp_path / "config.local.yaml").write_text(
+        "geometry:\n  camera_height_mm: 300.0\n", encoding="utf-8")
+    eintraege = {k: (w, h) for k, w, h in config_with_origin(basis)}
+    assert eintraege["geometry.camera_height_mm"] == (
+        "300.0", "config.local.yaml")
+    assert eintraege["camera.index"] == ("0", "config.yaml")
