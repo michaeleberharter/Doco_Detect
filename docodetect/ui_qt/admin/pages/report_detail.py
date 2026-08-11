@@ -16,9 +16,8 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QScrollArea,
                                QTableWidget, QTableWidgetItem, QVBoxLayout,
                                QWidget)
 
-from docodetect.matcher import MatchReport
-from docodetect.pipeline import (format_measured, render_report_overlay,
-                                 report_judgement)
+from docodetect.pipeline import (MatchReport, format_measured,
+                                 render_report_overlay, report_judgement)
 
 from ...widgets.common import section_label
 
