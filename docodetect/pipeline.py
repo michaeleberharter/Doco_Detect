@@ -30,6 +30,9 @@ from .matcher import DECISION_REJECT, MatchReport, match
 from .display import (channel_percentages, format_delta, format_diameter,  # noqa: F401
                       format_measured, format_rank_line, headline,
                       natuerlicher_schluessel)  # Re-Export: UIs importieren Anzeige-Helfer NUR über pipeline
+from .reporting import NO_MATCH  # noqa: F401 — Re-Export: UIs beziehen
+# Konstanten/Typen über pipeline, nie reporting/matcher direkt (Spec
+# Zugriffsweg, Revision 2026-08-11); MatchReport (oben) ebenso.
 from .segmentation import SegmentationError, SegmentationResult, segment
 
 
@@ -69,6 +72,22 @@ class ArticleInfo:
     diameter_mm: float | None
     height_mm: float | None
     n_references: int
+    # Additiv 2026-08-11 (Stufe 3 Teil A): minAreaRect-Seiten der
+    # länglichen Artikel — Nominal ist max(width, depth), nie hypot.
+    width_mm: float | None = None
+    depth_mm: float | None = None
+
+
+@dataclass
+class AnalysisRunInfo:
+    """Gültiger Analyse-Lauf unter analysis.output_dir (Listbarkeits-
+    Kriterium, Spec Stufe 2): report.md UND metrics.json vorhanden.
+    mtime_unix ist die DATEIZEIT von report.md — report.md wird genau
+    einmal am Laufende geschrieben (analysis.py, Audit 2026-08-11: kein
+    Pfad schreibt es neu), die Anzeige beschriftet sie als Dateizeit."""
+    run_id: str
+    path: Path
+    mtime_unix: float
 
 
 def get_status(cfg: dict) -> PipelineStatus:
@@ -1191,7 +1210,8 @@ def list_articles(cfg: dict) -> list[ArticleInfo]:
         return [ArticleInfo(
             article_number=a.article_number, name=a.name, category=a.category,
             diameter_mm=a.diameter_mm, height_mm=a.height_mm,
-            n_references=counts.get(a.article_number, 0))
+            n_references=counts.get(a.article_number, 0),
+            width_mm=a.width_mm, depth_mm=a.depth_mm)
             for a in sorted(db.all_articles(),
                             key=lambda a: natuerlicher_schluessel(
                                 a.article_number))]
@@ -1199,6 +1219,61 @@ def list_articles(cfg: dict) -> list[ArticleInfo]:
         return []
     finally:
         db.close()
+
+
+def run_report_analysis(cfg: dict,
+                        reports_dir: str | Path | None = None,
+                        run_id: str | None = None) -> Path:
+    """Analyse-Lauf für UIs: Quell- UND Zielpfad werden HIER aufgelöst,
+    analysis.run_analysis rechnet nur noch (Spec Stufe 2, Zugriffsweg;
+    Freigabe 2026-08-11). Bewusst ohne archive und ohne publish — beides
+    bleibt CLI-only: archive verschiebt Report-JSONs aus dem Bestand
+    (Read-only-Definition, Spec Abschnitt 5), publish schreibt ins
+    versionierte Archiv."""
+    from .analysis import run_analysis
+    src = resolve(reports_dir) if reports_dir else resolve(
+        cfg.get("paths", {}).get("captures_dir", "data/captures"))
+    out_base = resolve(cfg.get("analysis", {}).get("output_dir",
+                                                   "reports/analysis"))
+    return run_analysis(cfg, reports_dir=src, run_id=run_id,
+                        out_dir=out_base)
+
+
+def list_analysis_runs(cfg: dict) -> tuple[list[AnalysisRunInfo], int]:
+    """Lauf-Historie unter analysis.output_dir: (gültige Läufe, Zahl der
+    ungültigen Ordner). Gültig = report.md UND metrics.json (Listbarkeits-
+    Kriterium, Spec Stufe 2) — der Rest wird gezählt, nie verschwiegen.
+    Sortiert nach DATEIZEIT von report.md, neueste zuerst: run_ids sind
+    teils frei vergeben (phase-b-korrigiert, stufeA-v2), Namen sortieren
+    hier nichts (Freigabe-Ergänzung 4, 2026-08-11)."""
+    base = resolve(cfg.get("analysis", {}).get("output_dir",
+                                               "reports/analysis"))
+    if not base.is_dir():
+        return [], 0
+    gueltig: list[AnalysisRunInfo] = []
+    ungueltig = 0
+    for d in sorted(base.iterdir()):
+        if not d.is_dir():
+            continue
+        report_md = d / "report.md"
+        if report_md.is_file() and (d / "metrics.json").is_file():
+            gueltig.append(AnalysisRunInfo(
+                run_id=d.name, path=d,
+                mtime_unix=report_md.stat().st_mtime))
+        else:
+            ungueltig += 1
+    gueltig.sort(key=lambda r: r.mtime_unix, reverse=True)
+    return gueltig, ungueltig
+
+
+def nominal_size_mm(article) -> float | None:
+    """Wirksames Vorfilter-Nominal (Stufe 3 Teil A): diameter_mm bei
+    runden, max(width, depth) bei länglichen Artikeln — EXAKT
+    matcher._nominal_size_mm, hier nur öffentlich gemacht. Die Regel wird
+    nirgends dupliziert (der hypot-Fehler vom 2026-07-21 entstand genau
+    so). Nimmt Article wie ArticleInfo (duck-typed)."""
+    from .matcher import _nominal_size_mm
+    return _nominal_size_mm(article)
 
 
 def _thin_contour(seg: SegmentationResult | None) -> list | None:

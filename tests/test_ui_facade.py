@@ -562,3 +562,101 @@ def test_optics_fingerprint_liefert_hashes(tmp_path):
     assert set(fp) == {"calibration_sha256", "background_sha256",
                        "features_cfg_sha256", "mm_per_px",
                        "camera_height_mm"}
+
+
+# ---------- Stufe-2/3A-Fassaden (Admin-Panel, Freigabe 2026-08-11) ----------
+
+import math  # noqa: E402
+
+from docodetect.pipeline import (AnalysisRunInfo, ArticleInfo,  # noqa: E402
+                                 NO_MATCH, list_analysis_runs,
+                                 nominal_size_mm, run_report_analysis)
+
+
+def test_no_match_ist_ueber_pipeline_beziehbar():
+    assert NO_MATCH == "NO_MATCH"
+
+
+def test_run_report_analysis_loest_quelle_und_ziel_auf(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    caps = tmp_path / "captures"
+    caps.mkdir()
+    cfg = make_cfg(tmp_path)
+    cfg["paths"]["captures_dir"] = str(caps)
+    out = run_report_analysis(cfg, run_id="fassade")
+    assert out == tmp_path / "reports" / "analysis" / "fassade"
+    md = (out / "report.md").read_text(encoding="utf-8")
+    assert str(caps) in md                 # Quelle = captures_dir-Default
+
+
+def test_run_report_analysis_expliziter_quellordner(tmp_path, monkeypatch):
+    import docodetect.config as cfgmod
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    quelle = tmp_path / "eigene"
+    quelle.mkdir()
+    cfg = make_cfg(tmp_path)
+    cfg["analysis"] = {"output_dir": str(tmp_path / "ziel")}
+    out = run_report_analysis(cfg, reports_dir=quelle, run_id="expl")
+    assert out == tmp_path / "ziel" / "expl"
+    assert str(quelle) in (out / "report.md").read_text(encoding="utf-8")
+
+
+def test_list_analysis_runs_kriterium_und_zaehlung(tmp_path):
+    import os
+    base = tmp_path / "runs"
+    cfg = make_cfg(tmp_path)
+    cfg["analysis"] = {"output_dir": str(base)}
+    for name, dateien in (("gut1", ("report.md", "metrics.json")),
+                          ("gut2", ("report.md", "metrics.json")),
+                          ("nur-md", ("report.md",)),
+                          ("leer", ())):
+        (base / name).mkdir(parents=True)
+        for f in dateien:
+            (base / name / f).write_text("x", encoding="utf-8")
+    (base / "notiz.txt").write_text("x", encoding="utf-8")  # kein Ordner
+    os.utime(base / "gut2" / "report.md", (1000, 1000))     # aelter machen
+    laeufe, ungueltig = list_analysis_runs(cfg)
+    assert [r.run_id for r in laeufe] == ["gut1", "gut2"]   # Dateizeit absteigend
+    assert ungueltig == 2                                   # nur-md + leer
+    assert laeufe[0].path == base / "gut1"
+    assert isinstance(laeufe[0], AnalysisRunInfo)
+
+
+def test_list_analysis_runs_ohne_verzeichnis(tmp_path):
+    cfg = make_cfg(tmp_path)
+    cfg["analysis"] = {"output_dir": str(tmp_path / "gibtsnicht")}
+    assert list_analysis_runs(cfg) == ([], 0)
+
+
+def test_nominal_size_mm_max_nicht_hypot():
+    """Die max/hypot-Regel lebt in matcher._nominal_size_mm und wird von
+    der Fassade nur durchgereicht — der hypot-Fehler vom 2026-07-21 darf
+    nicht als Zweitimplementierung in einer UI wiederkehren."""
+    laenglich = ArticleInfo(article_number="L-1", name="Loeffel",
+                            category=None, diameter_mm=None, height_mm=None,
+                            n_references=0, width_mm=186.9, depth_mm=45.0)
+    assert nominal_size_mm(laenglich) == 186.9
+    assert nominal_size_mm(laenglich) != pytest.approx(
+        math.hypot(186.9, 45.0))
+    rund = ArticleInfo(article_number="T-1", name="Teller", category=None,
+                       diameter_mm=270.0, height_mm=None, n_references=0)
+    assert nominal_size_mm(rund) == 270.0
+    ohne = ArticleInfo(article_number="X-1", name="Ohne", category=None,
+                       diameter_mm=None, height_mm=None, n_references=0)
+    assert nominal_size_mm(ohne) is None
+
+
+def test_list_articles_liefert_breite_und_tiefe(tmp_path):
+    from docodetect.database import Article
+    cfg = make_cfg(tmp_path)
+    db = Database(cfg)
+    db.init_schema()
+    db.create_article(Article(article_number="L-1", name="Loeffel",
+                              category=None, diameter_mm=None,
+                              width_mm=186.9, depth_mm=45.0, height_mm=20.0,
+                              color_desc=None, notes=None))
+    db.close()
+    infos = list_articles(cfg)
+    assert infos[0].width_mm == 186.9
+    assert infos[0].depth_mm == 45.0
