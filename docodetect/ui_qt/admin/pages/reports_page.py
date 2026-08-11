@@ -22,9 +22,8 @@ from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit,
                                QTableWidgetItem, QTabWidget, QVBoxLayout,
                                QWidget)
 
-from docodetect.pipeline import (load_saved_reports,
+from docodetect.pipeline import (NO_MATCH, load_saved_reports,
                                  report_predicted_article)
-from docodetect.reporting import NO_MATCH
 
 from .prefilter_view import PrefilterView
 from .report_detail import ReportDetailView

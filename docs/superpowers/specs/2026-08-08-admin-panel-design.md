@@ -2,7 +2,10 @@
 
 **Datum:** 2026-08-08 · **Art:** freigegebenes Design (Brainstorm-Ergebnis).
 **Revision:** 2026-08-08 nach Review (sechs Punkte + Gegenvorschlag
-Zugriffsweg; Belege in Anhang A).
+Zugriffsweg; Belege in Anhang A). **Revision 2026-08-11** (Freigabe
+Stufe 2 + Stufe 3 Teil A): Stufe 3 in Teil A/Teil B geteilt (Abschnitt 6);
+run_analysis-Anbindung genehmigt (Zugriffsweg); UI bezieht Typen und
+Konstanten über pipeline.py (Zugriffsweg).
 **Umsetzung:** vier Stufen; Stufe 1 hat zwei blockierende Melde-Punkte,
 jede weitere Stufe einen. Implementierungsplan folgt separat.
 
@@ -127,6 +130,19 @@ CLAUDE.md-Änderung.**
   `build_enrollment_sheet` analog `enrollment_sheet_for_shots` /
   `persist_enrollment_sheet`) ist ein **eigener, separat zu genehmigender
   Eingriff** — fällig erst, wenn die jeweilige Stufe entblockt ist.
+  *Für `run_analysis` genehmigt 2026-08-11 (Melde-Punkt mit
+  Aufrufer-Belegen): additiver `out_dir`-Parameter (Default = bisheriges
+  Verhalten, Präzedenzfall `load_reports(sort_by=…)`), Fassade
+  `pipeline.run_report_analysis` (löst Quelle UND Ziel auf, ohne
+  `archive`/`publish`) plus `pipeline.list_analysis_runs`
+  (Listbarkeits-Kriterium). `publish_run` bleibt unberührt.*
+- **Typen und Konstanten (Revision 2026-08-11):** Die UI bezieht auch
+  Typen und Konstanten über `pipeline.py` — `MatchReport` (dort ohnehin
+  importiert) und `NO_MATCH` (Re-Export aus `reporting`). Anlass: 1b
+  importierte `reporting.NO_MATCH` (`reports_page.py`) und
+  `matcher.MatchReport` (`report_detail.py`) direkt; geprüft 2026-08-11 —
+  `report_detail` bezieht aus `matcher` NUR den Typ, keine Logik. Beide
+  Importe sind auf pipeline umgestellt.
 - **Vorgemerkter Wortlaut** für eine etwaige spätere CLAUDE.md-Präzisierung
   (nur falls je nötig, nicht jetzt): *„UI-Schichten dürfen zusätzlich reine
   Konsumentenmodule rufen, sofern das Modul keine eigene Pfadkonstruktion
@@ -229,7 +245,7 @@ die Pakete sind gleich schwer):
   dort nicht).
 - **pipeline-Fassade für `run_analysis`** (Quell- UND Zielpfad als
   Argument) — separat zu genehmigender Eingriff, siehe Zugriffsweg und
-  Anhang A.
+  Anhang A. *Genehmigt und umgesetzt 2026-08-11 (siehe Zugriffsweg).*
 
 Die Klärung der 19 Einträge in `runs/_invalid/` des **Korpus**-Baums
 (Cross-Run-Effekte ja/nein) ist ein eigener offener Vorgang und blockiert
@@ -239,14 +255,33 @@ das Panel nicht — das Panel zeigt den Korpus-Baum nie an.
    Worker mit Fortschrittsanzeige; danach und für bestehende gültige Läufe:
    Artefakt-Betrachter (PNG-Blättern, `report.md` als Text). Kein
    `--publish` aus der UI — Archivieren bleibt bewusst CLI (versioniertes
-   Verzeichnis).
+   Verzeichnis). *Worker bestätigt 2026-08-11: anders als das Report-Laden
+   (9 ms, deshalb synchron) rendert der Lauf 17 Matplotlib-Abschnitte —
+   Sekunden, nicht Millisekunden. Fortschritt indeterminat (Busy-Bar):
+   `run_analysis` hat keinen Callback, und einer wäre ein weiterer
+   analysis.py-Eingriff. Auch `--archive` bleibt CLI-only: es verschiebt
+   Report-JSONs aus dem Bestand (Abschnitt 5). Die Lauf-Historie sortiert
+   nach der DATEIZEIT von `report.md` und beschriftet sie so — run_ids
+   sind teils frei vergeben; `report.md` wird genau einmal am Laufende
+   geschrieben (Audit 2026-08-11: kein Pfad schreibt es neu).*
 7. **Bewertungs-Übersicht:** Aggregation der Verdicts aus den geladenen
    Reports (richtig/falsch/unbewertet je Artikel, Gesamtquote). Reine
    Zählung auf Anzeige-Ebene, keine Kennzahlen-Nachrechnung.
 
 ### Stufe 3 — Artikel & Sessions (rein anzeigend)
 
-**Vorbedingungen (blockierend):**
+**Teilung (Revision 2026-08-11):** Stufe 3 ist in **Teil A (jetzt)** und
+**Teil B (nach dem Neu-Enrollment)** geteilt. Teil A ist der
+Listen-Anteil von Punkt 8 — Artikelliste mit Referenzzahl, Nominalmaßen
+und wirksamem Vorfilter-Nominal, gegen echte Daten abnehmbar. Teil B ist
+der Blatt-Anteil von Punkt 8 (Diagnoseblätter samt
+`build_enrollment_sheet`-Wrapper): gegen den Altbestand nicht abnehmbar
+(Vorbedingung unten, 2026-08-11 erneut verifiziert: 334 von 359 Zeilen
+NULL) und deshalb eigenes Nachpaket, sobald die Bilder existieren.
+Punkt 9 (Einlern-Sessions) ist von der Teilung unberührt und weiterhin
+offen.
+
+**Vorbedingungen (blockierend — nur noch für Teil B):**
 
 - **Diagnoseblätter:** blockiert, solange `reference_features.image_path`
   überwiegend NULL ist — Stand 2026-08-08 auf der Produktiv-DB: **334 von
@@ -256,11 +291,18 @@ das Panel nicht — das Panel zeigt den Korpus-Baum nie an.
 - **pipeline-Wrapper für Altbestands-Blätter** (`build_enrollment_sheet`)
   — separat zu genehmigender Eingriff, siehe Zugriffsweg.
 
-8. **Artikelliste:** `pipeline.list_articles` mit Referenzzahl und
-   Nominalmaßen; je Artikel das **Diagnoseblatt** (über pipeline-Fassaden
-   gerendert, im Worker; Cache über den `persist_enrollment_sheet`-
-   Bestand). Die LOEFFEL-3-Lehre („vor dem Vertrauen das Blatt prüfen")
-   direkt im Panel — mit Bestands-Angabe.
+8. **Artikelliste (Teil A) + Diagnoseblatt (Teil B):**
+   `pipeline.list_articles` mit Referenzzahl und Nominalmaßen; dazu als
+   eigene Spalte das **wirksame Vorfilter-Nominal** (`diameter_mm` bei
+   runden, `max(width, depth)` bei länglichen Artikeln — Freigabe
+   2026-08-11) samt Toleranzband aus `matching.diameter_tolerance_mm`.
+   Die Berechnung ist EXAKT `matcher._nominal_size_mm` über die additive
+   Fassade `pipeline.nominal_size_mm` — keine zweite Implementierung der
+   Regel (der hypot-Fehler vom 2026-07-21 entstand genau so). — Teil B:
+   je Artikel das **Diagnoseblatt** (über pipeline-Fassaden gerendert, im
+   Worker; Cache über den `persist_enrollment_sheet`-Bestand). Die
+   LOEFFEL-3-Lehre („vor dem Vertrauen das Blatt prüfen") direkt im
+   Panel — mit Bestands-Angabe.
 9. **Einlern-Sessions (nur Anzeige):** `pipeline.list_enroll_sessions` mit
    Zustand und Shots. Verwerfen und Fortsetzen sind NICHT Teil dieser
    Stufe — sie liegen als Aktionen in Stufe 4.

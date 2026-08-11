@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget,
                                QMainWindow, QStackedWidget, QVBoxLayout,
                                QWidget)
 
+from .pages.analysis_page import AnalysisPage
+from .pages.articles_page import ArticlesPage
 from .pages.reports_page import ReportsPage
 from .pages.status_page import StatusPage
 
@@ -52,7 +54,11 @@ class AdminWindow(QMainWindow):
         self.stack.addWidget(self.status_page)
         self.reports_page = ReportsPage(cfg)
         self.stack.addWidget(self.reports_page)
-        for name in _SEITEN[2:]:
+        self.analysis_page = AnalysisPage(cfg)
+        self.stack.addWidget(self.analysis_page)
+        self.articles_page = ArticlesPage(cfg)
+        self.stack.addWidget(self.articles_page)
+        for name in _SEITEN[4:]:
             self.stack.addWidget(_platzhalter(
                 f"„{name}“ kommt mit einer späteren Stufe "
                 "(Spec Abschnitt 6)."))

@@ -1307,7 +1307,8 @@ def _analysis_querschnitt(reports, out: Path, run_id: str, cfg: dict) -> _Sectio
 
 
 def run_analysis(cfg: dict, reports_dir: str | Path | None = None,
-                 run_id: str | None = None, archive: bool = False) -> Path:
+                 run_id: str | None = None, archive: bool = False,
+                 out_dir: str | Path | None = None) -> Path:
     """Alle sechs Auswertungen über einen Ordner voller Report-JSONs fahren.
     Gibt den Artefakt-Ordner <analysis.output_dir>/<run_id>/ zurück.
 
@@ -1315,11 +1316,18 @@ def run_analysis(cfg: dict, reports_dir: str | Path | None = None,
     <run_id>/reports/ verschoben – jede Testrunde bleibt komplett beisammen
     und die nächste startet bei 0. Bilder (Roh-PNGs/JPGs) bleiben im
     Quellordner: die PNGs sind die Golden-Testfälle der Segmentierungs-
-    Regressionssuite und werden von den Reports weiter referenziert."""
+    Regressionssuite und werden von den Reports weiter referenziert.
+
+    out_dir (additiv 2026-08-11, Admin-Panel Stufe 2): ELTERN-Verzeichnis
+    der Artefakte statt <analysis.output_dir>; run_id wird angehängt.
+    Default None = bisheriges Verhalten – Spiegelbild von reports_dir,
+    damit die pipeline-Fassade Quell- UND Zielpfad auflösen kann."""
     src = Path(reports_dir) if reports_dir else resolve(
         cfg.get("paths", {}).get("captures_dir", "data/captures"))
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
-    out = resolve(cfg.get("analysis", {}).get("output_dir", "reports/analysis")) / run_id
+    base = Path(out_dir) if out_dir else resolve(
+        cfg.get("analysis", {}).get("output_dir", "reports/analysis"))
+    out = base / run_id
     out.mkdir(parents=True, exist_ok=True)
     apply_style()   # zentraler Plot-Stil (plotstyle) fuer alle 6 Artefakte
 

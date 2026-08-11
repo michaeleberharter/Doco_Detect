@@ -508,3 +508,23 @@ def test_discriminability_ohne_floor_und_ohne_streuung_ist_leer_statt_1e10(tmp_p
     # der Skalar mit echter Streuung bleibt gerechnet: 10 / sqrt((1+1)/2) = 10
     assert float(row["diameter_mm"]) == pytest.approx(10.0)
     assert float(row["max"]) == pytest.approx(10.0)
+
+
+def test_run_analysis_out_dir_lenkt_nur_das_ziel(tmp_path, monkeypatch):
+    """Additiver out_dir-Parameter (2026-08-11, Admin-Panel Stufe 2):
+    Default = heutiges Verhalten (analysis.output_dir aus der Config);
+    mit out_dir landet der Lauf unter <out_dir>/<run_id>, die Config
+    wird fuer das Ziel nicht mehr angefasst."""
+    import docodetect.config as cfgmod
+    monkeypatch.setattr(cfgmod, "project_root", lambda: tmp_path)
+    reports_dir = tmp_path / "caps"
+    reports_dir.mkdir()                # leer -> schneller "Keine Reports"-Lauf
+    cfg = {"matching": dict(MATCHING),
+           "analysis": {"output_dir": "reports/analysis"},
+           "geometry": {"camera_height_mm": 300.0},
+           "paths": {"db_file": str(tmp_path / "t.sqlite3")}}
+    ziel = tmp_path / "anderswo"
+    out = run_analysis(cfg, reports_dir, run_id="umgeleitet", out_dir=ziel)
+    assert out == ziel / "umgeleitet"
+    assert (out / "report.md").exists()
+    assert not (tmp_path / "reports" / "analysis" / "umgeleitet").exists()
