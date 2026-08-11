@@ -64,3 +64,47 @@ def test_config_ansicht_fehler_statt_crash(qapp, tmp_path, monkeypatch):
     assert seite.zeilen() == []
     assert "Config nicht lesbar" in seite.hinweis_text()
     assert "config.yaml fehlt" in seite.hinweis_text()
+
+
+# ---------- Kamera-Diagnose (Spec Punkt 12) ----------
+
+def test_kamera_diagnose_statik_und_mac_hinweis(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.camera_page import CameraPage
+    seite = CameraPage(_cfg(tmp_path), camera_status=lambda: "verbunden",
+                       kamera_warnung=lambda: "Readback weicht ab")
+    w = seite.werte()
+    assert w["index"] == "1"
+    assert w["zustand"] == "verbunden"
+    assert w["warnung"] == "Readback weicht ab"
+    assert "AVFoundation" in w["hinweis"]
+    assert "erwartbar" in w["hinweis"]
+
+
+def test_kamera_suche_nur_bei_getrennter_kamera(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.camera_page import CameraPage
+    verbunden = CameraPage(_cfg(tmp_path),
+                           camera_status=lambda: "verbunden")
+    assert not verbunden.suche_button.isEnabled()
+    assert "in Benutzung" in verbunden.werte()["suche_hinweis"]
+    getrennt = CameraPage(_cfg(tmp_path),
+                          camera_status=lambda: "getrennt")
+    assert getrennt.suche_button.isEnabled()
+
+
+def test_kamera_suche_zeigt_gefundene(qapp, tmp_path, monkeypatch):
+    import time
+
+    from docodetect.ui_qt.admin.pages import camera_page as mod
+    monkeypatch.setattr(mod, "probe_cameras",
+                        lambda camera_cfg=None, max_index=3: [
+                            (0, True, 1920, 1080), (1, False, 0, 0)])
+    seite = mod.CameraPage(_cfg(tmp_path),
+                           camera_status=lambda: "getrennt")
+    seite.suche_starten()
+    ende = time.monotonic() + 10.0
+    while seite._worker is not None and time.monotonic() < ende:
+        qapp.processEvents()
+    assert seite._worker is None
+    zeilen = seite.suche_zeilen()
+    assert zeilen[0] == {"index": 0, "ok": True, "aufloesung": "1920×1080"}
+    assert zeilen[1]["ok"] is False
