@@ -108,3 +108,85 @@ def test_kamera_suche_zeigt_gefundene(qapp, tmp_path, monkeypatch):
     zeilen = seite.suche_zeilen()
     assert zeilen[0] == {"index": 0, "ok": True, "aufloesung": "1920×1080"}
     assert zeilen[1]["ok"] is False
+
+
+# ---------- Segmentierungs-Test (Spec Punkt 10) ----------
+
+def _fake_messung():
+    """Gestelltes Messergebnis: Features + SegmentationResult-Attrappe
+    mit synthetischer Maske/Kontur (kein Messpfad im UI-Test)."""
+    import numpy as np
+
+    class FakeFeatures:
+        circle_diameter_mm = 270.34
+        equiv_diameter_mm = 268.1
+        area_mm2 = 57255.0
+        circularity = 0.95
+        aspect_ratio = 1.02
+
+    class FakeSeg:
+        mask = np.zeros((60, 80), dtype=np.uint8)
+        contour = np.array([[[10, 10]], [[10, 40]], [[60, 40]],
+                            [[60, 10]]], dtype=np.int32)
+        touches_border = False
+
+    FakeSeg.mask[10:40, 10:60] = 255
+    return FakeFeatures(), FakeSeg()
+
+
+def _frame():
+    import numpy as np
+    return np.zeros((60, 80, 3), dtype=np.uint8)
+
+
+def test_segtest_ohne_quelle_deaktiviert_mit_hinweis(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.segtest_page import SegTestPage
+    seite = SegTestPage(_cfg(tmp_path), frame_anfordern=None)
+    assert not seite.aufnahme_button.isEnabled()
+    assert "keine Kamera" in seite.werte()["status"]
+
+
+def test_segtest_misst_gestellten_frame(qapp, tmp_path, monkeypatch):
+    import time
+
+    from docodetect.ui_qt.admin.pages import segtest_page as mod
+    monkeypatch.setattr(mod, "measure_shot",
+                        lambda frame, cfg: _fake_messung())
+
+    def frame_anfordern(cb):
+        cb(_frame())
+        return True
+
+    seite = mod.SegTestPage(_cfg(tmp_path), frame_anfordern=frame_anfordern)
+    assert seite.aufnahme_button.isEnabled()
+    seite.testaufnahme()
+    ende = time.monotonic() + 10.0
+    while seite._worker is not None and time.monotonic() < ende:
+        qapp.processEvents()
+    assert seite._worker is None
+    w = seite.werte()
+    assert w["messwerte"]["Ø (minEnclosingCircle) [mm]"] == "270,34"
+    assert w["messwerte"]["Randberührung"] == "nein"
+    assert w["maske_gesetzt"] and w["overlay_gesetzt"]
+    assert "Messung fertig" in w["status"]
+
+
+def test_segtest_segmentierungsfehler_als_text(qapp, tmp_path, monkeypatch):
+    import time
+
+    from docodetect.ui_qt.admin.pages import segtest_page as mod
+    from docodetect.pipeline import SegmentationError
+
+    def wirft(frame, cfg):
+        raise SegmentationError("Kein Objekt gefunden (Bild zu dunkel).")
+
+    monkeypatch.setattr(mod, "measure_shot", wirft)
+    seite = mod.SegTestPage(_cfg(tmp_path),
+                            frame_anfordern=lambda cb: (cb(_frame()), True)[1])
+    seite.testaufnahme()
+    ende = time.monotonic() + 10.0
+    while seite._worker is not None and time.monotonic() < ende:
+        qapp.processEvents()
+    w = seite.werte()
+    assert "Nicht messbar" in w["status"]
+    assert "zu dunkel" in w["status"]
