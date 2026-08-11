@@ -24,9 +24,13 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QPlainTextEdit, QProgressBar, QPushButton,
-                               QTabWidget, QVBoxLayout, QWidget)
+                               QTableWidget, QTableWidgetItem, QTabWidget,
+                               QVBoxLayout, QWidget)
 
-from docodetect.pipeline import list_analysis_runs, run_report_analysis
+from docodetect.pipeline import (NO_MATCH, list_analysis_runs,
+                                 load_saved_reports, natuerlicher_schluessel,
+                                 report_judgement, report_predicted_article,
+                                 run_report_analysis)
 
 from ...pipeline_worker import PipelineWorker
 from ...widgets.common import section_label
@@ -245,6 +249,101 @@ class LaufTab(QWidget):
         }
 
 
+_KEIN_KANDIDAT = "— kein Kandidat"     # NO_MATCH ist ein Zustand, kein Artikel
+
+
+def _aggregiere(eintraege):
+    """Reine Zählung auf Anzeige-Ebene (Spec Punkt 7, keine Kennzahlen-
+    Nachrechnung): je VORHERGESAGTEM Artikel richtig/falsch/unbewertet.
+    -> (zeilen, gesamt_text)."""
+    zaehler: dict = {}
+    for _pfad, rep in eintraege:
+        pred = report_predicted_article(rep)
+        key = _KEIN_KANDIDAT if pred == NO_MATCH else pred
+        z = zaehler.setdefault(key, {"richtig": 0, "falsch": 0,
+                                     "unbewertet": 0})
+        urteil = report_judgement(rep)
+        if urteil is True:
+            z["richtig"] += 1
+        elif urteil is False:
+            z["falsch"] += 1
+        else:
+            z["unbewertet"] += 1
+    zeilen = []
+    artikel = sorted((k for k in zaehler if k != _KEIN_KANDIDAT),
+                     key=natuerlicher_schluessel)
+    if _KEIN_KANDIDAT in zaehler:
+        artikel.append(_KEIN_KANDIDAT)
+    for k in artikel:
+        z = zaehler[k]
+        bewertet = z["richtig"] + z["falsch"]
+        quote = (f"{100 * z['richtig'] / bewertet:.0f} %"
+                 if bewertet else "–")
+        zeilen.append({"artikel": k, "richtig": z["richtig"],
+                       "falsch": z["falsch"],
+                       "unbewertet": z["unbewertet"], "quote": quote})
+    if not eintraege:
+        return [], "Keine Reports — erst identifizieren und bewerten."
+    richtig = sum(z["richtig"] for z in zeilen)
+    bewertet = richtig + sum(z["falsch"] for z in zeilen)
+    unbewertet = sum(z["unbewertet"] for z in zeilen)
+    if bewertet:
+        gesamt = (f"{richtig} von {bewertet} richtig "
+                  f"({100 * richtig / bewertet:.0f} %) · "
+                  f"{unbewertet} unbewertet")
+    else:
+        gesamt = f"0 bewertet · {unbewertet} unbewertet"
+    return zeilen, gesamt
+
+
+class BewertungsTab(QWidget):
+    """Aggregation der Verdicts aus den geladenen Reports (Spec Punkt 7).
+    Synchron geladen — identisch zur Reports-Sektion (9 ms für den
+    Bestand, Befund 2026-08-11)."""
+
+    def __init__(self, cfg: dict, parent=None):
+        super().__init__(parent)
+        self.cfg = cfg
+        self._zeilen: list = []
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(8)
+        kopf = QHBoxLayout()
+        self.refresh_button = QPushButton("Aktualisieren")
+        self.refresh_button.clicked.connect(self.reload)
+        kopf.addWidget(self.refresh_button, alignment=Qt.AlignLeft)
+        self.gesamt_label = QLabel("")
+        self.gesamt_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        kopf.addWidget(self.gesamt_label, stretch=1)
+        lay.addLayout(kopf)
+        self._tabelle = QTableWidget(0, 5)
+        self._tabelle.setHorizontalHeaderLabels(
+            ["Artikel", "Richtig", "Falsch", "unbewertet", "Quote"])
+        self._tabelle.verticalHeader().setVisible(False)
+        self._tabelle.setEditTriggers(QTableWidget.NoEditTriggers)
+        lay.addWidget(self._tabelle, stretch=1)
+        self.reload()
+
+    def reload(self) -> None:
+        self._zeilen, gesamt = _aggregiere(load_saved_reports(self.cfg))
+        self.gesamt_label.setText(gesamt)
+        self._tabelle.setRowCount(len(self._zeilen))
+        for r, z in enumerate(self._zeilen):
+            for c, wert in enumerate([z["artikel"], z["richtig"],
+                                      z["falsch"], z["unbewertet"],
+                                      z["quote"]]):
+                self._tabelle.setItem(r, c, QTableWidgetItem(str(wert)))
+        self._tabelle.resizeColumnsToContents()
+
+    # ---------- Testhilfen ----------
+
+    def zeilen(self) -> list:
+        return [dict(z) for z in self._zeilen]
+
+    def gesamt_text(self) -> str:
+        return self.gesamt_label.text()
+
+
 class AnalysisPage(QWidget):
     """Sektion „Analyse" des Admin-Fensters (Spec Stufe 2, Punkte 6+7)."""
 
@@ -256,4 +355,6 @@ class AnalysisPage(QWidget):
         self.tabs = QTabWidget()
         self.lauf_tab = LaufTab(cfg)
         self.tabs.addTab(self.lauf_tab, "Analyse-Lauf")
+        self.bewertung_tab = BewertungsTab(cfg)
+        self.tabs.addTab(self.bewertung_tab, "Bewertungs-Übersicht")
         lay.addWidget(self.tabs)

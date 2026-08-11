@@ -127,3 +127,56 @@ def test_lauf_fehler_zeigt_text_statt_crash(qapp, tmp_path):
     assert "Analyse-Lauf fehlgeschlagen" in w["status"]
     assert "kein Plattenplatz" in w["status"]
     assert tab.start_button.isEnabled()
+
+
+# ---------- Bewertungs-Übersicht (Spec Stufe 2, Punkt 7) ----------
+
+def _rep(decision, verdict=None, artikel=None):
+    from docodetect.matcher import CandidateReport
+    from docodetect.pipeline import MatchReport
+    cands = []
+    if artikel:
+        cands = [CandidateReport(
+            article_number=artikel, name=artikel, nominal_size_mm=180.0,
+            height_mm=0.0, corrected_diameter_mm=181.0,
+            geometry_error_mm=1.0, has_references=True, n_shots=9,
+            features=[], log_score=-0.4, posterior=0.9, max_abs_z=1.0)]
+    return MatchReport(decision=decision, message="", verdict=verdict,
+                       candidates=cands)
+
+
+def test_bewertungsuebersicht_zaehlt_je_artikel(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.analysis_page import BewertungsTab
+    cfg = _cfg(tmp_path)
+    caps = Path(cfg["paths"]["captures_dir"])
+    caps.mkdir(parents=True)
+    daten = [("a.json", _rep("accept", "correct", "A-1")),
+             ("b.json", _rep("accept", "wrong", "A-1")),
+             ("c.json", _rep("ambiguous", None, "B-2")),
+             ("d.json", _rep("reject", "correct", None))]   # NO_MATCH
+    for name, rep in daten:
+        (caps / name).write_text(rep.to_json(), encoding="utf-8")
+    tab = BewertungsTab(cfg)
+    zeilen = {z["artikel"]: z for z in tab.zeilen()}
+    assert zeilen["A-1"] == {"artikel": "A-1", "richtig": 1, "falsch": 1,
+                             "unbewertet": 0, "quote": "50 %"}
+    assert zeilen["B-2"]["unbewertet"] == 1
+    assert zeilen["B-2"]["quote"] == "–"
+    assert "— kein Kandidat" in zeilen          # NIE als Artikelnummer
+    assert "NO_MATCH" not in zeilen
+    assert "2 von 3 richtig" in tab.gesamt_text()
+
+
+def test_bewertungsuebersicht_leerzustand(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.analysis_page import BewertungsTab
+    tab = BewertungsTab(_cfg(tmp_path))
+    assert tab.zeilen() == []
+    assert "Keine Reports" in tab.gesamt_text()
+
+
+def test_analysis_page_hat_beide_tabs(qapp, tmp_path):
+    from docodetect.ui_qt.admin.pages.analysis_page import AnalysisPage
+    page = AnalysisPage(_cfg(tmp_path))
+    assert page.tabs.count() == 2
+    assert page.tabs.tabText(0) == "Analyse-Lauf"
+    assert page.tabs.tabText(1) == "Bewertungs-Übersicht"
