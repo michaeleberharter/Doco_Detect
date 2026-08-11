@@ -75,3 +75,61 @@ def test_auth_dialog_pruefen_falsch_dann_richtig(qapp, tmp_path):
     dlg.eingabe.setText("geheim")
     dlg._ok()
     assert dlg.result() == 1
+
+
+# ---------- Fenster-Gerüst + Status-Seite (Task 5) ----------
+
+def _admin_cfg(tmp_path):
+    """Minimal-Config wie test_ui_facade.make_cfg, plus captures_dir."""
+    return {
+        "calibration": {
+            "file": str(tmp_path / "calibration.json"),
+            "background_file": str(tmp_path / "background.png"),
+        },
+        "paths": {"db_file": str(tmp_path / "db.sqlite3"),
+                  "captures_dir": str(tmp_path / "captures")},
+        "stage2": {"enabled": False},
+    }
+
+
+def test_admin_window_seiten_und_leerzustand(qapp, tmp_path):
+    from docodetect.ui_qt.admin.admin_window import AdminWindow
+    win = AdminWindow(_admin_cfg(tmp_path), camera_status=lambda: "Demo")
+    assert win.sidebar.count() == 5           # Status..Diagnose (Spec §4)
+    w = win.status_page.werte()
+    assert w["kamera"] == "Demo"
+    assert w["fingerprint"] == "nicht kalibriert"
+    assert w["kalibriert"] == "nicht kalibriert"
+    assert w["artikel"].startswith("0")
+    assert w["sandbox"] == "–"
+    win.close()
+
+
+def test_admin_window_sidebar_wechselt_seiten(qapp, tmp_path):
+    from docodetect.ui_qt.admin.admin_window import AdminWindow
+    win = AdminWindow(_admin_cfg(tmp_path), camera_status=lambda: "Demo")
+    win.sidebar.setCurrentRow(2)
+    assert win.stack.currentIndex() == 2
+    win.close()
+
+
+def test_status_page_fingerprint_mit_einrichtung(qapp, tmp_path):
+    import time
+
+    import cv2
+    import numpy as np
+
+    from docodetect.calibration import Calibration
+    from docodetect.ui_qt.admin.pages.status_page import StatusPage
+
+    cfg = _admin_cfg(tmp_path)
+    cfg["features"] = {"ring_zones": 3, "hs_hist_bins": [8, 8]}
+    Calibration(mm_per_px=0.5, camera_height_mm=300.0, image_width=1920,
+                image_height=1080, marker_size_mm=72.5,
+                created_unix=time.time()).save(cfg["calibration"]["file"])
+    cv2.imwrite(cfg["calibration"]["background_file"],
+                np.zeros((8, 8, 3), dtype=np.uint8))
+    seite = StatusPage(cfg, camera_status=lambda: "verbunden")
+    w = seite.werte()
+    assert len(w["background_sha256"]) == 64
+    assert w["mm_per_px"] == "0,5000"
