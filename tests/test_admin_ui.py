@@ -35,3 +35,43 @@ def test_tool_rail_hat_admin_knopf_mit_signal(qapp):
     rail._admin.click()
     assert empfangen == [True]
     assert rail._admin.isEnabled()        # immer aktiv (Spec Abschnitt 3)
+
+
+# ---------- Passwort-Gate (Task 4) ----------
+
+def test_auth_dialog_festlegen_schreibt_datei(qapp, tmp_path):
+    from docodetect.ui_qt.admin.auth_dialog import AdminAuthDialog
+    f = tmp_path / "auth.json"
+    dlg = AdminAuthDialog(festlegen=True, auth_file=f)
+    dlg.eingabe.setText("geheim")
+    dlg.wiederholung.setText("geheim")
+    dlg._ok()
+    assert dlg.result() == 1
+    assert f.exists()
+
+
+def test_auth_dialog_ungleiche_wiederholung_bleibt_offen(qapp, tmp_path):
+    from docodetect.ui_qt.admin.auth_dialog import AdminAuthDialog
+    f = tmp_path / "auth.json"
+    dlg = AdminAuthDialog(festlegen=True, auth_file=f)
+    dlg.eingabe.setText("geheim")
+    dlg.wiederholung.setText("anders")
+    dlg._ok()
+    assert dlg.result() == 0
+    assert not f.exists()
+    assert "stimmen nicht überein" in dlg.fehler.text()
+
+
+def test_auth_dialog_pruefen_falsch_dann_richtig(qapp, tmp_path):
+    from docodetect import admin_auth
+    from docodetect.ui_qt.admin.auth_dialog import AdminAuthDialog
+    f = tmp_path / "auth.json"
+    admin_auth.set_password("geheim", f)
+    dlg = AdminAuthDialog(festlegen=False, auth_file=f)
+    dlg.eingabe.setText("falsch")
+    dlg._ok()
+    assert dlg.result() == 0                      # offen, kein Lockout
+    assert dlg.fehler.text() == "Falsches Passwort."
+    dlg.eingabe.setText("geheim")
+    dlg._ok()
+    assert dlg.result() == 1
