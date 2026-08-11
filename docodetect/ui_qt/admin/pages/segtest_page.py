@@ -102,13 +102,22 @@ class SegTestPage(QWidget):
         if self._frame_anfordern is None or self._worker is not None:
             return
         self.aufnahme_button.setEnabled(False)
+        self._warte_auf_frame = True
         self._set_status("Warte auf Frame vom Hauptfenster …")
         ok = self._frame_anfordern(self._frame_erhalten)
         if not ok:
+            self._warte_auf_frame = False
             self.aufnahme_button.setEnabled(True)
             self._set_status(_OHNE_QUELLE)
 
     def _frame_erhalten(self, frame) -> None:
+        """Slot (gebundene QObject-Methode → QueuedConnection, läuft im
+        GUI-Thread; siehe MainWindow._frame_fuer_admin). Unangeforderte
+        Frames — z. B. eine Identifikation des Hauptfensters — werden
+        über das Warte-Flag verworfen."""
+        if not getattr(self, "_warte_auf_frame", False):
+            return
+        self._warte_auf_frame = False
         cfg = self.cfg
         self._set_status("Messe …")
         w = PipelineWorker(lambda: (frame, measure_shot(frame, cfg)), self)

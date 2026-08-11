@@ -633,21 +633,31 @@ class MainWindow(QMainWindow):
         return self.status_content.warn.text()
 
     def _frame_fuer_admin(self, empfaenger) -> bool:
-        """Meldekanal 2 (Spec §4, Stufe 4): EIN Voll-Frame auf
-        Anforderung über die BESTEHENDE Frame-Quelle — dasselbe Muster
-        wie der Kalibrier-Dialog (_on_full_frame lässt Frames ohne
-        _pending-Aktion ausdrücklich für andere Empfänger durch).
+        """Meldekanal 2 (Spec §4, Stufe 4): Voll-Frame auf Anforderung
+        über die BESTEHENDE Frame-Quelle — dasselbe Muster wie der
+        Kalibrier-Dialog (_on_full_frame lässt Frames ohne _pending-
+        Aktion ausdrücklich für andere Empfänger durch).
+
+        THREADING: full_frame_ready wird aus dem CameraWorker-Thread
+        emittiert. `empfaenger` MUSS eine gebundene Methode eines
+        QObjects im GUI-Thread sein (SegTestPage._frame_erhalten) —
+        Qt stellt die Auslieferung dann per QueuedConnection in den
+        GUI-Thread zu. Eine Closure liefe im Emitter-Thread. Die
+        Verbindung bleibt bestehen (einmal je Empfänger); unangeforderte
+        Frames verwirft der Empfänger über sein Warte-Flag.
         False = keine Quelle/Kamera (Seite zeigt Hinweis)."""
         if self.source is None or not (self.camera_ok or self.demo):
             return False
-        quelle = self.source
-
-        def einmal(frame):
-            quelle.full_frame_ready.disconnect(einmal)
-            empfaenger(frame)
-
-        quelle.full_frame_ready.connect(einmal)
-        quelle.request_full_frame()
+        if getattr(self, "_admin_frame_empfaenger", None) is not empfaenger:
+            alt = getattr(self, "_admin_frame_empfaenger", None)
+            if alt is not None:
+                try:
+                    self.source.full_frame_ready.disconnect(alt)
+                except (RuntimeError, TypeError):
+                    pass
+            self.source.full_frame_ready.connect(empfaenger)
+            self._admin_frame_empfaenger = empfaenger
+        self.source.request_full_frame()
         return True
 
     def _fortsetzen_pruefen(self):
