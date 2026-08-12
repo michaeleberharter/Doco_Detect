@@ -294,7 +294,18 @@ der Blatt-Anteil von Punkt 8 (Diagnoseblätter samt
 (Vorbedingung unten, 2026-08-11 erneut verifiziert: 334 von 359 Zeilen
 NULL) und deshalb eigenes Nachpaket, sobald die Bilder existieren.
 Punkt 9 (Einlern-Sessions) ist von der Teilung unberührt und weiterhin
-offen.
+offen. *Zweite Teilung (Freigabe 2026-08-11, mit Stufe 4 umgesetzt):
+Teil B zerfällt in **B1 — Referenz-Kennzahlen ohne Bilder** (jetzt:
+Detailbereich der Artikelliste mit `reference_stats`-Statistik über
+`pipeline.reference_statistics` — n_shots mit MIN_N-Marker aus der
+Floor-Analyse via `pipeline.min_shots_floor`, scalar_mean/σ_enroll je
+Skalar, proto_std je Distanzkanal, σ=0-bei-n>1-Marker; `updated_unix`
+bewusst weggelassen, kein DB-Getter) und **B2 — Bildanzeige/
+Diagnoseblätter** (nach dem Neu-Enrollment; Vorbedingungen unten
+unverändert). Duplikat-/Nachbarschaftsinfo bleibt draußen:
+`scripts/duplikat_scan.py` rechnet auf Referenz-PNGs, die dem
+Altbestand fehlen — eigener Vorgang.* Punkt 9 (Anzeige) ist mit
+Stufe 4 als Tab „Einlern-Sessions" der Artikel-Sektion umgesetzt.
 
 **Vorbedingungen (blockierend — nur noch für Teil B):**
 
@@ -334,7 +345,12 @@ offen.
     Schreibpfad — auch keinen „Export".
 12. **Kamera-Diagnose:** `camera.py`-Fassade (gefundene Kameras,
     Profil-Readback) mit dem Hinweis, dass die Readback-Warnung auf
-    Mac/AVFoundation erwartbar ist.
+    Mac/AVFoundation erwartbar ist. *Präzisierung 2026-08-11:
+    `probe_cameras` ÖFFNET echte Geräte — die Suche ist deshalb nur
+    aktiv, wenn das Hauptfenster keine Kamera hält (sonst Hinweistext);
+    so bleiben Kamera-Alleinbesitz (Abschnitt 4) und dieser Punkt
+    gleichzeitig erfüllt. Der Readback-Text kommt als Teil der
+    Kamera-Zustands-Meldung vom Hauptfenster.*
 13. **Session-Aktionen:** Verwerfen ruft exakt
     `pipeline.discard_enroll_session` (bestehende Semantik: sichern nach
     `data/verworfen/`, kein Löschen); Fortsetzen delegiert an den
@@ -342,7 +358,13 @@ offen.
     dessen Zustand READY ist (Kamera + Kalibrierung), sonst Hinweistext
     statt Knopf. **Bedingung: kein neuer Ablauf, kein zweiter Pfad zu
     einer bestandsverändernden Operation.** Beide Aktionen werden bei der
-    Abnahme einzeln geprüft.
+    Abnahme einzeln geprüft. *Präzisierung 2026-08-11: der
+    Bestätigungsdialog speist sich aus
+    `pipeline.plan_discard_enroll_session` (Gegenrichtungs-Tabelle +
+    Pfade); Fortsetzen läuft über `EnrollDialog(…, fortsetzen=
+    SessionInfo)` — exakt der Weg von `_open_enroll_dialog`. Beides per
+    Spy-Test nachgewiesen (nur die bestehenden Fassaden werden
+    gerufen).*
 
 ## 7. Ausgegliedert (nicht Teil dieses Vorhabens)
 

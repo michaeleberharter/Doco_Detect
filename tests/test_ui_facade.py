@@ -798,3 +798,66 @@ def test_export_ziel_nicht_beschreibbar(tmp_path):
                                 als_zip=True)
     finally:
         os.chmod(gesperrt, 0o700)
+
+
+# ---------- Stufe-4/B1-Fassaden (Freigabe 2026-08-11) ----------
+
+from docodetect.pipeline import (config_with_origin,  # noqa: E402
+                                 min_shots_floor, reference_statistics)
+
+
+def test_reference_statistics_liest_stats(tmp_path):
+    cfg = make_cfg(tmp_path)
+    _seed_db(cfg, with_reference=True)
+    st = reference_statistics(cfg, "T-270")
+    assert st is not None and st.n_shots == 1
+    assert "diameter_mm" in st.scalar_mean
+    assert reference_statistics(cfg, "GIBTSNICHT") is None
+
+
+def test_reference_statistics_ohne_db_ist_none(tmp_path):
+    assert reference_statistics(make_cfg(tmp_path), "X") is None
+
+
+def test_min_shots_floor_ist_floor_analysis_min_n():
+    from docodetect.floor_analysis import MIN_N
+    assert min_shots_floor() == MIN_N == 10
+
+
+def test_config_with_origin_trennt_die_schichten(tmp_path):
+    basis = tmp_path / "config.yaml"
+    basis.write_text("camera:\n  index: 0\n  width: 1920\n"
+                     "matching:\n  top_k: 3\n", encoding="utf-8")
+    (tmp_path / "config.local.yaml").write_text(
+        "camera:\n  index: 1\n", encoding="utf-8")
+    eintraege = {k: (w, h) for k, w, h in config_with_origin(basis)}
+    assert eintraege["camera.index"] == ("1", "config.local.yaml")
+    assert eintraege["camera.width"] == ("1920", "config.yaml")
+    assert eintraege["matching.top_k"] == ("3", "config.yaml")
+
+
+def test_config_with_origin_ohne_local(tmp_path):
+    basis = tmp_path / "config.yaml"
+    basis.write_text("camera:\n  index: 0\n", encoding="utf-8")
+    assert config_with_origin(basis) == [("camera.index", "0",
+                                          "config.yaml")]
+
+
+def test_reference_statistics_schlanke_config_ist_none(tmp_path):
+    """Review 2026-08-11: die UI ruft aus einem Qt-Slot — fehlende
+    paths-Keys duerfen nicht werfen."""
+    assert reference_statistics({}, "X") is None
+    assert reference_statistics({"paths": {}}, "X") is None
+
+
+def test_config_with_origin_key_nur_in_local(tmp_path):
+    """Review 2026-08-11: ein Key, den NUR die lokale Schicht kennt,
+    erscheint mit Herkunft config.local.yaml (deep_merge nimmt ihn auf)."""
+    basis = tmp_path / "config.yaml"
+    basis.write_text("camera:\n  index: 0\n", encoding="utf-8")
+    (tmp_path / "config.local.yaml").write_text(
+        "geometry:\n  camera_height_mm: 300.0\n", encoding="utf-8")
+    eintraege = {k: (w, h) for k, w, h in config_with_origin(basis)}
+    assert eintraege["geometry.camera_height_mm"] == (
+        "300.0", "config.local.yaml")
+    assert eintraege["camera.index"] == ("0", "config.yaml")

@@ -188,5 +188,77 @@ def test_admin_window_stufe2_seiten_real(qapp, tmp_path):
     assert isinstance(win.analysis_page, AnalysisPage)
     assert isinstance(win.articles_page, ArticlesPage)
     assert win.stack.widget(2) is win.analysis_page
-    assert win.stack.widget(3) is win.articles_page
+    # Seit Stufe 4 ist die Artikel-Sektion ein Tab-Container
+    # (Artikelliste | Einlern-Sessions) — bewusste Strukturänderung.
+    assert win.stack.widget(3) is win.artikel_tabs
+    assert win.artikel_tabs.widget(0) is win.articles_page
+    win.close()
+
+
+def test_admin_window_stufe4_sektionen_und_meldekanaele(qapp, tmp_path):
+    from docodetect.ui_qt.admin.admin_window import AdminWindow
+    from docodetect.ui_qt.admin.pages.camera_page import CameraPage
+    from docodetect.ui_qt.admin.pages.config_page import ConfigPage
+    from docodetect.ui_qt.admin.pages.segtest_page import SegTestPage
+    from docodetect.ui_qt.admin.pages.sessions_page import SessionsPage
+    win = AdminWindow(_admin_cfg(tmp_path), camera_status=lambda: "Demo")
+    assert win.sidebar.count() == 5            # Sidebar bleibt bei fünf
+    assert isinstance(win.segtest_page, SegTestPage)
+    assert isinstance(win.config_page, ConfigPage)
+    assert isinstance(win.camera_page, CameraPage)
+    assert isinstance(win.sessions_page, SessionsPage)
+    assert win.artikel_tabs.count() == 2       # Artikelliste | Sessions
+    assert win.artikel_tabs.widget(0) is win.articles_page
+    assert win.diagnose_tabs.count() == 3      # SegTest | Config | Kamera
+    # Ohne Meldekanaele: SegTest deaktiviert, Fortsetzen nur Hinweis
+    assert not win.segtest_page.aufnahme_button.isEnabled()
+    assert "Hauptfenster" in win.sessions_page.fortsetzen_hinweis_text()
+    win.close()
+
+
+def test_main_window_meldekanaele_fuer_admin(qapp, tmp_path):
+    from docodetect.ui_qt import main_window as mw_mod
+    win = mw_mod.MainWindow(make_main_cfg(tmp_path), demo=True)
+    # Fortsetzen-Pruefung: Demo startet NOT_READY (keine Kalibrierung)
+    hinweis = win._fortsetzen_pruefen()
+    assert hinweis is not None and "READY" in hinweis
+    # Kamera-Warntext existiert (leer ist ok)
+    assert isinstance(win._kamera_warnungs_text(), str)
+    # Frame-Anforderung: Demo-Quelle liefert einen Frame
+    empfangen = []
+    ok = win._frame_fuer_admin(lambda f: empfangen.append(f))
+    assert ok
+    import time
+    ende = time.monotonic() + 5.0
+    while not empfangen and time.monotonic() < ende:
+        qapp.processEvents()
+    assert len(empfangen) == 1
+    assert empfangen[0] is not None
+    win.close()
+
+
+def test_admin_window_close_wartet_auf_laufende_worker(qapp, tmp_path,
+                                                       monkeypatch):
+    """Review 2026-08-11: WA_DeleteOnClose darf keinen QThread im Lauf
+    zerstoeren — beim Verwerfen waere das mitten in Dateibewegungen.
+    Der Test beweist durch Ueberleben (ein zerstoerter laufender QThread
+    waere ein qFatal-Abbruch des Prozesses)."""
+    import time
+
+    from docodetect.ui_qt.admin import admin_window as aw
+    from docodetect.ui_qt.pipeline_worker import PipelineWorker
+    win = aw.AdminWindow(_admin_cfg(tmp_path), camera_status=lambda: "Demo")
+    tab = win.analysis_page.lauf_tab
+    w = PipelineWorker(lambda: time.sleep(0.3) or "fertig", tab)
+    w.finished.connect(lambda: setattr(tab, "_worker", None))
+    tab._worker = w
+    w.start()
+    win.close()                                   # wartet via closeEvent
+    assert tab._worker is None or not tab._worker.isRunning()
+
+
+def test_main_window_kamera_frei_im_demo(qapp, tmp_path):
+    from docodetect.ui_qt import main_window as mw_mod
+    win = mw_mod.MainWindow(make_main_cfg(tmp_path), demo=True)
+    assert win._kamera_frei_fuer_suche() is True   # DemoSource haelt nichts
     win.close()

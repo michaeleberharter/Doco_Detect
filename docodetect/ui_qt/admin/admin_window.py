@@ -2,40 +2,40 @@
 
 Nicht-modal, EIN Fenster zur Zeit (das Hauptfenster fokussiert eine
 bestehende Instanz). Teilt mit dem Hauptfenster keinen Zustand — die
-einzige Meldung Hauptfenster → Admin in 1a ist der Kamera-Zustand als
-Callable (Pull, kein gemeinsames Objekt, kein Rückkanal)."""
+Meldungen Hauptfenster → Admin sind ausschließlich einseitige Pull-/
+Anforderungs-Callables (Spec §4): Kamera-Zustand (+ Warntext),
+Voll-Frame auf Anforderung (Stufe 4, Segmentierungs-Test) und die
+Fortsetzen-Delegation an den bestehenden Einlern-Dialog (Punkt 13).
+Alle sind optional — ohne sie zeigen die Seiten Hinweistexte."""
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget,
-                               QMainWindow, QStackedWidget, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QHBoxLayout, QListWidget, QMainWindow,
+                               QStackedWidget, QTabWidget, QWidget)
 
 from .pages.analysis_page import AnalysisPage
 from .pages.articles_page import ArticlesPage
+from .pages.camera_page import CameraPage
+from .pages.config_page import ConfigPage
 from .pages.reports_page import ReportsPage
+from .pages.segtest_page import SegTestPage
+from .pages.sessions_page import SessionsPage
 from .pages.status_page import StatusPage
 
 _SEITEN = ("Status", "Reports", "Analyse", "Artikel", "Diagnose")
 
 
-def _platzhalter(text: str) -> QWidget:
-    w = QWidget()
-    lay = QVBoxLayout(w)
-    lab = QLabel(text)
-    lab.setAlignment(Qt.AlignCenter)
-    lab.setWordWrap(True)
-    lab.setObjectName("guideLabel")
-    lay.addWidget(lab)
-    return w
-
-
 class AdminWindow(QMainWindow):
     def __init__(self, cfg: dict, camera_status: Callable[[], str],
-                 parent=None):
+                 parent=None,
+                 frame_anfordern: Optional[Callable] = None,
+                 kamera_warnung: Optional[Callable] = None,
+                 kamera_frei: Optional[Callable] = None,
+                 fortsetzen_pruefen: Optional[Callable] = None,
+                 fortsetzen: Optional[Callable] = None):
         super().__init__(parent)
         self.setWindowTitle("Doco Detect – Admin")
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -56,13 +56,43 @@ class AdminWindow(QMainWindow):
         self.stack.addWidget(self.reports_page)
         self.analysis_page = AnalysisPage(cfg)
         self.stack.addWidget(self.analysis_page)
+        # Artikel-Sektion: Liste (Teil A + B1) | Einlern-Sessions (Stufe 4)
+        # als Tabs — Sidebar bleibt bei fünf Einträgen (Spec §4,
+        # Tab-Präzedenz: Reports-Sektion 1b, Analyse-Sektion Stufe 2).
+        self.artikel_tabs = QTabWidget()
         self.articles_page = ArticlesPage(cfg)
-        self.stack.addWidget(self.articles_page)
-        for name in _SEITEN[4:]:
-            self.stack.addWidget(_platzhalter(
-                f"„{name}“ kommt mit einer späteren Stufe "
-                "(Spec Abschnitt 6)."))
+        self.artikel_tabs.addTab(self.articles_page, "Artikelliste")
+        self.sessions_page = SessionsPage(
+            cfg, fortsetzen_pruefen=fortsetzen_pruefen,
+            fortsetzen=fortsetzen)
+        self.artikel_tabs.addTab(self.sessions_page, "Einlern-Sessions")
+        self.stack.addWidget(self.artikel_tabs)
+        # Diagnose-Sektion (Stufe 4): SegTest | Config | Kamera.
+        self.diagnose_tabs = QTabWidget()
+        self.segtest_page = SegTestPage(cfg,
+                                        frame_anfordern=frame_anfordern)
+        self.diagnose_tabs.addTab(self.segtest_page,
+                                  "Segmentierungs-Test")
+        self.config_page = ConfigPage(cfg)
+        self.diagnose_tabs.addTab(self.config_page, "Config")
+        self.camera_page = CameraPage(cfg, camera_status,
+                                      kamera_warnung=kamera_warnung,
+                                      kamera_frei=kamera_frei)
+        self.diagnose_tabs.addTab(self.camera_page, "Kamera")
+        self.stack.addWidget(self.diagnose_tabs)
         lay.addWidget(self.stack, stretch=1)
         self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.sidebar.setCurrentRow(0)
         self.setCentralWidget(central)
+
+    def closeEvent(self, event) -> None:
+        """Laufende Seiten-Worker zu Ende laufen lassen (Review
+        2026-08-11): WA_DeleteOnClose zerstörte sonst einen QThread im
+        Lauf — beim Verwerfen mitten in den Dateibewegungen. Muster wie
+        das Hauptfenster beim eigenen Worker."""
+        for seite in (self.sessions_page, self.segtest_page,
+                      self.camera_page, self.analysis_page.lauf_tab):
+            w = getattr(seite, "_worker", None)
+            if w is not None:
+                w.wait()
+        super().closeEvent(event)
