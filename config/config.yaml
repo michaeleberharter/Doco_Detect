@@ -168,3 +168,9 @@ paths:
   # corpus/manifest.json im Repo, dessen Pfade relativ zu diesem Verzeichnis
   # sind. Auf dem Windows-Rechner per config.local.yaml umbiegen.
   corpus_dir: ../Doco_Detect_corpus
+  # Real-Capture-Testset (docodetect/testset): Aufnahmen samt eingefrorenem
+  # Aufnahmezustand (Snapshots je Zustands-Fingerprint). Gleiche Regel wie
+  # der Korpus: liegt AUSSERHALB des Repos, versioniert ist nur
+  # testset/manifest.json. Der Bestand entsteht an der Windows-Box
+  # (docs/2026-08-12-testset-windows-inbetriebnahme.md).
+  testset_dir: ../Doco_Detect_testset
