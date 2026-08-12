@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from functools import partial
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QHBoxLayout,
                                QLabel, QMainWindow, QPushButton, QScrollArea,
@@ -23,7 +23,7 @@ from docodetect.pipeline import (confirm_no_match, confirm_result,
                                  format_measured, get_status, headline,
                                  list_articles, reject_result)
 
-from .app import apply_theme, current_theme, ui_cfg
+from . import settings as settings_mod
 from .pipeline_worker import PipelineWorker
 from .state import UiState, compute_state
 from .widgets.action_bar import ActionBar
@@ -45,6 +45,14 @@ _PANEL_WIDTH = 372
 
 _NO_CAMERA_TEXT = "Keine Kamera gefunden –\nVerbindung wird gesucht…"
 _BORDER_WARNING = "Objekt berührt den Bildrand – weiter zur Mitte legen."
+_PAUSE_TEXT = ("Vorschau pausiert –\nberühren oder Taste drücken, "
+               "um fortzusetzen.")
+
+# Benutzer-Aktivität für die Vorschau-Pause. Bewusst nur Eingabe-Events —
+# der App-Filter sieht ALLES, und Paint/Timer zählen nicht als Bedienung.
+_AKTIVITAETS_EVENTS = (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+                       QEvent.MouseMove, QEvent.KeyPress, QEvent.Wheel,
+                       QEvent.TouchBegin, QEvent.TouchUpdate)
 
 _IDENTIFY_TOOLTIPS = {
     UiState.NO_CAMERA: "Keine Kamera verbunden.",
@@ -110,7 +118,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.cfg = cfg
         self.demo = demo
-        self.ui = ui_cfg(cfg)
+        # Effektive Bediener-Einstellungen: config-Kette + QSettings-Overlay.
+        # Nach jeder Dialog-Änderung wird dieses Dict neu gelesen
+        # (_settings_geaendert) — Leser greifen weiter auf self.ui zu.
+        self.ui = settings_mod.effective_ui(cfg)
         self.source = None          # DemoSource | CameraWorker (Phase 4)
         self._busy = False
         self._pending: str | None = None   # angeforderte Aktion für den Frame
@@ -123,6 +134,14 @@ class MainWindow(QMainWindow):
         self._verdict_bar = None             # Richtig/Falsch (accept, reject)
         self._calibrate_dialog = None        # offener Kalibrier-Dialog
         self._admin_window = None            # offenes Admin-Fenster (1a)
+        # Vorschau-Pause (Inaktivität): pausiert wird AUSSCHLIESSLICH die
+        # Zustellung an das Vorschau-Widget — der Kamera-Worker läuft
+        # unverändert weiter (Auftrag 2026-08-12; Teardown-Segfault-Doku).
+        self._preview_pausiert = False
+        self._pause_filter_installiert = False
+        self._pause_timer = QTimer(self)
+        self._pause_timer.setSingleShot(True)
+        self._pause_timer.timeout.connect(self._pause_aktivieren)
         # Sandbox-Marker (config.sandbox_cfg). Kalibrierung und Hintergrund
         # bleiben in der Sandbox GETEILT und damit produktiver Zustand – beide
         # Aktionen sind deshalb hier gesperrt, nicht nur in der CLI.
@@ -166,6 +185,7 @@ class MainWindow(QMainWindow):
         else:
             self._attach_camera_worker()
         self.refresh_status()
+        self._pause_konfigurieren()
 
     # ---------- Aufbau ----------
 
@@ -290,7 +310,7 @@ class MainWindow(QMainWindow):
         }
         self.tool_rail.triggered.connect(
             lambda key: self._rail_actions[key]())
-        self.tool_rail.theme_toggle.connect(self.toggle_theme)
+        self.tool_rail.settings_requested.connect(self._open_settings_dialog)
         self.tool_rail.admin_requested.connect(self._open_admin_panel)
         # Tastatur: Leertaste UND Eingabetaste identifizieren, egal wo der
         # Fokus im Fenster liegt – an der Box wird oft blind bedient.
@@ -360,8 +380,10 @@ class MainWindow(QMainWindow):
         self.status_content.set_camera_text(f"Kamera {fps:.0f} fps")
 
     def _connect_source(self, source) -> None:
-        """Gemeinsame Verdrahtung für DemoSource und CameraWorker."""
-        source.frame_ready.connect(self.preview.set_frame)
+        """Gemeinsame Verdrahtung für DemoSource und CameraWorker. Die
+        Vorschau läuft über das Pause-Gate (_on_preview_frame); der
+        Messpfad (full_frame_ready) bleibt bewusst ungegatet."""
+        source.frame_ready.connect(self._on_preview_frame)
         source.full_frame_ready.connect(self._on_full_frame)
 
     # ---------- Zustandsmaschine ----------
@@ -403,7 +425,8 @@ class MainWindow(QMainWindow):
             calibrate=setup_ok, enroll=state is UiState.READY)
         self.live_indicator.set_live(state is not UiState.NO_CAMERA)
         self.preview.set_message(
-            _NO_CAMERA_TEXT if state is UiState.NO_CAMERA else None)
+            _NO_CAMERA_TEXT if state is UiState.NO_CAMERA
+            else (_PAUSE_TEXT if self._preview_pausiert else None))
         # Leerzustände in derselben Bildsprache wie die Ergebnisse: Badge und
         # Kopfzeile sagen, WAS los ist, der Text darunter, was zu tun ist.
         # Nur solange noch kein Ergebnis dasteht – ein Kameraabriss nach einer
@@ -415,16 +438,92 @@ class MainWindow(QMainWindow):
         elif state is UiState.NO_CAMERA and self._last_report is None:
             self._set_headline("Keine Kamera", "reject")
 
-    def toggle_theme(self) -> None:
-        """Zahnrad in der Schiene: dunkel <-> hell, ohne Neustart.
+    def _open_settings_dialog(self) -> None:
+        """Zahnrad in der Schiene: Einstellungsdialog (ersetzt den früheren
+        Theme-Direkt-Toggle). Änderungen wirken sofort; persistiert wird
+        AUSSCHLIESSLICH nach QSettings — config.yaml bleibt Werksvorgabe
+        und wird von der laufenden App nie geschrieben."""
+        from .widgets.settings_dialog import SettingsDialog
 
-        Der Wert wird bewusst NICHT in die config zurückgeschrieben – das
-        Erscheinungsbild der Fotobox gehört in config.local.yaml und wird
-        dort gesetzt, nicht von der laufenden App überschrieben."""
+        dlg = SettingsDialog(self.cfg, self)
+        dlg.geaendert.connect(self._settings_geaendert)
+        dlg.exec()
+        dlg.deleteLater()
+
+    def _settings_geaendert(self) -> None:
+        """Effektive Werte neu lesen und live anwenden. Theme und Touch
+        wendet der Dialog selbst an (App-weit); hier kommt, was dem
+        Hauptfenster gehört: Bewertungsleiste und Pause-Timer."""
+        self.ui = settings_mod.effective_ui(self.cfg)
+        if self._verdict_bar is not None:
+            self._verdict_bar.setVisible(
+                bool(self.ui["verdict_buttons_visible"]))
+        self._pause_konfigurieren()
+
+    # ---------- Vorschau-Pause (nur Anzeige, nie der Worker) ----------
+
+    def _pause_konfigurieren(self) -> None:
+        """Inaktivitäts-Timer nach Einstellung an-/abschalten. Der App-
+        EventFilter existiert NUR bei aktivem Feature (Default 0 = nie):
+        die bestehenden Tests und der Normalbetrieb laufen ohne Filter."""
+        minuten = int(self.ui.get("preview_pause_minutes") or 0)
         app = QApplication.instance()
-        new = "light" if current_theme().is_dark else "dark"
-        apply_theme(app, new)
-        self.retheme()
+        if minuten > 0:
+            self._pause_timer.setInterval(minuten * 60_000)
+            self._pause_timer.start()
+            if not self._pause_filter_installiert and app is not None:
+                app.installEventFilter(self)
+                self._pause_filter_installiert = True
+        else:
+            self._pause_timer.stop()
+            if self._pause_filter_installiert and app is not None:
+                app.removeEventFilter(self)
+                self._pause_filter_installiert = False
+            self._pause_aufheben()
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802 (Qt-API)
+        """Beobachtet Bedienereignisse app-weit (auch in Dialogen), damit
+        Aktivität dort die Pause ebenso verhindert. Schluckt nie ein
+        Event. Installiert ist der Filter nur bei aktivem Pause-Feature."""
+        if event.type() in _AKTIVITAETS_EVENTS:
+            self._aktivitaet()
+        return super().eventFilter(obj, event)
+
+    def _aktivitaet(self) -> None:
+        if self._preview_pausiert:
+            self._pause_aufheben()
+        if self._pause_timer.interval() > 0 \
+                and int(self.ui.get("preview_pause_minutes") or 0) > 0:
+            self._pause_timer.start()      # Neustart des Countdowns
+
+    def _pause_aktivieren(self) -> None:
+        if self.state is UiState.NO_CAMERA:
+            # Nicht pausieren, aber WEITER versuchen: der Timer ist
+            # single-shot — ohne Neustart wäre das Feature nach einem
+            # Kamera-Ausfall im Countdown-Fenster dauerhaft tot, und ohne
+            # Bediener am Gerät käme kein Event, das es je wiederbelebt
+            # (Review-Befund W3, 2026-08-12). Nur mit konfiguriertem
+            # Intervall — ein 0-ms-Neustart wäre eine Timer-Schleife.
+            if self._pause_timer.interval() > 0:
+                self._pause_timer.start()
+            return
+        if self._preview_pausiert:
+            return
+        self._preview_pausiert = True
+        self.preview.set_message(_PAUSE_TEXT)
+
+    def _pause_aufheben(self) -> None:
+        if not self._preview_pausiert:
+            return
+        self._preview_pausiert = False
+        self.update_state()               # stellt die korrekte Meldung her
+
+    def _on_preview_frame(self, img) -> None:
+        """Zustell-Gate der Vorschau: pausiert = Frame verwerfen. NUR die
+        Anzeige — full_frame_ready (Messpfad) läuft ungefiltert weiter,
+        und die Dialog-Vorschauen hängen direkt an frame_ready."""
+        if not self._preview_pausiert:
+            self.preview.set_frame(img)
 
     def retheme(self) -> None:
         """Alles neu einfärben, was Qt nicht per Stylesheet erreicht:
@@ -459,6 +558,11 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt-API)
         """Quelle stoppen und laufende Worker zu Ende laufen lassen – ein
         QThread darf nicht zerstört werden, solange er läuft."""
+        if self._pause_filter_installiert:
+            app = QApplication.instance()
+            if app is not None:
+                app.removeEventFilter(self)
+            self._pause_filter_installiert = False
         if self.source is not None:
             self.source.stop()
         if self._worker is not None:
@@ -472,7 +576,15 @@ class MainWindow(QMainWindow):
             self._start_capture_action("identify")
 
     def _start_capture_action(self, action: str) -> None:
-        """Frischen Voll-Frame anfordern; der Frame löst dann den Job aus."""
+        """Frischen Voll-Frame anfordern; der Frame löst dann den Job aus.
+
+        MESSPFAD-ZUSICHERUNG (Auflage 2026-08-12): gemessen wird IMMER der
+        nächste frisch gegrabte Kamera-Frame — request_full_frame() liefert
+        ihn aus der laufenden Grab-Schleife, es gibt keinen Frame-Cache.
+        Eine pausierte Vorschau gated nur die Anzeige (frame_ready), nie
+        full_frame_ready; zusätzlich hebt die Auslösung die Pause hier
+        explizit auf — auch bei programmatischem Aufruf ohne Eingabe-Event."""
+        self._aktivitaet()
         if self._busy or self.source is None or not self.camera_ok:
             return
         # Backstop hinter der ausgegrauten Schaltfläche: die Icon-Schiene löst
@@ -931,6 +1043,9 @@ class MainWindow(QMainWindow):
     def _add_verdict_bar(self, prompt: str, wrong_text: str,
                          host=None) -> None:
         bar = VerdictBar(prompt, wrong_text)
+        # Nur SICHTBARKEIT (Einstellung „Bewertungs-Buttons anzeigen") —
+        # Verdrahtung und Rückschreibung ins Report-JSON bleiben bestehen.
+        bar.setVisible(bool(self.ui.get("verdict_buttons_visible", True)))
         bar.correct.connect(self._verdict_correct)
         bar.wrong.connect(self._manual_correction)
         if host is not None:

@@ -93,6 +93,74 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             f"zurueckholen: {CORPUS_REPRO_ENV}=1")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def qsettings_ini_umleitung(tmp_path_factory):
+    """Sicherheitsnetz unter isolate_qsettings: ALLE QSettings(ORG, APP)
+    dieses Prozesses schreiben in einen tmp-Ordner statt in plist/Registry
+    — auch wenn ein Test Qt erst im Testkörper importiert und damit am
+    function-scoped Patch vorbeiläuft (Review-Befund M7, 2026-08-12).
+    Kostet einen PySide6-Import pro Session; ohne PySide6: no-op."""
+    try:
+        from PySide6.QtCore import QSettings
+    except ImportError:
+        yield
+        return
+    basis = tmp_path_factory.mktemp("qsettings-benutzer-scope")
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(QSettings.Format.IniFormat,
+                      QSettings.Scope.UserScope, str(basis))
+    yield
+
+
+@pytest.fixture(autouse=True)
+def reset_touch_mode():
+    """Touch-Zustand hängt am QApplication-SINGLETON (App-Property +
+    QSS-Zusatzblock) und überlebte sonst die Testgrenze — ein Test, der
+    Touch anlässt, verschöbe ab da die Metrik jedes Widgets im Prozess
+    (min-height 48) und kippte Layout-Assertions reihenfolgeabhängig
+    (Review-Befund W2, 2026-08-12)."""
+    yield
+    import sys
+    if "PySide6" not in sys.modules:
+        return
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is not None and app.property("docoTouch"):
+        from docodetect.ui_qt import touch
+        touch.anwenden(app, False)
+
+
+@pytest.fixture(autouse=True)
+def isolate_qsettings(request, tmp_path, monkeypatch):
+    """Kein Test liest oder schreibt den ECHTEN QSettings-Benutzer-Scope
+    (plist/Registry) — dieselbe Regel wie bei DB und Kamera.
+
+    Zwei Gründe (2026-08-12, Einstellungsdialog): (1) ein Testlauf darf die
+    Bediener-Einstellungen der Maschine nicht verändern; (2) auf einer
+    Maschine mit gesetzten Keys (z.B. ui/theme=system) wären MainWindow-
+    Tests sonst vom Host-Zustand abhängig und flaky — Themes werden in
+    Tests IMMER explizit hell/dunkel gepinnt, nie „system".
+
+    Der Import bleibt lazy: gepatcht wird, sobald PySide6 im Prozess ist
+    (Qt-Testmodule laden es beim Kollektieren bzw. über die module-scoped
+    qapp-Fixture, die VOR dieser function-scoped Fixture läuft) — reine
+    Pipeline-Tests zahlen keinen PySide6-Import. Das Settings-Modul wird
+    dann hier importiert, damit der Patch auch greift, wenn der Test es
+    selbst erst später lädt."""
+    import sys
+    if "PySide6" not in sys.modules:
+        yield
+        return
+    from PySide6.QtCore import QSettings
+
+    from docodetect.ui_qt import settings as mod
+    ini = tmp_path / "qsettings-test.ini"
+    monkeypatch.setattr(
+        mod, "_factory",
+        lambda: QSettings(str(ini), QSettings.Format.IniFormat))
+    yield
+
+
 @pytest.fixture(autouse=True)
 def block_real_camera(request, monkeypatch):
     """Kein Test öffnet ein echtes Aufnahmegerät (siehe Modul-Docstring)."""

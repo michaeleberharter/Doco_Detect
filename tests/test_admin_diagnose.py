@@ -48,9 +48,40 @@ def test_config_ansicht_zeigt_herkunft(qapp, tmp_path, monkeypatch):
              ("matching.top_k", "3", "config.yaml")]
     monkeypatch.setattr(mod, "config_with_origin", lambda: daten)
     seite = mod.ConfigPage(_cfg(tmp_path))
-    assert seite.zeilen() == daten
+    zeilen = seite.zeilen()
+    # YAML-Zeilen unverändert vorn; dahinter ALLE Dialog-Keys ohne
+    # config-Zeile als Werksvorgabe (seit 2026-08-12) — die Ansicht
+    # zeigt die effektiven Werte VOLLSTÄNDIG (hier hat die gestellte
+    # config gar keinen ui-Abschnitt, also erscheinen alle sieben).
+    assert zeilen[:3] == daten
+    zusatz = {k: (w, h) for k, w, h in zeilen[3:]}
+    assert set(zusatz) == {"ui.theme", "ui.scale_percent",
+                           "ui.result_overlay_secs", "ui.confirm_sound",
+                           "ui.verdict_buttons_visible",
+                           "ui.preview_pause_minutes", "ui.touch_mode"}
+    assert all(h == "Werksvorgabe (Code)" for _, h in zusatz.values())
+    assert zusatz["ui.theme"][0] == "dark"          # app._UI_DEFAULTS
     assert "read-only" in seite.hinweis_text()
     assert "keinen Schreibpfad" in seite.hinweis_text()
+
+
+def test_config_ansicht_zeigt_qsettings_ebene(qapp, tmp_path, monkeypatch):
+    """Seit dem Einstellungsdialog überdeckt QSettings die YAML-Schichten
+    im ui-Abschnitt — ohne dieses Overlay zeigte die Seite nicht mehr die
+    effektiven Werte. QSettings sind per conftest auf tmp isoliert."""
+    from docodetect.ui_qt import settings as st
+    from docodetect.ui_qt.admin.pages import config_page as mod
+    daten = [("ui.theme", "dark", "config.yaml"),
+             ("ui.confirm_sound", "True", "config.yaml")]
+    monkeypatch.setattr(mod, "config_with_origin", lambda: daten)
+    st.setze(st.KEY_THEME, "light")
+    st.setze(st.KEY_TOUCH, True)
+    seite = mod.ConfigPage(_cfg(tmp_path))
+    z = {k: (w, h) for k, w, h in seite.zeilen()}
+    assert z["ui.theme"] == ("light", "QSettings (Benutzer)")
+    assert z["ui.confirm_sound"][1] == "config.yaml"        # nicht gesetzt
+    assert z["ui.touch_mode"] == ("True", "QSettings (Benutzer)")
+    assert "QSettings" in seite.hinweis_text()
 
 
 def test_config_ansicht_fehler_statt_crash(qapp, tmp_path, monkeypatch):

@@ -438,6 +438,21 @@ Sicherheitsgrenze, und sperrt nichts, was während einer Box-Session
 gebraucht wird (Identifizieren, Bewerten, Einlernen, Hintergrund,
 Kalibrieren bleiben frei zugänglich).
 
+### Einstellungsdialog der Qt-UI (Zahnrad in der Icon-Schiene)
+
+Darstellung (Theme Hell/Dunkel/System, UI-Skalierung, Ergebnis-Standzeit),
+Rückmeldung (Bestätigungston) und Bedienung (Bewertungs-Buttons,
+Vorschau-Pause bei Inaktivität, Touch-Modus). Werte landen in
+**QSettings** (Benutzer-Scope der Maschine) — `config/config.yaml` bleibt
+Werksvorgabe und wird von der laufenden App **nie** geschrieben.
+Präzedenz: `config.yaml` → `config.local.yaml` → QSettings; „Auf
+Werksvorgabe zurücksetzen" löscht nur die QSettings-Keys der Seite.
+Zwei Einstellungen wirken erst nach Neustart (UI-Skalierung und die
+Bildschirmtastatur des Touch-Modus — beide stehen als Umgebungsvariablen
+vor der QApplication-Erzeugung); der Dialog kennzeichnet das und weist
+beim Schließen darauf hin. Die effektiven Werte samt Herkunft zeigt das
+Admin-Panel unter Diagnose → Config.
+
 ## Die Streamlit-Test-UI wurde entfernt (2026-08-01)
 
 `app.py`, `pages/`, `ui_common.py` und `requirements-ui.txt` sind mit Commit

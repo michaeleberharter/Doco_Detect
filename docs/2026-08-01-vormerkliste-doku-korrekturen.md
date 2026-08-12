@@ -649,3 +649,85 @@ prinzipbedingt nur mit gestellten Frames/Demo-Quelle prüfbar gewesen:
 4. **Verwerfen gegen einen echten Session-Bestand** (Bestätigungsdialog
    mit Pfaden, Sicherung nach `data/verworfen/`). Am Mac nur gegen
    Temp-Bestand getestet.
+
+---
+
+## 24. Drei Zustandstöne ACCEPT / AMBIGUOUS / REJECT (Nachtrag 2026-08-12)
+
+**Fundstelle:** Analysegespräch zum Einstellungsdialog, Entscheidung
+2026-08-12 · **Aufwand:** ~halber Tag, davon der grössere Teil Auswahl
+und Gegenhören der Töne · **Vorbedingung:** feature/ui-einstellungen
+gemergt.
+
+Der Operator schaut aufs Objekt und auf seine Hände, nicht auf den
+Schirm. Akustisch unterscheidbare Zustände sparen pro Teil einen
+Blickwechsel. REJECT verlangt Handlung und ist selten — der darf
+auffallen; ACCEPT ist der häufigste Fall und muss am unauffälligsten
+sein.
+
+**Bewusst ausgeklammert aus feature/ui-einstellungen:** der dort
+geplante Key `ui/state_sounds` wurde ersatzlos gestrichen und kommt
+mit diesem Punkt zurück. Der Schalter gehört auf die bestehende
+Dialogseite „Rückmeldung", neben `confirm_sound`.
+
+**Umsetzung:** drei kurze WAVs als gebündelte Assets, gleiche Logik wie
+die Plex-OFL-Fonts, Wiedergabe über `QSoundEffect` (QtMultimedia ist im
+Wheel, verifiziert 2026-08-12). KEINE zur Laufzeit generierten
+Sinustöne — der Nutzen liegt in der Gestaltung, nicht im Code; genau
+das war der Grund für die Vertagung.
+
+**Gestaltung (der eigentliche Aufwand):** Unterscheidbarkeit über die
+KONTUR, nicht die Tonhöhe — ACCEPT kurzer aufsteigender Zweiklang,
+AMBIGUOUS einzelner neutraler Ton, REJECT tiefer absteigend. Wer den
+Unterschied nach dem dritten Teil nicht hört, hört ihn auch nach dem
+hundertsten nicht. Der Feind ist Nerverei, nicht Unklarheit: bei ein
+paar hundert Teilen pro Schicht wird alles leicht Schrille nach zwei
+Stunden abgedreht, dann ist das Feature tot. Unter 200 ms, weicher
+Einsatz, eher leise.
+
+**Lizenz:** pro Datei prüfen und im Repo notieren. CC0 — CC-BY reicht
+nicht ohne Namensnennung.
+
+**Test:** stummer Pfad in CI und Qt-Tests ist Pflicht, sonst hängt oder
+rauscht die Suite ohne Audiogerät. Die Suite hat bereits
+Teardown-Probleme (`docs/ui-qt-testsuite-segfault.md`) — nicht
+draufsatteln.
+
+**Nebennutzen:** beim Testen wird die Zustandsverteilung hörbar. Häuft
+sich der AMBIGUOUS-Ton, merkst du das schneller als über jede
+Auswertung.
+
+---
+
+## 25. Windows-Verifikation Bildschirmtastatur UND UI-Skalierung (Nachtrag 2026-08-12)
+
+**Fundstelle:** Versionsbefund 2 + Skalierungs-Deckel des Vorgangs
+feature/ui-einstellungen (Checkpoints 1/2, 2026-08-12) · **Aufwand:**
+~20 min an der Box · **Gehört auf die Windows-Tagesordnung** (wie
+Punkt 0 und 23). Beide Prüfungen in DERSELBEN Sitzung.
+
+Der Touch-Modus koppelt die Bildschirmtastatur über
+`QT_IM_MODULE=qtvirtualkeyboard` (gesetzt vor der QApplication-Erzeugung,
+`settings.env_vorbereiten`). Verifiziert ist das nur am **Mac-Wheel**
+(PySide6 6.10.3: `libqtvirtualkeyboardplugin.dylib` lädt, Plugin-Log
+geprüft). An der Box prüfen:
+
+1. Windows-Wheel enthält das Plugin
+   (`PySide6\plugins\platforminputcontexts\qtvirtualkeyboardplugin.dll`).
+2. Mit aktivem Touch-Modus und Neustart: Tastatur erscheint beim Fokus
+   auf Artikelname (Einlern-Dialog) und Admin-Passwort, Eingabe kommt an.
+3. Ohne Touch-Modus: keine Tastatur, kein Plugin-Fehler im Log.
+
+Fehlt das Plugin im Windows-Wheel: NICHT selbst eine Tastatur bauen
+(Auftrag 2026-08-12) — Einschränkung dokumentieren, Touch-Modus bleibt
+ohne Tastatur ausgeliefert.
+
+**UI-Skalierung am Windows-Wheel:** per-Monitor-DPI-Awareness und
+System-DPI (z.B. 125 %) multiplizieren sich mit `QT_SCALE_FACTOR`; der
+Deckel (`settings.env_vorbereiten` gegen die gespeicherte
+availableGeometry-Basis) ist am Mac gerechnet und verifiziert. An der
+Box zu prüfen: Stufen 100/125/150 bei System-DPI != 100 % — Fenster
+passt vollständig auf den Schirm, untere Aktionsleiste erreichbar,
+Start-Hinweisbox erscheint bei begrenzter Stufe. Kippt das
+Zusammenspiel (doppelte Skalierung), Befund dokumentieren und den
+Deckel gegen die dann effektive Basis nachziehen.

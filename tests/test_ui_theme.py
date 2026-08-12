@@ -130,6 +130,50 @@ def test_ui_cfg_kennt_theme_mit_fallback():
     assert ui_cfg({"ui": {"theme": "light"}})["theme"] == "light"
 
 
+def test_apply_theme_system_liefert_hell_oder_dunkel(qapp):
+    """3-Wege-Wahl (2026-08-12): „system" ist keine dritte Farbwelt,
+    sondern löst über QStyleHints.colorScheme auf dark/light auf. Der
+    Test pinnt bewusst NICHT das Ergebnis (das wäre host-abhängig und
+    flaky), sondern die Invariante: Wahl (docoThemeChoice) und Wirkung
+    (docoTheme) sind getrennt, und die Wirkung ist immer dark|light."""
+    from docodetect.ui_qt.app import apply_theme, current_theme
+
+    apply_theme(qapp, "system")
+    assert current_theme(qapp).name in ("dark", "light")
+    assert qapp.property("docoThemeChoice") == "system"
+    assert qapp.property("docoTheme") == current_theme(qapp).name
+    apply_theme(qapp, "dark")               # zurück auf gepinnt
+    assert qapp.property("docoThemeChoice") == "dark"
+
+
+def test_annotiertes_ergebnisbild_bleibt_themeunabhaengig(qapp):
+    """HARTE REGEL (Auftrag 2026-08-12): das annotierte Ergebnisbild ist
+    ein MESSARTEFAKT, kein UI-Element — gespeicherte Captures dürfen
+    nicht je nach Bildschirmeinstellung anders aussehen. Das Overlay
+    kommt aus pipeline.render_report_overlay (Qt-frei, BGR-Konstanten)
+    und muss unter beiden Themes byte-identisch sein."""
+    import numpy as np
+
+    from docodetect.pipeline import render_report_overlay
+    from docodetect.ui_qt.app import apply_theme
+
+    class _Rep:
+        contour = [(10, 10), (60, 10), (60, 50), (10, 50)]
+        touches_border = False
+        measured = {"circle_diameter_mm": 40.0}
+        candidates = []
+        centroid_px = (35, 30)
+
+    img = np.zeros((80, 80, 3), dtype=np.uint8)
+    apply_theme(qapp, "dark")
+    dunkel = render_report_overlay(img, _Rep())
+    apply_theme(qapp, "light")
+    hell = render_report_overlay(img, _Rep())
+    assert np.array_equal(dunkel, hell), \
+        "Messartefakt hängt vom UI-Theme ab — verboten"
+    assert dunkel.any(), "Overlay hat nichts gezeichnet — Test misst nichts"
+
+
 # ---------- Schriften ----------
 
 def test_gebuendelte_schriften_liegen_im_repo():
