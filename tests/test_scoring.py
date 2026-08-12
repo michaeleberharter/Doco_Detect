@@ -492,11 +492,17 @@ def test_identify_writes_report_json(tmp_path, monkeypatch):
         img = _red_rim_plate(bg)
         out = pipe.identify(img)
         jsons = list((tmp_path / "captures").glob("*.json"))
-        jpgs = list((tmp_path / "captures").glob("*.jpg"))
-        assert len(jsons) == 1 and len(jpgs) == 1
+        # PNG statt JPG seit 2026-08-12 (verlustfrei, sonst ist der Report
+        # nicht exakt nachrechenbar — docs/2026-08-12-qt-captures-jpg-
+        # verlustbehaftet.md)
+        pngs = list((tmp_path / "captures").glob("*.png"))
+        assert len(jsons) == 1 and len(pngs) == 1
         rep = MatchReport.from_json(jsons[0].read_text(encoding="utf-8"))
         assert rep.decision == out.report.decision
         assert rep.image_path and rep.contour
+        # zustand-Block wird immer geschrieben; ohne calibration-Abschnitt
+        # (wie in dieser Minimal-Config) traegt er den Fehler statt zu fehlen
+        assert rep.zustand is not None
     finally:
         pipe.db.close()
 

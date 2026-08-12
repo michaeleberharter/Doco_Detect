@@ -146,8 +146,12 @@ paths:
   db_file: doco_detect.sqlite3
   reference_dir: data/reference
   captures_dir: data/captures
-  save_captures: true         # jede UI-Aufnahme als Roh-PNG nach captures_dir
-                              # speichern (fuer die Real-Bild-Regressionssuite)
+  save_captures: true         # Live-Aufnahmen als verlustfreies PNG nach
+                              # captures_dir speichern (Quelle des Testset-
+                              # Harness, docodetect/testset). false schaltet
+                              # NUR das Bild ab; das Report-JSON (Bewertungen,
+                              # Batch-Analyse) wird immer geschrieben.
+                              # Gelesen von pipeline._save_capture_and_report.
   # Laufende Einlern-Sessions (Journal + Roh-Shots + Optik-Kopien). Eine
   # Session ueberlebt einen Absturz und ist danach fortsetzbar; erst beim
   # Buchen ziehen die Shots per os.rename nach reference_dir um. Deshalb

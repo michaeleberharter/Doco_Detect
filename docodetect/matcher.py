@@ -142,6 +142,11 @@ class MatchReport:
                                                         # Kandidaten (dict je Kill: reason +
                                                         # Abstand zur Toleranz). [] = keiner /
                                                         # historischer Report vor diesem Feld.
+    zustand: dict | None = None                         # Aufnahmezustand beim Speichern
+                                                        # (pipeline.aufnahme_zustand: Hashes von
+                                                        # Kalibrierung/Hintergrund/DB/Config +
+                                                        # Plattform). None = Altbestand oder
+                                                        # Replay (captures_dir=None speichert nie).
 
     def to_dict(self) -> dict:
         return asdict(self)
