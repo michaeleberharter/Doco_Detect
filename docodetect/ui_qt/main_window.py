@@ -24,6 +24,8 @@ from docodetect.pipeline import (confirm_no_match, confirm_result,
                                  list_articles, reject_result)
 
 from . import settings as settings_mod
+from .hilfe import anker as hilfe_anker
+from .hilfe.fenster import HilfeLink, oeffne_hilfe
 from .pipeline_worker import PipelineWorker
 from .state import UiState, compute_state
 from .widgets.action_bar import ActionBar
@@ -259,6 +261,12 @@ class MainWindow(QMainWindow):
         self.result_area.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         lay.addWidget(self.result_area)
 
+        # Ebene-1-Einstieg unter dem Führungstext: EIN persistenter Link,
+        # dessen Zustand die jeweilige Meldestelle setzt (Anker-Tabelle in
+        # hilfe/anker.py). Ergebnis-Karten tragen ihre eigenen Links.
+        self.hilfe_link = HilfeLink(self.cfg)
+        lay.addWidget(self.hilfe_link, alignment=Qt.AlignLeft)
+
         self.cards_box = QWidget()
         self.cards_layout = QVBoxLayout(self.cards_box)
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
@@ -312,6 +320,10 @@ class MainWindow(QMainWindow):
             lambda key: self._rail_actions[key]())
         self.tool_rail.settings_requested.connect(self._open_settings_dialog)
         self.tool_rail.admin_requested.connect(self._open_admin_panel)
+        self.tool_rail.hilfe_requested.connect(self._open_hilfe)
+        # Statuszeilen-Warnung (Fokus-Lock): der „Was tun?"-Link daneben.
+        self.status_content.warn_hilfe.clicked.connect(
+            lambda: self._open_hilfe(hilfe_anker.FOKUS_WARNUNG))
         # Tastatur: Leertaste UND Eingabetaste identifizieren, egal wo der
         # Fokus im Fenster liegt – an der Box wird oft blind bedient.
         for key in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
@@ -435,8 +447,20 @@ class MainWindow(QMainWindow):
             self._set_guide(self._setup_guide())
             if self._last_report is None:
                 self._set_headline("Einrichtung nötig", "ambiguous")
-        elif state is UiState.NO_CAMERA and self._last_report is None:
-            self._set_headline("Keine Kamera", "reject")
+            self.hilfe_link.set_zustand(hilfe_anker.EINRICHTUNG_NOETIG)
+        elif state is UiState.NO_CAMERA:
+            if self._last_report is None:
+                self._set_headline("Keine Kamera", "reject")
+            # Kamera weg ist IMMER der akute Zustand — auch wenn noch ein
+            # Ergebnis steht, führt der Link zur Kamera-Hilfe.
+            self.hilfe_link.set_zustand(hilfe_anker.KEINE_KAMERA)
+        else:
+            self.hilfe_link.set_zustand(None)
+
+    def _open_hilfe(self, zustand: str | None = None) -> None:
+        """Fragezeichen in der Schiene (ohne Zustand) bzw. Ebene-1-Sprünge
+        mit Zustand. Nicht-modal, EIN Fenster (Singleton in hilfe.fenster)."""
+        oeffne_hilfe(self.cfg, zustand, parent=self)
 
     def _open_settings_dialog(self) -> None:
         """Zahnrad in der Schiene: Einstellungsdialog (ersetzt den früheren
@@ -592,6 +616,7 @@ class MainWindow(QMainWindow):
         if action == "background" and self._sandbox:
             self._set_headline("Hintergrund in der Sandbox gesperrt.", "reject")
             self._set_guide(_SANDBOX_SETUP_TOOLTIP)
+            self.hilfe_link.set_zustand(hilfe_anker.SANDBOX_GESPERRT)
             return
         self._pending = action
         self._busy = True
@@ -655,6 +680,7 @@ class MainWindow(QMainWindow):
         if self._sandbox:   # Backstop wie bei "background"
             self._set_headline("Kalibrieren in der Sandbox gesperrt.", "reject")
             self._set_guide(_SANDBOX_SETUP_TOOLTIP)
+            self.hilfe_link.set_zustand(hilfe_anker.SANDBOX_GESPERRT)
             return
         from .widgets.calibrate_dialog import CalibrateDialog
 
@@ -715,7 +741,7 @@ class MainWindow(QMainWindow):
         offen = list_enroll_sessions(self.cfg)
         if not offen:
             return None
-        dlg = OpenSessionsDialog(offen, self)
+        dlg = OpenSessionsDialog(offen, self, cfg=self.cfg)
         dlg.exec()
         if dlg.entscheidung == OpenSessionsDialog.FORTSETZEN:
             return dlg.gewaehlt
@@ -726,6 +752,8 @@ class MainWindow(QMainWindow):
                 self._set_guide(f"Session verworfen, gesichert unter {ziel}.")
             except Exception as e:                     # noqa: BLE001
                 self._set_guide(f"Session nicht verworfen: {e}")
+                self.hilfe_link.set_zustand(
+                    hilfe_anker.SESSION_VERWERFEN_FEHLER)
             return "abgebrochen"
         return None                       # „Später“ – normal weiter einlernen
 
@@ -813,7 +841,7 @@ class MainWindow(QMainWindow):
             self._admin_window.raise_()
             self._admin_window.activateWindow()
             return
-        if not ensure_admin_access(self):
+        if not ensure_admin_access(self, cfg=self.cfg):
             return
         from .admin.admin_window import AdminWindow
 
@@ -859,6 +887,7 @@ class MainWindow(QMainWindow):
         # Pipeline-Fehlertexte nennen bereits die Abhilfe (z.B. „Marker
         # prüfen“, „weiter zur Mitte legen“) – unverändert anzeigen.
         self._set_guide(message)
+        self.hilfe_link.set_zustand(hilfe_anker.AKTION_FEHLGESCHLAGEN)
 
     # ---------- Ergebnis-Darstellung ----------
 
@@ -932,6 +961,9 @@ class MainWindow(QMainWindow):
         Rahmen und Maß-Chips zeichnet die Vorschau selbst."""
         self._last_report = report
         self._clear_cards()
+        # Der persistente Link gehört den Leer-/Fehlzuständen; die
+        # Ergebnis-Karten tragen ihre eigenen Links (Footer).
+        self.hilfe_link.set_zustand(None)
         tone = self.report_tone(report)
         if frame_image is not None:
             self.preview.set_overlay(frame_image, self.ui["result_overlay_secs"],
@@ -976,6 +1008,7 @@ class MainWindow(QMainWindow):
             "ambiguous", "Unsicher – bitte wählen",
             subtitle="Kein Kandidat liegt weit genug vorn. Den richtigen "
                      "Artikel unten antippen.")
+        card.add_footer(HilfeLink(self.cfg, hilfe_anker.ERGEBNIS_AMBIGUOUS))
         self.cards_layout.addWidget(card)
         self._add_candidate_rows(cands, start_rank=1, clickable=True)
         self._none_button = QPushButton("Keiner davon / manuell korrigieren")
@@ -989,12 +1022,14 @@ class MainWindow(QMainWindow):
         Ohne Bewertungsleiste: hier gibt es kein Ergebnis zu beurteilen."""
         self._set_headline("Objekt berührt den Bildrand", "border", "–")
         self._set_guide("")
-        self.cards_layout.addWidget(MessageCard(
+        card = MessageCard(
             "border", "Neu platzieren",
             subtitle="Objekt weiter zur Mitte legen, dann erneut "
                      "„Identifizieren“ drücken. Passt es nicht vollständig "
                      "ins Bild, kann es nicht gemessen werden "
-                     "(siehe README, FOV)."))
+                     "(siehe README, FOV).")
+        card.add_footer(HilfeLink(self.cfg, hilfe_anker.ERGEBNIS_BORDER))
+        self.cards_layout.addWidget(card)
 
     def _render_reject(self, report, cands) -> None:
         text, cls = headline(report.decision)
@@ -1002,12 +1037,15 @@ class MainWindow(QMainWindow):
         self._set_guide("")
         m = report.measured or {}
         d = m.get("circle_diameter_mm")
+        # Bewusst OHNE „Als neuen Artikel einlernen"-Taste (Entscheidung Mike
+        # 2026-08-12): Einlernen verändert den Referenzbestand (ROT) und wird
+        # nicht als Kurzweg im offenen Betrieb angeboten. Der Hilfetext nennt
+        # den Technik-Weg; der reguläre Einlern-Knopf der Aktionsleiste bleibt.
         card = MessageCard(
             "reject", "Kein Artikel im Toleranzbereich",
             subtitle=report.message,
-            big_value=(f"{d:.1f} mm".replace(".", ",") if d else None),
-            action_text="Als neuen Artikel einlernen")
-        card.action.connect(self._open_enroll_dialog)
+            big_value=(f"{d:.1f} mm".replace(".", ",") if d else None))
+        card.add_footer(HilfeLink(self.cfg, hilfe_anker.ERGEBNIS_REJECT))
         self.cards_layout.addWidget(card)
         self._add_verdict_bar("Ablehnung richtig?", "Falsch…", host=card)
         self._verdict_bar.wrong_button.setToolTip(
@@ -1081,6 +1119,8 @@ class MainWindow(QMainWindow):
         except ValueError as e:
             self._set_headline("Bewertung nicht gespeichert.", "reject")
             self._set_guide(str(e))
+            self.hilfe_link.set_zustand(
+                hilfe_anker.BEWERTUNG_NICHT_GESPEICHERT)
             return
         if self._verdict_bar is not None:
             self._verdict_bar.acknowledge("Als richtig vermerkt.")
@@ -1111,6 +1151,8 @@ class MainWindow(QMainWindow):
         except ValueError as e:
             self._set_headline("Bestätigung nicht gespeichert.", "reject")
             self._set_guide(str(e))
+            self.hilfe_link.set_zustand(
+                hilfe_anker.BEWERTUNG_NICHT_GESPEICHERT)
             return
         # Die Karten selbst bleiben neutral (kein zustandsabhängiger Rahmen
         # mehr, Task 4) – die Bestätigung zeigt sich einzig über die
@@ -1131,7 +1173,7 @@ class MainWindow(QMainWindow):
             return
         from docodetect.ui_qt.widgets.correction_dialog import CorrectionDialog
 
-        dlg = CorrectionDialog(list_articles(self.cfg), self)
+        dlg = CorrectionDialog(list_articles(self.cfg), self, cfg=self.cfg)
         if dlg.exec() != QDialog.Accepted:
             return
         chosen = dlg.chosen()
@@ -1141,6 +1183,8 @@ class MainWindow(QMainWindow):
         except ValueError as e:
             self._set_headline("Korrektur nicht gespeichert.", "reject")
             self._set_guide(str(e))
+            self.hilfe_link.set_zustand(
+                hilfe_anker.BEWERTUNG_NICHT_GESPEICHERT)
             return
         name = chosen or "Unbekannt"
         self._set_headline(f"Korrigiert: {name}", "ambiguous")

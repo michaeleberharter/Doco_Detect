@@ -281,7 +281,9 @@ class MessageCard(QFrame):
     """Zustandskarte ohne Artikel: AMBIGUOUS, REJECT und Randberührung.
 
     Optional mit grossem Messwert (Entwurf: „141 mm" im Nicht-gefunden-
-    Zustand) und einer Handlungstaste („Als neuen Artikel einlernen")."""
+    Zustand) und einer Handlungstaste. Die frühere Einlern-Taste der
+    Reject-Karte ist bewusst entfallen (ROT-Aktion, Entscheidung Mike
+    2026-08-12); die Fähigkeit bleibt für künftige GRÜNE Aktionen."""
 
     action = Signal()
 

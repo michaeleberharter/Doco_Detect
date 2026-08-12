@@ -37,6 +37,10 @@ class ConfigPage(QWidget):
         self.hinweis.setWordWrap(True)
         self.hinweis.setTextInteractionFlags(Qt.TextSelectableByMouse)
         lay.addWidget(self.hinweis)
+        # Link nur im Fehlerfall („Config nicht lesbar") — gesetzt in reload().
+        from ...hilfe.fenster import HilfeLink
+        self.hilfe_link = HilfeLink(cfg)
+        lay.addWidget(self.hilfe_link, alignment=Qt.AlignLeft)
         self.baum = QTreeWidget()
         self.baum.setColumnCount(3)
         self.baum.setHeaderLabels(["Key", "Wert", "Herkunft"])
@@ -55,7 +59,10 @@ class ConfigPage(QWidget):
             self._zeilen = []
             self.baum.clear()
             self.hinweis.setText(f"Config nicht lesbar: {e}")
+            from ...hilfe import anker as hilfe_anker
+            self.hilfe_link.set_zustand(hilfe_anker.ADMIN_CONFIG_DEFEKT)
             return
+        self.hilfe_link.set_zustand(None)
         self.hinweis.setText(
             "Effektive Konfiguration, read-only — es gibt keinen "
             "Schreibpfad und keinen Export. Lokale Werte "

@@ -14,7 +14,10 @@ from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QHBoxLayout, QListWidget, QMainWindow,
-                               QStackedWidget, QTabWidget, QWidget)
+                               QPushButton, QStackedWidget, QTabWidget,
+                               QVBoxLayout, QWidget)
+
+from ..hilfe.fenster import oeffne_hilfe
 
 from .pages.analysis_page import AnalysisPage
 from .pages.articles_page import ArticlesPage
@@ -48,7 +51,20 @@ class AdminWindow(QMainWindow):
         self.sidebar.setObjectName("adminSidebar")
         self.sidebar.setFixedWidth(180)
         self.sidebar.addItems(list(_SEITEN))
-        lay.addWidget(self.sidebar)
+        # Sidebar + Hilfe-Knopf in einer Spalte: die Hilfeseite ist auch aus
+        # dem Admin-Fenster erreichbar (Freigabe Checkpoint 1).
+        seite_links = QWidget()
+        links_lay = QVBoxLayout(seite_links)
+        links_lay.setContentsMargins(0, 0, 0, 0)
+        links_lay.setSpacing(0)
+        links_lay.addWidget(self.sidebar, stretch=1)
+        self.hilfe_button = QPushButton("Hilfe")
+        self.hilfe_button.setObjectName("secondaryButton")
+        self.hilfe_button.clicked.connect(
+            lambda: oeffne_hilfe(cfg, parent=self))
+        links_lay.addWidget(self.hilfe_button)
+        seite_links.setFixedWidth(180)
+        lay.addWidget(seite_links)
         self.stack = QStackedWidget()
         self.status_page = StatusPage(cfg, camera_status)
         self.stack.addWidget(self.status_page)

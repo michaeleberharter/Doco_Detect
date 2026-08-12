@@ -20,6 +20,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget,
                                QListWidgetItem, QPushButton)
 
+from ..hilfe import anker as hilfe_anker
+from ..hilfe.fenster import HilfeLink
 from .dialog_shell import DialogShell
 
 
@@ -46,12 +48,13 @@ class OpenSessionsDialog(DialogShell):
     VERWERFEN = "verwerfen"
     SPAETER = "spaeter"
 
-    def __init__(self, sessions: list, parent=None):
+    def __init__(self, sessions: list, parent=None, cfg: dict | None = None):
         super().__init__("plus", "Unterbrochene Einlern-Sessions",
                          "Fortsetzen", parent)
         self.sessions = list(sessions)
         self.entscheidung = self.SPAETER
         self.gewaehlt = None
+        self._cfg = cfg
 
         self.card.setMinimumWidth(620)
         lay = self.body
@@ -96,6 +99,11 @@ class OpenSessionsDialog(DialogShell):
         self.spaeter_button.clicked.connect(self._spaeter)
         zeile.addWidget(self.spaeter_button)
         zeile.addStretch(1)
+        # Ebene-1-Einstieg; ohne cfg (Alt-Aufrufer) bleibt er aus.
+        self.hilfe_link = None
+        if cfg is not None:
+            self.hilfe_link = HilfeLink(cfg, hilfe_anker.SESSIONS_OFFEN)
+            zeile.addWidget(self.hilfe_link)
         lay.addLayout(zeile)
 
         self.fortsetzen_button = self.primary_button
@@ -116,6 +124,10 @@ class OpenSessionsDialog(DialogShell):
         fortsetzbar = bool(i is not None and i.fingerprint_ok)
         self.fortsetzen_button.setEnabled(fortsetzbar)
         self.verwerfen_button.setEnabled(i is not None)
+        if self.hilfe_link is not None:
+            self.hilfe_link.set_zustand(
+                hilfe_anker.SESSIONS_OFFEN if fortsetzbar or i is None
+                else hilfe_anker.SESSION_NICHT_FORTSETZBAR)
         if i is None:
             self.grund_label.setText("")
         elif fortsetzbar:

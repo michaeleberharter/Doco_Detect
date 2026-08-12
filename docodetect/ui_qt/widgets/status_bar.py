@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 from docodetect.pipeline import PipelineStatus
 
@@ -31,6 +32,13 @@ class StatusBarContent(QWidget):
         self.warn = QLabel("")            # z.B. „Fokus-Lock nicht verfügbar“
         self.warn.setObjectName("statusWarn")
         self.warn.hide()
+        # Ebene-1-Einstieg neben der Warnung. Bewusst OHNE cfg (diese Klasse
+        # bleibt reine Anzeige): das Hauptfenster verdrahtet den Klick auf
+        # die Hilfe (Zustand FOKUS_WARNUNG).
+        self.warn_hilfe = QPushButton("Was tun?")
+        self.warn_hilfe.setObjectName("linkButton")
+        self.warn_hilfe.setCursor(Qt.PointingHandCursor)
+        self.warn_hilfe.hide()
         for i, w in enumerate((self.camera, self.calibration, self.articles,
                                self.stage2)):
             if i:
@@ -38,6 +46,7 @@ class StatusBarContent(QWidget):
             lay.addWidget(w)
         lay.addStretch(1)
         lay.addWidget(self.warn)
+        lay.addWidget(self.warn_hilfe)
 
     def set_camera_text(self, text: str) -> None:
         self.camera.setText(text)
@@ -46,6 +55,7 @@ class StatusBarContent(QWidget):
         """Dauerhafter Warnhinweis rechts (leer = ausblenden)."""
         self.warn.setText(text)
         self.warn.setVisible(bool(text))
+        self.warn_hilfe.setVisible(bool(text))
 
     def update_status(self, st: PipelineStatus) -> None:
         if st.calibrated:

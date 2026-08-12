@@ -154,7 +154,9 @@ def test_ambiguous_ist_amber_mit_anklickbaren_kandidaten(win):
 
 # ---------- REJECT ----------
 
-def test_reject_zeigt_messwert_einlern_taste_und_bewertung(win):
+def test_reject_zeigt_messwert_und_bewertung_ohne_einlern_taste(win):
+    """Die Einlern-Taste auf der Reject-Karte ist bewusst entfallen
+    (ROT-Aktion, Entscheidung Mike 2026-08-12) — ihr Fehlen ist Soll."""
     from docodetect.ui_qt.widgets.result_card import MessageCard
 
     win._show_report(report("reject", measured={"circle_diameter_mm": 123.4,
@@ -164,7 +166,7 @@ def test_reject_zeigt_messwert_einlern_taste_und_bewertung(win):
     card = win.cards_box.findChildren(MessageCard)[0]
     assert card.property("tone") == "reject"
     assert "123,4" in card.all_text()
-    assert card.action_button.text() == "Als neuen Artikel einlernen"
+    assert getattr(card, "action_button", None) is None
     assert win._verdict_bar is not None, "Bewertung fehlt bei REJECT"
     assert "123,4" in win.diagnose_text()
 

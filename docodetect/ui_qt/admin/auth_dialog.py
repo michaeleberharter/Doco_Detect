@@ -16,7 +16,8 @@ from docodetect import admin_auth
 
 class AdminAuthDialog(QDialog):
     def __init__(self, festlegen: bool, parent=None,
-                 auth_file: str | Path | None = None):
+                 auth_file: str | Path | None = None,
+                 cfg: dict | None = None):
         super().__init__(parent)
         self._festlegen = festlegen
         self._auth_file = auth_file
@@ -30,6 +31,15 @@ class AdminAuthDialog(QDialog):
             if festlegen else "Admin-Passwort eingeben.")
         hinweis.setWordWrap(True)
         lay.addWidget(hinweis)
+        # Ebene-1-Einstieg im PRÜF-Modus: „Passwort vergessen?" führt zur
+        # Hilfeseite — die nennt bewusst nur den Weg über die Technik, keine
+        # Reset-Anleitung (Freigabe 2026-08-12: Wissen offen, Aktionen
+        # geschützt; eine Anleitung hier wäre eine Umgehung des Schutzes).
+        if not festlegen and cfg is not None:
+            from ..hilfe import anker as hilfe_anker
+            from ..hilfe.fenster import HilfeLink
+            lay.addWidget(HilfeLink(cfg, hilfe_anker.ADMIN_PASSWORT,
+                                    text="Passwort vergessen?"))
         self.eingabe = QLineEdit()
         self.eingabe.setEchoMode(QLineEdit.Password)
         self.eingabe.setPlaceholderText("Passwort")
@@ -70,9 +80,11 @@ class AdminAuthDialog(QDialog):
 
 
 def ensure_admin_access(parent=None,
-                        auth_file: str | Path | None = None) -> bool:
+                        auth_file: str | Path | None = None,
+                        cfg: dict | None = None) -> bool:
     """True = Zugang gewährt (Passwort neu gesetzt oder korrekt),
-    False = abgebrochen. Kapselt beide Modi für das Hauptfenster."""
+    False = abgebrochen. Kapselt beide Modi für das Hauptfenster.
+    `cfg` aktiviert den »Passwort vergessen?«-Hilfelink im Prüf-Modus."""
     dlg = AdminAuthDialog(not admin_auth.is_configured(auth_file),
-                          parent, auth_file)
+                          parent, auth_file, cfg=cfg)
     return dlg.exec() == QDialog.Accepted

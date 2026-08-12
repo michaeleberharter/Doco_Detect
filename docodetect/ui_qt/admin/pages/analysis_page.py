@@ -93,6 +93,11 @@ class LaufTab(QWidget):
         self.refresh_button = QPushButton("Aktualisieren")
         self.refresh_button.clicked.connect(self.reload_historie)
         links.addWidget(self.refresh_button, alignment=Qt.AlignLeft)
+        from ...hilfe import anker as hilfe_anker
+        from ...hilfe.fenster import HilfeLink
+        links.addWidget(HilfeLink(cfg, hilfe_anker.ADMIN_ANALYSE,
+                                  text="Hilfe: Analyse-Läufe"),
+                        alignment=Qt.AlignLeft)
         # Export (Freigabe 2026-08-11): nur mit ausgewähltem Lauf aktiv —
         # die Historie listet ohnehin nur gültige Läufe. Ziel je Export
         # über den Dialog, kein gespeicherter Default.

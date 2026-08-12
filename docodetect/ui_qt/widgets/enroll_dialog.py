@@ -29,6 +29,8 @@ from PySide6.QtWidgets import (QComboBox, QCompleter, QHBoxLayout, QLabel,
 from docodetect.pipeline import list_articles
 
 from ..camera_worker import _RECONNECT_SECS
+from ..hilfe import anker as hilfe_anker
+from ..hilfe.fenster import HilfeLink
 from ..pipeline_worker import PipelineWorker
 from ..qimage import bgr_to_qimage, downscale_width
 from .dialog_shell import DialogShell, read_only
@@ -215,6 +217,11 @@ class EnrollDialog(DialogShell):
         self.hint_label.setWordWrap(True)
         lay.addWidget(self.hint_label)
 
+        # Ebene-1-Einstieg des Dialogs: die Fehlerpfade setzen den Zustand,
+        # Erfolgs-/Neutralpfade blenden ihn aus (hilfe/anker.py).
+        self.hilfe_link = HilfeLink(cfg)
+        lay.addWidget(self.hilfe_link, alignment=Qt.AlignLeft)
+
         # -- Thumbnail-Leiste: Klick wählt eine Aufnahme zum Wiederholen --
         self.thumbs = QListWidget()
         self.thumbs.setViewMode(QListWidget.IconMode)
@@ -273,6 +280,7 @@ class EnrollDialog(DialogShell):
         abw = result["abweichungen"]
         if abw:
             self.hint_label.setText(self._abweichungstext(abw))
+            self.hilfe_link.set_zustand(hilfe_anker.SESSION_ABWEICHUNG)
         else:
             self.hint_label.setText(
                 f"Session wiederhergestellt – {self._n_shots()} Aufnahmen.")
@@ -375,11 +383,14 @@ class EnrollDialog(DialogShell):
                     self.cfg, nr, target_shots=self.shots_spin.value())
             except Exception as e:                     # noqa: BLE001
                 self.hint_label.setText(f"Session nicht angelegt: {e}")
+                self.hilfe_link.set_zustand(
+                    hilfe_anker.EINLERNEN_SESSION_FEHLER)
                 return
             self._sperre_artikelwahl()
         self._awaiting_frame = True
         self._update_texts()
         self.hint_label.setText("")
+        self.hilfe_link.set_zustand(None)
         self._frame_timer.start(_FRAME_TIMEOUT_MS)
         self.source.request_full_frame()
 
@@ -409,6 +420,7 @@ class EnrollDialog(DialogShell):
             f"({self._kamera_fehler}) Erneut versuchen."
             if self._kamera_fehler else
             "Noch kein Bild von der Kamera erhalten – erneut versuchen.")
+        self.hilfe_link.set_zustand(hilfe_anker.EINLERNEN_KEIN_BILD)
         self._update_texts()
 
     def _kamera_fehler_gesehen(self, text: str) -> None:
@@ -445,6 +457,7 @@ class EnrollDialog(DialogShell):
         self._thumbs[result["i"]] = result["thumb"]
         self._retake_index = None
         self._rebuild_thumbs()
+        self.hilfe_link.set_zustand(None)
         self._update_texts()
 
     def _job_failed(self, message: str) -> None:
@@ -452,6 +465,7 @@ class EnrollDialog(DialogShell):
         self.progress_bar.setVisible(False)
         # Fehlertext nennt die Abhilfe (z.B. Randberührung: weiter zur Mitte).
         self.hint_label.setText(f"Aufnahme verworfen: {message}")
+        self.hilfe_link.set_zustand(hilfe_anker.EINLERNEN_AUFNAHME_VERWORFEN)
         self._update_texts()
 
     def _rebuild_thumbs(self) -> None:
@@ -502,6 +516,7 @@ class EnrollDialog(DialogShell):
         else:
             self.hint_label.setText(
                 "Prüfung abgebrochen – Aufnahmen bleiben, erneut „Speichern“.")
+            self.hilfe_link.set_zustand(hilfe_anker.EINLERNEN_BLATT)
             self._update_texts()
 
     def _save_done(self, result: dict) -> None:
@@ -554,6 +569,7 @@ class EnrollDialog(DialogShell):
                 f"{self.progress_label.text()} — bitte noch einen Moment. "
                 f"Die Aufnahmen sind bereits gesichert. "
                 f"(Abbrechen ist in {rest} s möglich.)")
+            self.hilfe_link.set_zustand(hilfe_anker.EINLERNEN_SCHLIESSEN)
             return False
         antwort = QMessageBox.question(
             self, "Trotzdem schließen?",

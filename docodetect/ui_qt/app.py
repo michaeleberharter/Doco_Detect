@@ -276,6 +276,19 @@ def _skalierungs_kontrolle(app: QApplication, win, ui: dict,
         box.setText(meldung)
         box.setModal(False)
         box.setAttribute(Qt.WA_DeleteOnClose, True)
+        # Ebene-1-Einstieg: „Was tun?" öffnet die Hilfe am Skalierungs-Thema.
+        # OK muss explizit dazu — sobald ein eigener Button existiert, legt
+        # QMessageBox keinen automatischen mehr an. Und OK muss der
+        # Escape-Button sein: mit MEHREREN Buttons ohne Escape-Button
+        # ignoriert QMessageBox close() — der Selbstschließer unten wäre tot.
+        box.setStandardButtons(QMessageBox.Ok)
+        box.setEscapeButton(QMessageBox.Ok)
+        from .hilfe import anker as hilfe_anker
+        from .hilfe.fenster import oeffne_hilfe
+        hilfe_knopf = box.addButton("Was tun?", QMessageBox.HelpRole)
+        hilfe_knopf.clicked.connect(
+            lambda: oeffne_hilfe(win.cfg, hilfe_anker.SKALIERUNG_HINWEIS,
+                                 parent=win))
         box.show()
         # Selbsttätig schliessen: im Kiosk-Autostart darf kein Fenster
         # dauerhaft über der Live-Vorschau stehen. Die Statuszeile ist
