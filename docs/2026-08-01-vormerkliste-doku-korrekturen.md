@@ -793,3 +793,18 @@ und ob der Rechner ohne Anmeldung in die App booten soll (sonst hilft
 der Autostart genau im Stromausfall nicht). Erst danach lässt sich
 app-startet-nicht.md sinnvoll füllen; bis dahin steht dort die
 Von-Hand-Variante.
+
+---
+
+## 29. Einlernen generell hinter das Schloss? (Nachtrag 2026-08-12)
+
+**Fundstelle:** Befund im Hilfe-Vorgang · **offener Entscheid, nicht
+vor dem Echtbetrieb.**
+
+Die Abkürzung auf der Kein-Treffer-Karte ist entfernt (28d8d06), der
+reguläre Einlern-Knopf in Aktionsleiste und Schiene bleibt offen
+erreichbar. Solange nur das Projektteam an der Box steht, ist das
+gewollt — ein Passwort bei jedem Testeinlernen wäre teurer als der
+Schutz wert. Vor dem Betrieb durch DO&CO-Personal neu entscheiden:
+Einlernen ist die Aktion, die den Referenzbestand verändert, und die
+Hilfe ordnet sie durchgehend als Technik-Arbeit ein.
