@@ -58,7 +58,13 @@ class _Header(QWidget):
 
         self.close_button = QPushButton("×", self)
         self.close_button.setObjectName("dialogClose")
-        self.close_button.setFixedSize(30, 30)
+        # setFixedSize gewinnt über jede QSS-min-height — die Touch-
+        # Trefferfläche muss deshalb HIER entschieden werden. Zustand wird
+        # beim Aufbau gelesen: Dialoge sind kurzlebig, ein laufender
+        # Touch-Wechsel greift beim nächsten Öffnen.
+        from .. import touch
+        s = touch.MIN_TREFFER_PX if touch.ist_aktiv() else 30
+        self.close_button.setFixedSize(s, s)
         self.close_button.setCursor(Qt.PointingHandCursor)
         self.close_button.clicked.connect(dialog.reject)
         lay.addWidget(self.close_button)

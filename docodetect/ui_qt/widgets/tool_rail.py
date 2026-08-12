@@ -1,4 +1,4 @@
-"""Linke Icon-Schiene: die vier Arbeitsschritte plus Theme-Umschalter.
+"""Linke Icon-Schiene: die vier Arbeitsschritte plus Einstellungen.
 
 Der Entwurf zeigt hier dieselben Aktionen wie die untere Leiste – bewusste
 Redundanz: die Schiene ist der Orientierungsanker („wo bin ich"), die
@@ -34,7 +34,8 @@ _ACTIONS = (
 
 class ToolRail(QWidget):
     triggered = Signal(str)          # "identify" | "background" | ...
-    theme_toggle = Signal()
+    settings_requested = Signal()    # Zahnrad: Einstellungsdialog (2026-08-12;
+                                     # ersetzt den früheren Theme-Direkt-Toggle)
     admin_requested = Signal()       # Schloss: Admin-Bereich (Spec §3)
 
     def __init__(self, parent=None):
@@ -66,9 +67,9 @@ class ToolRail(QWidget):
         self._admin.clicked.connect(self.admin_requested.emit)
         lay.addWidget(self._admin, alignment=Qt.AlignHCenter)
         self._gear = self._make_button("gear", "")
-        self._gear.setToolTip("Zwischen dunklem und hellem Erscheinungsbild "
-                              "wechseln")
-        self._gear.clicked.connect(self.theme_toggle.emit)
+        self._gear.setToolTip("Einstellungen (Darstellung, Rückmeldung, "
+                              "Bedienung)")
+        self._gear.clicked.connect(self.settings_requested.emit)
         lay.addWidget(self._gear, alignment=Qt.AlignHCenter)
 
         self._buttons["identify"].setChecked(True)

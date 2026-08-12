@@ -194,21 +194,35 @@ def test_ergebnisspalte_hat_die_entwurfsbreite(win):
     assert panel.width() == 372        # Entwurf
 
 
-# ---------- Theme-Umschalter ----------
+# ---------- Zahnrad: Einstellungen ----------
 
-def test_zahnrad_schaltet_das_theme_um(win, qapp):
+def test_zahnrad_oeffnet_den_einstellungsdialog(win, monkeypatch):
+    """Seit 2026-08-12 öffnet das Zahnrad den Einstellungsdialog; der
+    frühere Theme-Direkt-Toggle ist ersetzt (Theme wohnt im Dialog).
+    exec wird gepatcht — ein echter modaler Dialog bliebe offscreen
+    stehen."""
+    from docodetect.ui_qt.widgets.settings_dialog import SettingsDialog
+
+    geoeffnet = []
+    monkeypatch.setattr(
+        SettingsDialog, "exec",
+        lambda self: geoeffnet.append(self.windowTitle()) or 0)
+    win.tool_rail._gear.click()
+    assert geoeffnet == ["Einstellungen"]
+
+
+def test_theme_wechsel_schreibt_nicht_in_die_config(win, qapp):
+    """Das Erscheinungsbild der Fotobox wird nie in die config
+    zurückgeschrieben — Persistenz ist ausschliesslich QSettings
+    (im Testlauf per conftest auf eine tmp-Ini isoliert)."""
     from docodetect.ui_qt.app import current_theme
+    from docodetect.ui_qt.widgets.settings_dialog import SettingsDialog
 
-    start = current_theme().name
-    win.toggle_theme()
-    assert current_theme().name != start
-    win.toggle_theme()
-    assert current_theme().name == start
-
-
-def test_theme_wechsel_schreibt_nicht_in_die_config(win):
-    """Das Erscheinungsbild der Fotobox gehört in config.local.yaml und darf
-    nicht von der laufenden App überschrieben werden."""
     before = dict(win.cfg.get("ui") or {})
-    win.toggle_theme()
-    assert dict(win.cfg.get("ui") or {}) == before
+    dlg = SettingsDialog(win.cfg, win)
+    ziel = "light" if current_theme().name == "dark" else "dark"
+    dlg.theme_box.setCurrentIndex(dlg.theme_box.findData(ziel))
+    assert current_theme().name == ziel             # wirkt sofort
+    assert dict(win.cfg.get("ui") or {}) == before  # config unberührt
+    dlg.done(0)
+    dlg.deleteLater()
