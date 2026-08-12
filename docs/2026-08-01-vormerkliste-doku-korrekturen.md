@@ -761,3 +761,35 @@ gilt die 3:1-Schwelle und es passt), oder den warn-Ton absenken.
 **Relevanz:** der Operator unterscheidet drei Zustände über die Farbe,
 und es ist der Screen, den er am häufigsten sieht — unter Hallenlicht,
 nicht am Schreibtisch.
+
+---
+
+## 27. Zwei Frame-Wartepfade ohne Timeout (Nachtrag 2026-08-12)
+
+**Fundstelle:** Sichtung im Zuge von feature/ui-hilfe · **Aufwand:**
+klein · eigener Vorgang.
+
+`calibrate_dialog.py:152-158` und `segtest_page.py:106` warten ohne
+Timeout auf einen Frame. Stirbt die Kamera nach dem Klick, bleibt der
+Zustand („Messe…" / „Warte auf Frame …") stehen; einziger Ausweg ist
+Abbrechen. Der Einlern-Dialog löst denselben Fall bereits sauber über
+`_frame_ausgeblieben` (`enroll_dialog.py:396-412`) — dort ist das
+Muster, das übertragen werden kann. Bis dahin benennt die Hilfe den
+Ausweg.
+
+---
+
+## 28. Autostart der Box-Station (Nachtrag 2026-08-12)
+
+**Fundstelle:** Hilfe-Vorgang, Entscheidung Mike 2026-08-12 ·
+**Windows-Thema** · eigener Vorgang, gehört zur Windows-Sitzung.
+
+Heute wird die App an der Box von Hand gestartet. Gewünscht ist ein
+automatischer Start. Ein Autostart ist erst dann brauchbar, wenn er
+auch nach Absturz und Stromausfall ohne Terminal wieder hochkommt —
+zu klären sind daher: Aufgabenplanung oder Dienst, Neustart bei
+Absturz, Startprotokoll für den Fall, dass die App gar nicht kommt,
+und ob der Rechner ohne Anmeldung in die App booten soll (sonst hilft
+der Autostart genau im Stromausfall nicht). Erst danach lässt sich
+app-startet-nicht.md sinnvoll füllen; bis dahin steht dort die
+Von-Hand-Variante.

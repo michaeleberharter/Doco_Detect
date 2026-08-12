@@ -52,6 +52,11 @@ class ArticlesPage(QWidget):
         self.refresh_button = QPushButton("Aktualisieren")
         self.refresh_button.clicked.connect(self.reload)
         kopf.addWidget(self.refresh_button, alignment=Qt.AlignLeft)
+        # Dynamischer Anker: leere Liste -> „Artikel wird nie erkannt",
+        # sonst Einlern-Qualität (Kennzahlen-Marker); gesetzt in reload().
+        from ...hilfe.fenster import HilfeLink
+        self.hilfe_link = HilfeLink(cfg, text="Hilfe")
+        kopf.addWidget(self.hilfe_link, alignment=Qt.AlignLeft)
         self.kopf_label = QLabel("")
         self.kopf_label.setWordWrap(True)
         self.kopf_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -110,16 +115,19 @@ class ArticlesPage(QWidget):
                 "hoehe": _de(a.height_mm),
                 "nominal": _de(nominal), "band": band,
             })
+        from ...hilfe import anker as hilfe_anker
         if self._zeilen:
             self.kopf_label.setText(
                 f"{len(self._zeilen)} Artikel · Vorfilter-Toleranz "
                 f"±{_de(tol)} mm (matching.diameter_tolerance_mm) · "
                 "Nominal: Ø bei runden, max(Breite, Tiefe) bei länglichen "
                 "Artikeln")
+            self.hilfe_link.set_zustand(hilfe_anker.ADMIN_ARTIKEL_QUALITAET)
         else:
             self.kopf_label.setText(
                 "Keine Artikel — erst anlegen (create-article) oder "
                 "einlernen; ohne Datenbank bleibt die Liste leer.")
+            self.hilfe_link.set_zustand(hilfe_anker.ADMIN_ARTIKEL_LEER)
         self._tabelle.setRowCount(len(self._zeilen))
         reihenfolge = ("artikelnummer", "name", "kategorie", "referenzen",
                        "durchmesser", "breite", "tiefe", "hoehe",

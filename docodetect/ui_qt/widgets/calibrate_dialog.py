@@ -26,6 +26,8 @@ from PySide6.QtWidgets import QLabel, QSizePolicy
 
 from docodetect.config import resolve
 
+from ..hilfe import anker as hilfe_anker
+from ..hilfe.fenster import HilfeLink
 from ..pipeline_worker import PipelineWorker
 from .dialog_shell import DialogShell, field_row, read_only
 
@@ -108,6 +110,12 @@ class CalibrateDialog(DialogShell):
         self.status.setWordWrap(True)
         self.body.addWidget(self.status)
 
+        # Ebene-1-Einstieg: immer sichtbar (der Frame-Wartepfad hat keinen
+        # Timeout, Vormerkliste 27 — der Link ist hier der einzige Wegweiser);
+        # bei fehlendem Hintergrund zielt er auf den Hintergrund-Abschnitt.
+        self.hilfe_link = HilfeLink(cfg, hilfe_anker.KALIBRIEREN_DIALOG)
+        self.body.addWidget(self.hilfe_link, alignment=Qt.AlignLeft)
+
         self.primary.connect(self._start)
         source.frame_ready.connect(self.preview.set_frame)
         source.full_frame_ready.connect(self._on_full_frame)
@@ -140,8 +148,11 @@ class CalibrateDialog(DialogShell):
                 "Box leeren und „Hintergrund aufnehmen“ – ohne sie kann nicht "
                 "identifiziert werden.")
             self.hint.setVisible(True)
+            self.hilfe_link.set_zustand(
+                hilfe_anker.KALIBRIEREN_OHNE_HINTERGRUND)
         else:
             self.hint.setVisible(False)
+            self.hilfe_link.set_zustand(hilfe_anker.KALIBRIEREN_DIALOG)
 
     def _set_busy(self, busy: bool) -> None:
         self.primary_button.setEnabled(not busy)

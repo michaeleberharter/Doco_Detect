@@ -164,11 +164,11 @@ def test_schloss_oeffnet_admin_nur_mit_zugang(qapp, tmp_path, monkeypatch):
 
     win = mw_mod.MainWindow(make_main_cfg(tmp_path), demo=True)
     monkeypatch.setattr(auth_dialog, "ensure_admin_access",
-                        lambda parent=None, auth_file=None: False)
+                        lambda parent=None, auth_file=None, cfg=None: False)
     win._open_admin_panel()
     assert win._admin_window is None              # Zugang verweigert
     monkeypatch.setattr(auth_dialog, "ensure_admin_access",
-                        lambda parent=None, auth_file=None: True)
+                        lambda parent=None, auth_file=None, cfg=None: True)
     win._open_admin_panel()
     assert win._admin_window is not None
     assert win._camera_status_text() == "Demo"

@@ -17,12 +17,20 @@ UNKNOWN_LABEL = "Unbekannt / nicht in der Liste"
 
 
 class CorrectionDialog(QDialog):
-    def __init__(self, articles: list, parent=None):
+    def __init__(self, articles: list, parent=None, cfg: dict | None = None):
         super().__init__(parent)
         self.setWindowTitle("Manuell korrigieren")
         self.setModal(True)
         lay = QVBoxLayout(self)
         lay.addWidget(QLabel("Welcher Artikel liegt wirklich in der Box?"))
+        # Ebene-1-Einstieg zum Thema „Verwechselt ähnliche Artikel" — der
+        # Dialog IST der Falsch-Pfad; ohne cfg (Alt-Aufrufer) entfällt er.
+        self.hilfe_link = None
+        if cfg is not None:
+            from ..hilfe import anker as hilfe_anker
+            from ..hilfe.fenster import HilfeLink
+            self.hilfe_link = HilfeLink(cfg, hilfe_anker.KORREKTUR_DIALOG)
+            lay.addWidget(self.hilfe_link)
 
         self._pick_known = QRadioButton("Artikel auswählen:")
         self._pick_known.setChecked(True)

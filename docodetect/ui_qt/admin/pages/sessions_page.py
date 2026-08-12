@@ -84,6 +84,11 @@ class SessionsPage(QWidget):
         self.refresh_button = QPushButton("Aktualisieren")
         self.refresh_button.clicked.connect(self.reload)
         lay.addWidget(self.refresh_button, alignment=Qt.AlignLeft)
+        from ...hilfe import anker as hilfe_anker
+        from ...hilfe.fenster import HilfeLink
+        lay.addWidget(HilfeLink(cfg, hilfe_anker.ADMIN_SESSIONS,
+                                text="Hilfe: Einlern-Sessions"),
+                      alignment=Qt.AlignLeft)
         self.reload()
 
     # ---------- Laden ----------

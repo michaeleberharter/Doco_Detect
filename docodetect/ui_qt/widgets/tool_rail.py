@@ -37,6 +37,7 @@ class ToolRail(QWidget):
     settings_requested = Signal()    # Zahnrad: Einstellungsdialog (2026-08-12;
                                      # ersetzt den früheren Theme-Direkt-Toggle)
     admin_requested = Signal()       # Schloss: Admin-Bereich (Spec §3)
+    hilfe_requested = Signal()       # Fragezeichen: Hilfe (Ebene 2)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -66,6 +67,12 @@ class ToolRail(QWidget):
         self._admin.setToolTip("Admin-Bereich öffnen (passwortgeschützt)")
         self._admin.clicked.connect(self.admin_requested.emit)
         lay.addWidget(self._admin, alignment=Qt.AlignHCenter)
+        # Hilfe zwischen Schloss und Zahnrad (Freigabe 2026-08-12) — immer
+        # aktiv: gerade in Fehlerzuständen muss sie erreichbar bleiben.
+        self._hilfe = self._make_button("help", "Hilfe")
+        self._hilfe.setToolTip("Hilfe: Symptome und was zu tun ist")
+        self._hilfe.clicked.connect(self.hilfe_requested.emit)
+        lay.addWidget(self._hilfe, alignment=Qt.AlignHCenter)
         self._gear = self._make_button("gear", "")
         self._gear.setToolTip("Einstellungen (Darstellung, Rückmeldung, "
                               "Bedienung)")
@@ -94,7 +101,8 @@ class ToolRail(QWidget):
     def retheme(self) -> None:
         """Icons in den Farben des aktiven Themes neu zeichnen."""
         t = current_theme()
-        for b in list(self._buttons.values()) + [self._gear, self._admin]:
+        for b in (list(self._buttons.values())
+                  + [self._gear, self._admin, self._hilfe]):
             color = t["accent"] if b.isChecked() else t["dim"]
             b.setIcon(icons.icon(b.property("iconName"), _ICON, color))
 

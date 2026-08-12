@@ -27,4 +27,11 @@ docodetect-ui = "docodetect.ui_qt.__main__:main"
 # top-level packages discovered" ab.
 [tool.setuptools]
 packages = ["docodetect", "docodetect.corpus",
-            "docodetect.ui_qt", "docodetect.ui_qt.widgets"]
+            "docodetect.ui_qt", "docodetect.ui_qt.widgets",
+            "docodetect.ui_qt.admin", "docodetect.ui_qt.admin.pages",
+            "docodetect.ui_qt.hilfe"]
+
+# Hilfetexte sind Paketdaten (importlib.resources) — ohne diesen Eintrag
+# fehlten sie in einer Nicht-Editable-Installation.
+[tool.setuptools.package-data]
+"docodetect.ui_qt.hilfe" = ["*/*.md"]

@@ -27,6 +27,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
 
 from .. import settings, touch
 from ..app import apply_theme, ui_cfg
+from ..hilfe import anker as hilfe_anker
+from ..hilfe.fenster import HilfeLink
 from .dialog_shell import DialogShell
 
 _NEUSTART_MARKER = "wirksam nach Neustart"
@@ -135,6 +137,8 @@ class SettingsDialog(DialogShell):
         self.scale_hinweis.setWordWrap(True)
         self.scale_hinweis.setVisible(False)
         seite.lay.addWidget(self.scale_hinweis)
+        self.scale_hilfe = HilfeLink(self.cfg)
+        seite.lay.addWidget(self.scale_hilfe, alignment=Qt.AlignLeft)
 
         self.overlay_spin = QSpinBox()
         self.overlay_spin.setRange(1, 30)
@@ -243,6 +247,7 @@ class SettingsDialog(DialogShell):
         if idx >= 0:
             self.scale_box.setCurrentIndex(idx)
             self.scale_hinweis.setVisible(False)
+            self.scale_hilfe.set_zustand(None)
         else:
             # Größten anbietbaren Wert ANZEIGEN, aber nichts schreiben —
             # gespeichert bleibt gespeichert, bis der Mensch neu wählt.
@@ -253,6 +258,7 @@ class SettingsDialog(DialogShell):
                 "nächsten Start gilt der gespeicherte Wert; hier wählbar "
                 "sind nur passende Stufen.")
             self.scale_hinweis.setVisible(True)
+            self.scale_hilfe.set_zustand(hilfe_anker.SETTINGS_SCALE_ZU_GROSS)
 
     def _basis_geometrie(self) -> tuple:
         """Verfügbare Zielschirm-Geometrie, zurückgerechnet auf 100 %:
@@ -291,6 +297,7 @@ class SettingsDialog(DialogShell):
             return
         settings.setze(settings.KEY_SCALE, int(wert))
         self.scale_hinweis.setVisible(False)
+        self.scale_hilfe.set_zustand(None)
         self.geaendert.emit()
 
     def _touch_gewaehlt(self, on: bool) -> None:

@@ -57,6 +57,11 @@ class StatusPage(QWidget):
         self.refresh_button = QPushButton("Aktualisieren")
         self.refresh_button.clicked.connect(self.refresh)
         lay.addWidget(self.refresh_button, alignment=Qt.AlignLeft)
+        from ...hilfe import anker as hilfe_anker
+        from ...hilfe.fenster import HilfeLink
+        lay.addWidget(HilfeLink(cfg, hilfe_anker.ADMIN_STATUS_UNVOLLSTAENDIG,
+                                text="Hilfe: Einrichtung"),
+                      alignment=Qt.AlignLeft)
         self.refresh()
 
     @staticmethod

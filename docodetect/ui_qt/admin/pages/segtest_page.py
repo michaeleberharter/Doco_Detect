@@ -88,6 +88,12 @@ class SegTestPage(QWidget):
         self._tabelle.setMaximumHeight(220)
         lay.addWidget(self._tabelle)
 
+        from ...hilfe import anker as hilfe_anker
+        from ...hilfe.fenster import HilfeLink
+        lay.addWidget(HilfeLink(cfg, hilfe_anker.ADMIN_SEGTEST,
+                                text="Hilfe: Segmentierungs-Test"),
+                      alignment=Qt.AlignLeft)
+
         if self._frame_anfordern is None:
             self.aufnahme_button.setEnabled(False)
             self._set_status(_OHNE_QUELLE)

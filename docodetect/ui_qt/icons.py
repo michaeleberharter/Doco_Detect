@@ -22,7 +22,8 @@ from PySide6.QtGui import (QColor, QIcon, QIconEngine, QPainter, QPainterPath,
 _GRID = 24.0
 _STROKE = 1.7          # Strichstärke im 24er-Raster (Entwurf)
 
-NAMES = ("scan", "camera", "target", "plus", "gear", "check", "alert")
+NAMES = ("scan", "camera", "target", "plus", "gear", "check", "alert",
+         "help")
 
 
 def _pen(color: str, width: float) -> QPen:
@@ -94,6 +95,18 @@ def _alert(path: QPainterPath) -> None:
     path.lineTo(12.0, 18.4)
 
 
+def _help(path: QPainterPath) -> None:
+    """Fragezeichen im Kreis – Hilfe (ToolRail, Ebene 2)."""
+    path.addEllipse(QPointF(12.0, 12.0), 8.0, 8.0)
+    path.moveTo(9.4, 9.3)
+    path.cubicTo(9.6, 7.6, 11.0, 6.6, 12.4, 6.7)
+    path.cubicTo(14.0, 6.8, 15.2, 8.0, 15.1, 9.5)
+    path.cubicTo(15.0, 10.7, 14.2, 11.3, 13.3, 11.9)
+    path.cubicTo(12.6, 12.4, 12.1, 12.9, 12.1, 13.9)
+    path.moveTo(12.1, 17.0)
+    path.lineTo(12.1, 17.2)
+
+
 def _lock(path: QPainterPath) -> None:
     """Schloss – Admin-Bereich (ToolRail, Spec Abschnitt 3)."""
     path.addRoundedRect(6.0, 11.0, 12.0, 8.0, 2.0, 2.0)
@@ -105,7 +118,7 @@ def _lock(path: QPainterPath) -> None:
 
 _BUILDERS = {"scan": _scan, "camera": _camera, "target": _target,
              "plus": _plus, "gear": _gear, "check": _check, "alert": _alert,
-             "lock": _lock}
+             "lock": _lock, "help": _help}
 
 
 def paint(painter: QPainter, name: str, rect: QRectF, color: str,
