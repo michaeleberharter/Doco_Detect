@@ -619,3 +619,33 @@ beseitigt hat. Der Fix ist derselbe: die Qt-Test-Config muss
 `analysis.output_dir` unter `tmp_path` legen. **Nicht aufgeräumt** — wer es
 angeht, entscheidet zuerst, ob `DEMO-T18.png` verschoben oder gelöscht wird
 (Dauerregel: verschieben).
+
+---
+
+## 23. Windows-Verifikation Admin-Panel Stufe 4 (Nachtrag 2026-08-12)
+
+**Fundstelle:** Abschlussmeldung Stufe 4 + Teil B1 (Merge `51d7e53`),
+Abschnitt „Windows-Verifikationsliste" · **Aufwand:** ~20 min an der Box
+· **Gehört auf die Windows-Tagesordnung** (wie Punkt 0).
+
+Stufe 4 ist vollständig gebaut und getestet, aber vier Wege sind am Mac
+prinzipbedingt nur mit gestellten Frames/Demo-Quelle prüfbar gewesen:
+
+1. **Segmentierungs-Test mit echtem CameraWorker — WICHTIGSTER PUNKT:**
+   der Frame-Kanal (`MainWindow._frame_fuer_admin` →
+   `SegTestPage._frame_erhalten`) liefert Frames aus dem
+   CameraWorker-Thread; die Zustellung in den GUI-Thread hängt an der
+   QueuedConnection auf die gebundene QObject-Methode. Am Mac lief nur
+   die GUI-Thread-DemoSource — der Cross-Thread-Weg ist UNGEPRÜFT.
+   An der Box: Testaufnahme mit aufgelegtem Objekt, Maske/Overlay/
+   Messwerte plausibel, kein Freeze/Crash.
+2. **Kamera-Diagnose am DSHOW-Backend:** Backend-Anzeige, Focus-Lock
+   „verfügbar", Readback ohne die Mac-Warnung; Geräte-Suche im wirklich
+   kamerafreien Zustand (App ohne Kamera gestartet).
+3. **Fortsetzen-Delegation im echten READY-Zustand** (Kamera +
+   Kalibrierung): Admin → Sessions-Tab → Fortsetzen öffnet den
+   Einlern-Dialog auf der gewählten Session. Am Mac nur per
+   Fake-Callables belegt.
+4. **Verwerfen gegen einen echten Session-Bestand** (Bestätigungsdialog
+   mit Pfaden, Sicherung nach `data/verworfen/`). Am Mac nur gegen
+   Temp-Bestand getestet.
