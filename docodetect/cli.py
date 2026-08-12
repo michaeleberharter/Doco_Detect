@@ -1010,6 +1010,55 @@ def cmd_corpus_triage(args, cfg):
     print(f"[corpus-triage] Befunde: {out}")
 
 
+def cmd_testset_build(args, cfg):
+    """Real-Capture-Testset aus bewerteten Reports einfrieren (Buendel je
+    Zustands-Fingerprint). Ueberspringt statt zu raten, meldet Widersprueche."""
+    from .testset.builder import build_testset
+    stat = build_testset(cfg, quelle=args.quelle, dry_run=args.dry_run)
+    print(f"[testset-build] Quelle: {stat['quelle']}")
+    print(f"[testset-build] {stat['aufgenommen']} aufgenommen, "
+          f"{stat['gesamt_im_testset']} gesamt im Testset"
+          + (f", Snapshots neu: {', '.join(stat['snapshots_neu'])}"
+             if stat["snapshots_neu"] else ""))
+    for grund, n in stat["uebersprungen"].items():
+        print(f"  uebersprungen {grund}: {n}")
+    # Befunde laut ausgeben — sie sind der Zweck des Builders, nicht Beiwerk.
+    for b in stat["befunde"]:
+        print(f"[testset-build] BEFUND: {b}")
+    if stat["dry_run"]:
+        print("[testset-build] dry-run – nichts geschrieben.")
+
+
+def cmd_testset_replay(args, cfg):
+    """Alle Testset-Buendel durchrechnen. REIN BERICHTEND, kein Gate —
+    Exit 1 nur bei Abweichungen/Fehlern, damit Skripte sie nicht uebersehen."""
+    import sys
+    from .testset.replay import replay_testset
+    out = replay_testset(cfg, run_id=args.run_id)
+    m = out["metrics"]
+    for meldung in out["plattform_meldungen"]:
+        print(f"[testset-replay] PLATTFORM: {meldung}")
+    if not m["vergleichbar"]:
+        print("[testset-replay] ERGEBNIS NICHT VERGLEICHBAR (Plattform/"
+              "Bibliothek weicht vom Aufnahmezustand ab) — Struktur- und "
+              "Codepruefung ja, Zahlenvergleich nein.")
+    quote = (f"{m['trefferquote']:.1%}" if m["trefferquote"] is not None
+             else "-")
+    print(f"[testset-replay] {m['n']} Aufnahmen | Treffer {m['treffer']}/"
+          f"{m['gewertet']} ({quote}) | decisions {m['decisions']} | "
+          f"false_accept {m['false_accept']} | Abweichungen "
+          f"{m['abweichungen']} | Fehler {m['fehler']}")
+    for r in out["ergebnisse"]:
+        if r["band"] != "pass":
+            print(f"  {r['band'].upper()} {r['snapshot']}/{r['sha'][:8]} "
+                  f"({r['artikel']}): {'; '.join(r['gruende'])}")
+    if m["false_accept"]:
+        print("[testset-replay] INVARIANTE VERLETZT: false_accept > 0.")
+    print(f"[testset-replay] Ergebnis: {out['lauf_dir']}")
+    if m["abweichungen"] or m["fehler"] or m["false_accept"]:
+        sys.exit(1)
+
+
 # ---------- Sandbox-Sperren ----------
 
 # Befehle, die AUSSERHALB der fünf umgelenkten Sandbox-Pfade schreiben. Sie
@@ -1039,6 +1088,13 @@ SANDBOX_GESPERRT = {
 SANDBOX_GESPERRT.update({
     cmd: SANDBOX_GESPERRT["corpus-build"]
     for cmd in ("corpus-run", "corpus-diff", "corpus-report", "corpus-triage")
+})
+SANDBOX_GESPERRT.update({
+    cmd: "Das Real-Capture-Testset liest und schreibt ausserhalb der "
+         "Sandbox (paths.testset_dir, testset/manifest.json). Ein Buendel, "
+         "das einen Sandbox-Bestand als Aufnahmezustand einfriert, misst "
+         "nichts Produktives."
+    for cmd in ("testset-build", "testset-replay")
 })
 
 
@@ -1286,6 +1342,20 @@ def main(argv=None):
                        help="Failures eines Laufs clustern (nur Befunde)")
     p.add_argument("run_id")
 
+    p = sub.add_parser("testset-build",
+                       help="Real-Capture-Testset aus bewerteten Reports "
+                            "einfrieren (Buendel je Zustands-Fingerprint; "
+                            "ueberspringt statt raten, meldet Widersprueche)")
+    p.add_argument("--quelle", default=None,
+                   help="Report-Ordner (Default: paths.captures_dir)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="nur zaehlen und melden, nichts schreiben")
+
+    p = sub.add_parser("testset-replay",
+                       help="alle Testset-Buendel durchrechnen (rein "
+                            "berichtend, kein Gate; Exit 1 bei Abweichung)")
+    p.add_argument("--run-id", default=None)
+
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
 
@@ -1334,6 +1404,8 @@ def main(argv=None):
         "corpus-diff": cmd_corpus_diff,
         "corpus-report": cmd_corpus_report,
         "corpus-triage": cmd_corpus_triage,
+        "testset-build": cmd_testset_build,
+        "testset-replay": cmd_testset_replay,
     }[args.cmd](args, cfg)
 
 

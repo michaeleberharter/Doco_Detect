@@ -413,6 +413,78 @@ def _fingerabdruck(cfg: dict) -> dict:
     }
 
 
+def _db_zustand_sha256(db: Database) -> str:
+    """Hash des wirksamen DB-Stands: Stammdaten + reference_features +
+    reference_stats, deterministisch sortiert.
+
+    BEWUSST OHNE ids und Zeitstempel (created_unix/updated_unix): die
+    identifizieren die Entstehungs-HISTORIE, nicht den wirksamen Zustand.
+    Eine identisch reproduzierte Einlernung (Sandbox, Wiederholung) soll
+    denselben Fingerabdruck tragen — sonst zersplittert das Testset in
+    Snapshots, die sich in keinem gerechneten Wert unterscheiden. Die
+    Gegenrichtung (zwei verschiedene Zustaende, ein Hash) ist damit nicht
+    moeglich, weil alle wirksamen Spalten eingehen."""
+    h = hashlib.sha256()
+    abfragen = (
+        ("articles",
+         "SELECT article_number, name, category, diameter_mm, width_mm, "
+         "depth_mm, height_mm, color_desc, notes FROM articles "
+         "ORDER BY article_number"),
+        ("reference_features",
+         "SELECT article_number, image_path, features_json "
+         "FROM reference_features ORDER BY article_number, id"),
+        ("reference_stats",
+         "SELECT article_number, stats_json FROM reference_stats "
+         "ORDER BY article_number"),
+    )
+    for name, sql in abfragen:
+        h.update(name.encode("utf-8"))
+        for zeile in db.conn.execute(sql):
+            # list(): db.conn liefert sqlite3.Row, das json nicht kennt
+            h.update(json.dumps(list(zeile), ensure_ascii=False).encode("utf-8"))
+    return h.hexdigest()
+
+
+# Reihenfolge der Komponenten im Gesamt-Fingerprint — fest, damit der Wert
+# ueber Versionen stabil bleibt. Der Builder (docodetect/testset) benennt
+# Snapshots nach fingerprint[:12].
+_ZUSTAND_KOMPONENTEN = ("calibration_sha256", "background_sha256",
+                        "db_zustand_sha256", "features_cfg_sha256",
+                        "matching_cfg_sha256")
+
+
+def aufnahme_zustand(cfg: dict, db: Database) -> dict:
+    """Vollstaendiger Aufnahmezustand einer Identifikation als Hashes plus
+    Klartext-Umfeld — die Schreibpfad-Haelfte des Testset-Harness
+    (docodetect/testset liest NUR diesen Block, rekonstruiert nie).
+
+    Baut auf _fingerabdruck (Optik + features-Config) auf und ergaenzt den
+    matching-Block (wirksame Schwellen) und den DB-Stand. Verglichen werden
+    die Hashes; mm_per_px/camera_height_mm und der Plattform-Block stehen
+    daneben, damit Meldungen beziffern koennen und der Plattform-Waechter
+    des Replays Mac-/Windows-Ergebnisse auseinanderhalten kann.
+    `camera_backend_override` ist camera.backend aus der Config (None =
+    Plattform-Default aus camera.capture_backend); das Backend selbst wird
+    hier nicht ermittelt, weil die Pipeline nie ein Geraet oeffnet."""
+    import platform
+    zustand = _fingerabdruck(cfg)
+    zustand["matching_cfg_sha256"] = hashlib.sha256(
+        json.dumps(cfg.get("matching", {}), sort_keys=True,
+                   default=str).encode("utf-8")).hexdigest()
+    zustand["db_zustand_sha256"] = _db_zustand_sha256(db)
+    gesamt = hashlib.sha256()
+    for k in _ZUSTAND_KOMPONENTEN:
+        gesamt.update(zustand[k].encode("utf-8"))
+    zustand["fingerprint"] = gesamt.hexdigest()
+    zustand["system"] = platform.system()
+    zustand["plattform"] = platform.platform()
+    zustand["python"] = platform.python_version()
+    zustand["opencv"] = cv2.__version__
+    zustand["numpy"] = np.__version__
+    zustand["camera_backend_override"] = (cfg.get("camera") or {}).get("backend")
+    return zustand
+
+
 def _pruefe_fingerabdruck(cfg: dict, session: EnrollSession) -> None:
     """Wirft kind='fingerprint', wenn sich der Optikzustand seit dem Anlegen
     geaendert hat. Sonst mischte eine sigma_enroll zwei Optikzustaende."""
@@ -1482,19 +1554,35 @@ class Pipeline:
     def _save_capture_and_report(self, report: MatchReport,
                                  image: np.ndarray | None) -> None:
         """Jede Identifikation hinterlässt Capture + Report-JSON in
-        data/captures/ – Futter für das Scoring-Dashboard (Batch-Analyse).
+        data/captures/ – Futter für das Scoring-Dashboard (Batch-Analyse)
+        und Quelle des Testset-Builders (docodetect/testset).
         Ohne paths.captures_dir (z.B. synthetische Tests) wird nichts
-        geschrieben; bei identify --image bleibt image_path das Original."""
+        geschrieben; bei identify --image bleibt image_path das Original.
+        paths.save_captures=false schaltet NUR das Bild ab — das Report-JSON
+        traegt die Bewertung (save_verdict) und faellt nie weg.
+
+        PNG statt JPG (2026-08-12): der Report entsteht auf dem ROHEN Frame;
+        ein verlustbehaftetes Capture kann ihn beim Replay nicht
+        reproduzieren. Die 26 JPGs der Qt-Aera sind genau daran nicht exakt
+        nachrechenbar (docs/2026-08-12-qt-captures-jpg-verlustbehaftet.md)."""
         cap = self.cfg.get("paths", {}).get("captures_dir")
         if not cap:
             return
         d = resolve(cap)
         d.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
-        if report.image_path is None and image is not None:
-            p = d / f"{ts}.jpg"
+        if report.image_path is None and image is not None \
+                and self.cfg.get("paths", {}).get("save_captures", True):
+            p = d / f"{ts}.png"
             cv2.imwrite(str(p), image)
             report.image_path = str(p)
+        try:
+            report.zustand = aufnahme_zustand(self.cfg, self.db)
+        except Exception as exc:                       # noqa: BLE001
+            # Die Identifikation ist gelaufen; ein Provenienz-Fehler darf den
+            # Report nicht verwerfen. Der Grund steht IM Block — der Builder
+            # ueberspringt solche Reports und meldet sie, nichts ist still.
+            report.zustand = {"fehler": f"{type(exc).__name__}: {exc}"}
         json_path = d / f"{ts}.json"
         report.report_path = str(json_path)   # Feedback (richtig/falsch) schreibt hierhin zurück
         json_path.write_text(report.to_json(), encoding="utf-8")

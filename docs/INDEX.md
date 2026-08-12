@@ -175,6 +175,15 @@ stehen in [../CLAUDE.md](../CLAUDE.md), Architektur in
   keine Rechenarbeit. Schätzung 1,5–2 Tage (nur Tabellen) bzw. 4–5 Tage
   (mit Diagrammen).
 
+- **2026-08-12** — [Qt-Ära-Captures verlustbehaftet (JPG)](2026-08-12-qt-captures-jpg-verlustbehaftet.md):
+  seit der Qt-Umstellung wurden Live-Captures als JPG gespeichert; die 26
+  JPGs der Qt-Ära sind nicht exakt nachrechenbar. Fix: PNG, `save_captures`
+  wieder verdrahtet, `zustand`-Block in jedem Report.
+- **2026-08-12** — [Testset: Windows-Inbetriebnahme](2026-08-12-testset-windows-inbetriebnahme.md):
+  Real-Capture-Testset-Harness (docodetect/testset) — Sammeln, Bewerten,
+  `testset-build` VOR jeder Zustandsänderung, `testset-replay` rein
+  berichtend; gehört zur Windows-Sitzung neben Vormerkliste 23/25/28.
+
 ## Referenz (nicht chronologisch)
 
 - [architektur.md](architektur.md) — zweistufige Pipeline, Modulgrenzen, Messpfad.

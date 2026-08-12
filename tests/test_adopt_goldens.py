@@ -246,9 +246,10 @@ def test_main_lehnt_era_abweichung_mit_exit_1_ab(tmp_path, fixture_satz, monkeyp
 
 
 def test_jpg_quelle_behaelt_ihre_endung(tmp_path, fixture_satz):
-    """Die Fotobox schreibt .jpg (pipeline.py). Ein Umbenennen nach .png
-    legte JPEG-Inhalt unter einen PNG-Namen — die Datei behaelt deshalb die
-    Endung ihrer Quelle und wird bitgleich uebernommen."""
+    """Die Fotobox schrieb in der Qt-Aera .jpg (bis 2026-08-12, seither
+    wieder .png). Ein Umbenennen nach .png legte JPEG-Inhalt unter einen
+    PNG-Namen — die Datei behaelt deshalb die Endung ihrer Quelle und wird
+    bitgleich uebernommen."""
     quelle = tmp_path / "kamera.jpg"
     cv2.imwrite(str(quelle), _mit_objekt(_boden()))
     bg = cv2.imread(str(fixture_satz["bg"]))

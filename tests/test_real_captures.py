@@ -170,7 +170,8 @@ def test_scipy_vorhanden():
 
 def _szenendatei(scene_id: str) -> Path:
     """Pfad der Szenendatei. Die Endung steht im Manifest, weil die Fotobox
-    `.jpg` liefert (pipeline.py) und aeltere Bestaende `.png` waren — das
+    zeitweise `.jpg` lieferte (Qt-Aera bis 2026-08-12, seither wieder
+    `.png` — docs/2026-08-12-qt-captures-jpg-verlustbehaftet.md) — das
     Fixture behaelt die Endung seiner Quelle, statt umbenannt oder
     umkodiert zu werden."""
     eintrag = _szenen().get(scene_id, {})
