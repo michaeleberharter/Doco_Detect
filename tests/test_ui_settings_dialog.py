@@ -245,6 +245,45 @@ def test_bewertungsleiste_nur_sichtbarkeit(qapp, tmp_path,
         w.deleteLater()
 
 
+def test_skalierungs_hinweisbox_schliesst_sich_selbst(qapp):
+    """Kiosk-Autostart: die nicht-modale Start-Hinweisbox darf nicht
+    dauerhaft über der Live-Vorschau stehen — sie schliesst sich nach
+    hinweis_ms selbst (Klärung 3, 2026-08-12)."""
+    import time
+
+    from PySide6.QtWidgets import QMainWindow, QMessageBox
+
+    from docodetect.ui_qt.app import _skalierungs_kontrolle
+
+    win = QMainWindow()
+    win.show()
+    try:
+        _skalierungs_kontrolle(
+            qapp, win, {"window_min_width": 1280, "window_min_height": 800},
+            {"gesetzt": [], "scale_gespeichert": 150, "scale_angewendet": 125},
+            hinweis_ms=50)
+
+        def offene_boxen():
+            out = []
+            for w in qapp.topLevelWidgets():
+                try:
+                    if isinstance(w, QMessageBox) and w.isVisible():
+                        out.append(w)
+                except RuntimeError:      # WA_DeleteOnClose: schon zerstört
+                    pass
+            return out
+
+        assert len(offene_boxen()) == 1, "Hinweisbox erschien nicht"
+        ende = time.monotonic() + 3.0
+        while offene_boxen() and time.monotonic() < ende:
+            qapp.processEvents()
+            time.sleep(0.01)
+        assert not offene_boxen(), "Hinweisbox schliesst sich nicht selbst"
+    finally:
+        win.close()
+        win.deleteLater()
+
+
 def test_dialog_aenderung_erreicht_das_hauptfenster(qapp, tmp_path,
                                                     kein_neustart_hinweis):
     """geaendert-Signal -> MainWindow liest effective_ui neu (self.ui)."""

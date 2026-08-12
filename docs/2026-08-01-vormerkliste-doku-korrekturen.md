@@ -731,3 +731,33 @@ passt vollständig auf den Schirm, untere Aktionsleiste erreichbar,
 Start-Hinweisbox erscheint bei begrenzter Stufe. Kippt das
 Zusammenspiel (doppelte Skalierung), Befund dokumentieren und den
 Deckel gegen die dann effektive Basis nachziehen.
+
+---
+
+## 26. Weisser Text auf Zustands-Vollflächen unterschreitet den Kontrast (Nachtrag 2026-08-12)
+
+**Fundstelle:** Kontrastmessung im Zuge von feature/ui-einstellungen
+· **Aufwand:** ~2 h · **Bestand aus dem UI-Redesign (Juli), NICHT aus
+diesem Vorgang** — preview.py und result_card.py waren dort unangetastet.
+
+Drei Stellen zeichnen Text/Strich hartkodiert in #ffffff auf eine
+Zustands-Vollfläche, in beiden Themes identisch: Mess-Chips im
+Vorschau-Overlay (preview.py:211-215), Randberührungs-Banner
+(preview.py:247-251), Badge-Häkchen (result_card.py:270-276).
+
+Gemessene WCAG-Kontraste, weisser Text auf Vollfläche:
+  hell:   ok 4.38 | warn 3.64 | bad 4.77
+  dunkel: ok 2.66 | warn 2.17 | bad 3.50
+Schwelle: 4.5:1 für normalen Text, 3:1 für grossen/fetten Text und
+UI-Elemente. Der dunkle Default ist der schlechteste Fall.
+
+**Lösungsrichtung: Textfarbe pro Theme, NICHT die Token ändern.** Dunkler
+Text auf den hellen, gesättigten Dunkel-Theme-Tönen ergibt 7.89 / 9.69 /
+6.01, ohne dass ein einziger Farbwert im Token-Set aus design/ui-redesign/
+angefasst wird. Im hellen Theme bleibt Weiss richtig; dort ist nur warn
+(3.64) knapp — entweder Chip-Text fetten bzw. eine Stufe grösser (dann
+gilt die 3:1-Schwelle und es passt), oder den warn-Ton absenken.
+
+**Relevanz:** der Operator unterscheidet drei Zustände über die Farbe,
+und es ist der Screen, den er am häufigsten sieht — unter Hallenlicht,
+nicht am Schreibtisch.

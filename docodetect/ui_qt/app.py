@@ -202,26 +202,43 @@ def run(cfg: dict, demo: bool = False) -> int:
 
 
 def _skalierungs_kontrolle(app: QApplication, win, ui: dict,
-                           start: dict) -> None:
+                           start: dict, hinweis_ms: int = 20_000) -> None:
     """Schirm-Basis für den Start-Deckel des NÄCHSTEN Laufs speichern und
     den Operator SICHTBAR informieren, wenn die Skalierung begrenzt wurde
-    oder das Fenster nicht auf den Schirm passt (Station an kleinerem
-    Monitor; der Deckel greift dann erst beim nächsten Start, weil die
-    gespeicherte Basis noch vom alten Schirm stammt).
+    oder das Fenster nicht auf den Schirm passt.
+
+    Die Basis kommt vom grössten VERBUNDENEN Schirm (beste_schirm_basis
+    über QGuiApplication.screens()), nicht vom Startschirm des Fensters —
+    sonst pendelte die angewendete Skalierung am Mehrschirm-Arbeitsplatz
+    zwischen den Läufen (Klärung 2026-08-12).
+
+    VERBLEIBENDER, BEWUSST NUR DOKUMENTIERTER FALL: Sind zwei Schirme
+    verbunden und öffnet das Fenster auf dem KLEINEREN, kommt die Basis
+    vom grösseren — kein Deckel, und auf dem aktuellen Schirm passt das
+    Fenster nicht. Auflösung für den Nutzer (so sagt es auch die Box):
+    Fenster auf den grösseren Schirm ziehen oder Stufe senken. An der
+    Fotobox (ein Schirm) existiert der Fall nicht.
 
     Die Box ist bewusst NICHT modal (ein Kiosk-Autostart darf nicht auf
-    einen OK-Klick warten) und ersetzt keine gespeicherte Einstellung —
-    der QSettings-Wert bleibt stehen und gilt am grossen Schirm wieder."""
+    einen OK-Klick warten), schliesst sich nach `hinweis_ms` selbst und
+    ersetzt keine gespeicherte Einstellung — der QSettings-Wert bleibt
+    stehen und gilt am grossen Schirm wieder."""
     from . import settings
     from PySide6.QtWidgets import QMessageBox
 
-    screen = win.screen() or app.primaryScreen()
-    if screen is None:                       # offscreen-Extremfall
+    schirme = app.screens()
+    if not schirme:                          # offscreen-Extremfall
         return
-    avail = screen.availableGeometry()
     f = settings.aktueller_scale_faktor()
-    settings.speichere_schirm_basis(avail.width() * f, avail.height() * f)
+    min_w = int(ui["window_min_width"])
+    min_h = int(ui["window_min_height"])
+    basis = settings.beste_schirm_basis(
+        [(s.availableGeometry().width() * f,
+          s.availableGeometry().height() * f) for s in schirme],
+        min_w, min_h)
+    settings.speichere_schirm_basis(basis[0], basis[1])
 
+    aktueller = (win.screen() or schirme[0]).availableGeometry()
     meldung = None
     if start["scale_angewendet"] != start["scale_gespeichert"]:
         meldung = (
@@ -231,14 +248,26 @@ def _skalierungs_kontrolle(app: QApplication, win, ui: dict,
             "Die gespeicherte Einstellung bleibt unverändert und gilt "
             "wieder, sobald die Station an einem grösseren Bildschirm "
             "hängt.")
-    elif (int(ui["window_min_width"]) > avail.width()
-          or int(ui["window_min_height"]) > avail.height()):
-        meldung = (
-            "Der Bildschirm ist kleiner als das Fenster bei der aktuellen "
-            "UI-Skalierung — vermutlich hängt die Station jetzt an einem "
-            "kleineren Monitor. Beim nächsten Start wird die Skalierung "
-            "automatisch begrenzt; alternativ jetzt im Einstellungsdialog "
-            "(Zahnrad) eine kleinere Stufe wählen und neu starten.")
+    elif min_w > aktueller.width() or min_h > aktueller.height():
+        # Zwei wahrheitsgemässe Texte: eine Begrenzung beim nächsten
+        # Start darf die Box nur versprechen, wenn sie auch kommt — bei
+        # verbundenem grösserem Schirm kommt sie nicht (Basis oben).
+        erlaubt = settings.erlaubte_skalierungen(min_w, min_h,
+                                                 basis[0], basis[1])
+        if start["scale_angewendet"] in erlaubt:
+            meldung = (
+                "Das Fenster passt nicht auf DIESEN Bildschirm, wohl aber "
+                "auf einen grösseren verbundenen. Fenster auf den grösseren "
+                "Bildschirm ziehen — oder im Einstellungsdialog (Zahnrad) "
+                "eine kleinere Skalierungsstufe wählen und neu starten.")
+        else:
+            meldung = (
+                "Der Bildschirm ist kleiner als das Fenster bei der "
+                "aktuellen UI-Skalierung — vermutlich hängt die Station "
+                "jetzt an einem kleineren Monitor. Beim nächsten Start wird "
+                "die Skalierung automatisch begrenzt; alternativ jetzt im "
+                "Einstellungsdialog (Zahnrad) eine kleinere Stufe wählen "
+                "und neu starten.")
     if meldung:
         print(f"[ui] Skalierungs-Hinweis: {meldung.splitlines()[0]}")
         box = QMessageBox(win)
@@ -248,3 +277,15 @@ def _skalierungs_kontrolle(app: QApplication, win, ui: dict,
         box.setModal(False)
         box.setAttribute(Qt.WA_DeleteOnClose, True)
         box.show()
+        # Selbsttätig schliessen: im Kiosk-Autostart darf kein Fenster
+        # dauerhaft über der Live-Vorschau stehen. Die Statuszeile ist
+        # bewusst KEIN Ersatzort — im Passt-nicht-Fall ist genau der
+        # untere Rand abgeschnitten, und set_warning wird vom
+        # CameraWorker bei jedem (Re-)Connect überschrieben. Dauerhaft
+        # nachlesbar bleibt der Zustand im Einstellungsdialog
+        # (scale_hinweis) und in der Log-Zeile darüber.
+        from PySide6.QtCore import QTimer
+        schliesser = QTimer(box)              # stirbt mit der Box
+        schliesser.setSingleShot(True)
+        schliesser.timeout.connect(box.close)
+        schliesser.start(max(1, int(hinweis_ms)))

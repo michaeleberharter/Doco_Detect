@@ -196,6 +196,24 @@ def erlaubte_skalierungen(min_w: int, min_h: int,
     return out
 
 
+def beste_schirm_basis(geometrien, min_w: int, min_h: int):
+    """Aus den verfügbaren Geometrien ALLER verbundenen Schirme die des
+    Schirms, der die grösste Skalierungsstufe erlaubt (Breiten- UND
+    Höhenlimit zählen — deshalb kein unabhängiges max je Achse, das aus
+    einem Hoch- und einem Querformat eine Geometrie zusammensetzte, die
+    kein realer Schirm hat).
+
+    Entscheidung 2026-08-12 (Mehrschirm-Klärung): Basis je Lauf vom
+    grössten verbundenen Schirm statt vom Startschirm des Fensters —
+    am Entwicklungs-Mac (Laptop + externer Monitor) pendelt die
+    angewendete Skalierung damit nicht mehr zwischen den Läufen; nach
+    dauerhaftem Umzug an einen kleineren Monitor (allein verbunden)
+    greift der Deckel weiterhin ab dem Folgestart."""
+    def _kapazitaet(g):
+        return min(g[0] / max(1, min_w), g[1] / max(1, min_h))
+    return max(geometrien, key=_kapazitaet)
+
+
 def aktueller_scale_faktor() -> float:
     """Der beim Start wirksam gewordene QT_SCALE_FACTOR (1.0 wenn keiner).
     Nötig, um availableGeometry (in bereits skalierten Einheiten) auf die

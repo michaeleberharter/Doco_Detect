@@ -201,6 +201,24 @@ def test_start_ohne_basis_wendet_die_stufe_unveraendert_an(ini, monkeypatch):
     monkeypatch.delenv("QT_SCALE_FACTOR", raising=False)
 
 
+def test_beste_schirm_basis_nimmt_den_schirm_mit_der_groessten_stufe():
+    """Mehrschirm-Entscheidung 2026-08-12: Basis vom verbundenen Schirm,
+    der die grösste Skalierung erlaubt — nicht vom Startschirm."""
+    laptop, extern = (1512, 950), (2560, 1415)
+    assert st.beste_schirm_basis([laptop, extern], 1280, 800) == extern
+    assert st.beste_schirm_basis([extern, laptop], 1280, 800) == extern
+    assert st.beste_schirm_basis([laptop], 1280, 800) == laptop
+
+
+def test_beste_schirm_basis_setzt_keine_achsen_zusammen():
+    """Hoch- + Querformat: es zählt der real beste EINZELSCHIRM (beide
+    Limits gemeinsam), nie ein unabhängiges Achsen-Maximum (1920x1920
+    hat kein Schirm)."""
+    quer, hoch = (1920, 1080), (1080, 1920)
+    # quer: min(1920/1280, 1080/800) = 1.35 > hoch: min(0.84, 2.4) = 0.84
+    assert st.beste_schirm_basis([quer, hoch], 1280, 800) == quer
+
+
 def test_start_deckelt_winzige_basis_auf_100(ini, monkeypatch):
     monkeypatch.delenv("QT_SCALE_FACTOR", raising=False)
     st.speichere_schirm_basis(1300, 820, ini)
