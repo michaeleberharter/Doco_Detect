@@ -764,7 +764,15 @@ nicht am Schreibtisch.
 
 ---
 
-## 27. Zwei Frame-Wartepfade ohne Timeout (Nachtrag 2026-08-12)
+## 27. ✅ ERLEDIGT 2026-08-13 — Zwei Frame-Wartepfade ohne Timeout (Nachtrag 2026-08-12)
+
+> **Umgesetzt auf feature/frame-timeout:** beide Wartestellen
+> (`calibrate_dialog.py`, `segtest_page.py`) haben jetzt das
+> `_frame_ausgeblieben`-Muster des Einlern-Dialogs samt dessen
+> Zeitgrenze (`_FRAME_TIMEOUT_MS`, wiederverwendet statt dupliziert) —
+> nach Ablauf Zustandsmeldung, Knopf wieder frei, erneut auslösbar;
+> die Hilfetexte (admin-diagnose.md, einrichtung.md) beschreiben das
+> neue Verhalten. Der Text unten bleibt als Herleitung stehen.
 
 **Fundstelle:** Sichtung im Zuge von feature/ui-hilfe · **Aufwand:**
 klein · eigener Vorgang.

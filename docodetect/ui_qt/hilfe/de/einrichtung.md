@@ -32,7 +32,7 @@ Hintergrund, dann Kalibrieren — der Dialog weist darauf hin, wenn der
 Hintergrund fehlt.
 
 - 🔴 **ROT** — Die Technik legt den Marker flach und mittig ein, kalibriert und prüft das Ergebnis (mm/px) gegen die bisherige Größenordnung — ein Sprung heißt: Marker falsch erkannt. Schlägt der Vorgang fehl, nennt die Meldung die Abhilfe (Druckqualität, Beleuchtung, Marker flach aufliegend) — derzeit auf Englisch.
-- 🟡 **GELB** — Zeigt der Dialog dauerhaft „Warte auf Kamerabild…“ oder bleibt nach dem Klick „Messe…“ stehen, ist die Kamera ausgefallen: „Abbrechen“, Kamera prüfen (→ [Keine Kamera gefunden](hilfe:keine-kamera)), Dialog erneut öffnen.
+- 🟡 **GELB** — Bleibt nach dem Klick „Messe…“ stehen, endet das Warten nach kurzer Wartezeit von selbst: „Noch kein Bild von der Kamera erhalten – erneut versuchen.“ Das ist eine Zustandsmeldung, kein Fehler — „Kalibrieren“ ist wieder frei, der Dialog muss dafür nicht geschlossen werden. Zeigt die kleine Vorschau dauerhaft „Warte auf Kamerabild…“, ist die Kamera ausgefallen: Kamera prüfen (→ [Keine Kamera gefunden](hilfe:keine-kamera)).
 
 ## Einlernen
 

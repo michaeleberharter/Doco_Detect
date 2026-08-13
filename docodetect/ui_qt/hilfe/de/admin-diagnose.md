@@ -26,4 +26,4 @@ Kontur-Overlay und Messwerte — ohne Datenbank-Zugriff, ohne Buchung.
 
 - 🟡 **GELB** — „Testaufnahme“ drücken; „Nicht messbar: …“ ist hier das ERWARTETE Diagnose-Ergebnis (etwa bei leerer Box oder Randberührung), kein Absturz.
 - 🟡 **GELB** — „Segmentierungs-Test deaktiviert — keine Kamera-Frame-Quelle“: Der Test braucht die verbundene Kamera des Hauptfensters (oder den Demo-Modus); ohne sie bleibt die Seite bewusst aus.
-- 🟡 **GELB** — Bleibt „Warte auf Frame vom Hauptfenster …“ stehen (Kamera genau in dem Moment ausgefallen), gibt es derzeit keinen automatischen Abbruch: Kamera prüfen → [Keine Kamera gefunden](hilfe:keine-kamera), dann erneut versuchen.
+- 🟡 **GELB** — „Warte auf Frame vom Hauptfenster …“ (Kamera genau in dem Moment ausgefallen) endet nach kurzer Wartezeit von selbst: „Noch keinen Frame vom Hauptfenster erhalten – erneut versuchen.“ Das ist eine Zustandsmeldung, kein Fehler — der Knopf ist wieder frei. Kommt weiter kein Frame: Kamera prüfen → [Keine Kamera gefunden](hilfe:keine-kamera).

@@ -210,6 +210,46 @@ def test_segtest_misst_gestellten_frame(qapp, tmp_path, monkeypatch):
     assert "Messung fertig" in w["status"]
 
 
+def test_segtest_timeout_entsperrt_und_bleibt_ausloesbar(qapp, tmp_path,
+                                                         monkeypatch):
+    """Vormerkliste 27: Frame bleibt aus -> Timeout greift -> Meldung steht
+    -> Knopf wieder frei -> erneut ausloesbar, ohne die Seite zu verlassen.
+    Der Frame-Kanal ist dabei unberuehrt: die Anforderung kommt an
+    (ok=True), nur der Frame bleibt aus; ein verspaeteter Frame nach dem
+    Timeout faellt ins Warte-Flag."""
+    import time
+
+    from docodetect.ui_qt.admin.pages import segtest_page as mod
+
+    monkeypatch.setattr(mod, "_FRAME_TIMEOUT_MS", 60)
+    anforderungen = []
+
+    def frame_anfordern(cb):
+        anforderungen.append(cb)
+        return True                # Kanal ok — es kommt nur nie ein Frame
+
+    seite = mod.SegTestPage(_cfg(tmp_path), frame_anfordern=frame_anfordern)
+    seite.testaufnahme()
+    assert len(anforderungen) == 1
+    assert not seite.aufnahme_button.isEnabled()
+    assert "Warte auf Frame" in seite.werte()["status"]
+
+    ende = time.monotonic() + 5.0
+    while seite._warte_auf_frame and time.monotonic() < ende:
+        qapp.processEvents()
+    assert seite._warte_auf_frame is False, "der Timer beendet das Warten"
+    assert "erneut versuchen" in seite.werte()["status"].lower()
+    assert seite.aufnahme_button.isEnabled(), "Knopf wieder frei"
+
+    anforderungen[0](_frame())     # verspaeteter Frame: verworfen, kein Worker
+    assert seite._worker is None
+    assert "erneut versuchen" in seite.werte()["status"].lower()
+
+    seite.testaufnahme()
+    assert len(anforderungen) == 2, "erneutes Ausloesen ohne Seitenwechsel"
+    assert "Warte auf Frame" in seite.werte()["status"]
+
+
 def test_segtest_segmentierungsfehler_als_text(qapp, tmp_path, monkeypatch):
     import time
 

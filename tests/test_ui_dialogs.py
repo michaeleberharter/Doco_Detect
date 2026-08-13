@@ -138,6 +138,66 @@ def test_kalibrieren_ohne_marker_nennt_die_abhilfe(qapp, demo_cfg, source):
     assert dlg.primary_button.isEnabled(), "Wiederholen muss moeglich bleiben"
 
 
+class _StummeQuelle:
+    """Frame-Quelle wie DemoSource, liefert auf request_full_frame aber NIE
+    ein Bild – genau der Fall, den der Timeout abfangen muss
+    (Vormerkliste 27: Kamera stirbt im Moment des Klicks)."""
+
+    class _Sig:
+        def connect(self, slot):
+            pass
+
+    def __init__(self):
+        self.angefordert = 0
+
+    @property
+    def frame_ready(self):
+        return self._Sig()
+
+    @property
+    def full_frame_ready(self):
+        return self._Sig()
+
+    def request_full_frame(self):
+        self.angefordert += 1
+
+
+def test_kalibrieren_timeout_entsperrt_und_bleibt_ausloesbar(qapp, demo_cfg,
+                                                             monkeypatch):
+    """Vormerkliste 27: Frame bleibt aus -> Timeout greift -> Meldung steht
+    -> „Kalibrieren“ wieder frei -> erneut ausloesbar, ohne den Dialog zu
+    schliessen. Vorher blieb „Messe…“ dauerhaft stehen."""
+    from docodetect.ui_qt.widgets import calibrate_dialog as cd
+
+    monkeypatch.setattr(cd, "_FRAME_TIMEOUT_MS", 60)
+    quelle = _StummeQuelle()
+    dlg = cd.CalibrateDialog(demo_cfg, quelle)
+    dlg.primary_button.click()
+    assert quelle.angefordert == 1
+    assert not dlg.primary_button.isEnabled()
+    assert dlg.primary_button.text() == "Messe…"
+    assert _wait(qapp, lambda: not dlg._awaiting_frame, timeout=5.0), \
+        "der Timer beendet das Warten"
+    assert "erneut versuchen" in dlg.status.text().lower()
+    assert dlg.primary_button.isEnabled(), "Knopf wieder frei"
+    assert dlg.primary_button.text() == "Kalibrieren"
+
+    dlg.primary_button.click()
+    assert quelle.angefordert == 2, "erneutes Ausloesen ohne Schliessen"
+    assert dlg._awaiting_frame is True
+
+
+def test_frame_timeout_ist_die_eine_einlern_zeitgrenze():
+    """Keine zweite Konstante (Vormerkliste 27): beide neuen Wartepfade
+    verwenden DIE Zeitgrenze des Einlern-Dialogs wieder."""
+    from docodetect.ui_qt.admin.pages import segtest_page as sp
+    from docodetect.ui_qt.widgets import calibrate_dialog as cd
+    from docodetect.ui_qt.widgets import enroll_dialog as ed
+
+    assert cd._FRAME_TIMEOUT_MS == ed._FRAME_TIMEOUT_MS
+    assert sp._FRAME_TIMEOUT_MS == ed._FRAME_TIMEOUT_MS
+
+
 # ---------- Einlernen ----------
 
 def test_toleranz_ist_nur_information_und_nicht_editierbar(qapp, demo_cfg,
