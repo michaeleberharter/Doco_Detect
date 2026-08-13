@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from functools import partial
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy
 
@@ -30,6 +30,7 @@ from ..hilfe import anker as hilfe_anker
 from ..hilfe.fenster import HilfeLink
 from ..pipeline_worker import PipelineWorker
 from .dialog_shell import DialogShell, field_row, read_only
+from .enroll_dialog import _FRAME_TIMEOUT_MS
 
 _PREVIEW_H = 130          # Entwurf
 
@@ -110,15 +111,26 @@ class CalibrateDialog(DialogShell):
         self.status.setWordWrap(True)
         self.body.addWidget(self.status)
 
-        # Ebene-1-Einstieg: immer sichtbar (der Frame-Wartepfad hat keinen
-        # Timeout, Vormerkliste 27 — der Link ist hier der einzige Wegweiser);
-        # bei fehlendem Hintergrund zielt er auf den Hintergrund-Abschnitt.
+        # Ebene-1-Einstieg: immer sichtbar; bei fehlendem Hintergrund zielt
+        # er auf den Hintergrund-Abschnitt.
         self.hilfe_link = HilfeLink(cfg, hilfe_anker.KALIBRIEREN_DIALOG)
         self.body.addWidget(self.hilfe_link, alignment=Qt.AlignLeft)
 
         self.primary.connect(self._start)
         source.frame_ready.connect(self.preview.set_frame)
         source.full_frame_ready.connect(self._on_full_frame)
+
+        # Frame-Wartepfad mit Abbruchbedingung — dasselbe Muster wie im
+        # Einlern-Dialog (_frame_ausgeblieben), inklusive dessen Zeitgrenze.
+        self._frame_timer = QTimer(self)
+        self._frame_timer.setSingleShot(True)
+        self._frame_timer.timeout.connect(self._frame_ausgeblieben)
+        self._kamera_fehler = ""
+        for name, slot in (("camera_error", self._kamera_fehler_gesehen),
+                           ("camera_connected", self._kamera_wieder_da)):
+            signal = getattr(source, name, None)
+            if signal is not None:
+                signal.connect(slot)
 
         self._show_existing()
         self._check_background()
@@ -166,11 +178,13 @@ class CalibrateDialog(DialogShell):
         self._awaiting_frame = True
         self._set_busy(True)
         self.status.setText("")
+        self._frame_timer.start(_FRAME_TIMEOUT_MS)
         self.source.request_full_frame()
 
     def _on_full_frame(self, frame) -> None:
         if not self._awaiting_frame:
             return          # Frame gehörte einer Hauptfenster-Aktion
+        self._frame_timer.stop()
         self._awaiting_frame = False
         w = PipelineWorker(partial(_job_calibrate, frame, self.cfg), self)
         w.finished_ok.connect(self._done)
@@ -179,6 +193,27 @@ class CalibrateDialog(DialogShell):
         w.finished.connect(self._worker_gone)
         self._worker = w
         w.start()
+
+    def _frame_ausgeblieben(self) -> None:
+        """Meldet einen ZUSTAND, keinen Fehler, und gibt den Knopf frei —
+        Begründung der Zeitgrenze bei _FRAME_TIMEOUT_MS im Einlern-Dialog.
+        Ohne ihn bliebe „Messe…“ dauerhaft stehen, Knopf aus, einziger
+        Ausweg „Abbrechen“."""
+        if not self._awaiting_frame:
+            return
+        self._awaiting_frame = False
+        self._set_busy(False)
+        self.status.setText(
+            f"Kamera nicht verbunden – Verbindung wird gesucht. "
+            f"({self._kamera_fehler}) Erneut versuchen."
+            if self._kamera_fehler else
+            "Noch kein Bild von der Kamera erhalten – erneut versuchen.")
+
+    def _kamera_fehler_gesehen(self, text: str) -> None:
+        self._kamera_fehler = text
+
+    def _kamera_wieder_da(self) -> None:
+        self._kamera_fehler = ""
 
     def _worker_gone(self) -> None:
         self._worker = None

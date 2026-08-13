@@ -15,7 +15,7 @@ from typing import Callable, Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPushButton,
                                QTableWidget, QTableWidgetItem, QVBoxLayout,
@@ -26,6 +26,7 @@ from docodetect.pipeline import SegmentationError, measure_shot  # noqa: F401
 from ...pipeline_worker import PipelineWorker
 from ...qimage import bgr_to_qimage, downscale_width
 from ...widgets.common import section_label
+from ...widgets.enroll_dialog import _FRAME_TIMEOUT_MS
 
 _OHNE_QUELLE = ("Segmentierungs-Test deaktiviert — keine Kamera-"
                 "Frame-Quelle (Hauptfenster ohne Kamera oder Admin "
@@ -47,8 +48,16 @@ class SegTestPage(QWidget):
         self.cfg = cfg
         self._frame_anfordern = frame_anfordern
         self._worker: PipelineWorker | None = None
+        self._warte_auf_frame = False
         self._werte: dict = {"messwerte": {}, "maske_gesetzt": False,
                              "overlay_gesetzt": False, "status": ""}
+
+        # Frame-Wartepfad mit Abbruchbedingung — dasselbe Muster wie im
+        # Einlern-Dialog (_frame_ausgeblieben), inklusive dessen Zeitgrenze.
+        # NUR die wartende Seite: Worker und Frame-Kanal bleiben unberührt.
+        self._frame_timer = QTimer(self)
+        self._frame_timer.setSingleShot(True)
+        self._frame_timer.timeout.connect(self._frame_ausgeblieben)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 16, 16, 16)
@@ -110,19 +119,34 @@ class SegTestPage(QWidget):
         self.aufnahme_button.setEnabled(False)
         self._warte_auf_frame = True
         self._set_status("Warte auf Frame vom Hauptfenster …")
+        self._frame_timer.start(_FRAME_TIMEOUT_MS)
         ok = self._frame_anfordern(self._frame_erhalten)
         if not ok:
+            self._frame_timer.stop()
             self._warte_auf_frame = False
             self.aufnahme_button.setEnabled(True)
             self._set_status(_OHNE_QUELLE)
+
+    def _frame_ausgeblieben(self) -> None:
+        """Meldet einen ZUSTAND, keinen Fehler, und gibt den Knopf frei —
+        Begründung der Zeitgrenze bei _FRAME_TIMEOUT_MS im Einlern-Dialog.
+        Ohne ihn bliebe „Warte auf Frame …“ dauerhaft stehen. Ein danach
+        doch noch eintreffender Frame fällt ins Warte-Flag."""
+        if not self._warte_auf_frame:
+            return
+        self._warte_auf_frame = False
+        self.aufnahme_button.setEnabled(self._frame_anfordern is not None)
+        self._set_status("Noch keinen Frame vom Hauptfenster erhalten – "
+                         "erneut versuchen.")
 
     def _frame_erhalten(self, frame) -> None:
         """Slot (gebundene QObject-Methode → QueuedConnection, läuft im
         GUI-Thread; siehe MainWindow._frame_fuer_admin). Unangeforderte
         Frames — z. B. eine Identifikation des Hauptfensters — werden
         über das Warte-Flag verworfen."""
-        if not getattr(self, "_warte_auf_frame", False):
+        if not self._warte_auf_frame:
             return
+        self._frame_timer.stop()
         self._warte_auf_frame = False
         cfg = self.cfg
         self._set_status("Messe …")
