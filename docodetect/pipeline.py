@@ -181,7 +181,10 @@ def save_enrollment(cfg: dict, article_number: str,
             # bei zweistelligen Indizes kippt (_10 vor _2).
             path = ref_dir / f"{ts}_{i:02d}.png"
             cv2.imwrite(str(path), img)
-            pipe.save_reference(article_number, feats, str(path))
+            # reference_dir-relativ, POSIX — dieselbe Form wie
+            # commit_enroll_session; Aufloesen ueber referenzbild_pfad.
+            pipe.save_reference(article_number, feats,
+                                f"{article_number}/{path.name}")
     finally:
         pipe.close()
     return len(shots)
@@ -289,7 +292,8 @@ class EnrollSessionError(RuntimeError):
     einem Typ (SegmentationError traegt `.segmentation`), und jeder Aufrufer
     faengt ohnehin die ganze Familie und verzweigt nur fuer die Abhilfe.
 
-    kind: mount | fingerprint | kollision | datei_fehlt | luecke | invariante
+    kind: mount | schreibprobe | fingerprint | kollision | datei_fehlt |
+          luecke | invariante
     """
 
     def __init__(self, message: str, *, kind: str, detail: dict | None = None):
@@ -382,6 +386,45 @@ def _pruefe_mount(cfg: dict) -> None:
             f"Sessions: {a} · Referenzen: {b}",
             kind="mount",
             detail={"enroll_sessions_dir": str(a), "reference_dir": str(b)})
+
+
+def _pruefe_schreibbar(cfg: dict, article_number: str) -> None:
+    """Das Buchungsziel <reference_dir>/<artikel>/ muss beschreibbar sein —
+    geprueft beim ANLEGEN der Session, nicht erst beim Buchen: sonst
+    scheiterte U1 nach zwoelf Aufnahmen an der Box statt vor der ersten
+    (dieselbe Fail-fast-Absicht wie die Mount-Pruefung; ersetzt den frueher
+    erwogenen Abbruch fuer 'reference_dir nicht darstellbar', der mit dem
+    reference_dir-relativen Anker ersatzlos entfallen ist).
+
+    Geprueft wird der ARTIKELORDNER, nicht die reference_dir-Wurzel: der
+    Ordner existiert im Regelfall bereits (create-article, frueheres
+    Enrollment), und seine Rechte koennen von der Wurzel abweichen — die
+    Wurzel-Probe liefe dann am tatsaechlichen Schreibziel vorbei. Die Probe
+    schreibt in den NAECHSTEN EXISTIERENDEN Vorfahren davon (wie die
+    Mount-Pruefung) und legt damit KEIN Verzeichnis als Nebenwirkung an.
+    Die Probedatei ist eigener Scratch, kein Nutzdatum: Loeschen im finally
+    (best effort), move-don't-delete gilt fuer sie nicht."""
+    ziel = _naechster_vorhandener(
+        resolve(cfg["paths"]["reference_dir"]) / article_number)
+    probe = ziel / f".schreibprobe-{os.getpid()}-{int(time.time() * 1000)}"
+    try:
+        try:
+            with open(probe, "w", encoding="utf-8") as fh:
+                fh.write("schreibprobe")
+        finally:
+            try:
+                probe.unlink()          # auch bei Fehler im Flush/Close
+            except OSError:
+                pass
+    except OSError as e:
+        raise EnrollSessionError(
+            f"Referenzverzeichnis ist nicht beschreibbar (geprueft: {ziel}): "
+            f"{e}. Vor der ersten Aufnahme beheben — sonst scheitert das "
+            "Buchen nach der letzten.",
+            kind="schreibprobe",
+            detail={"reference_dir":
+                        str(resolve(cfg["paths"]["reference_dir"])),
+                    "geprueft": str(ziel), "fehler": str(e)}) from e
 
 
 def _fingerabdruck(cfg: dict) -> dict:
@@ -599,7 +642,7 @@ def _zustand(cfg: dict, session: EnrollSession) -> str:
         if resolve(cfg["paths"]["db_file"]).exists():
             db = Database(cfg)
             try:
-                je = _zeilen_je_pfad(db, session.info.article_number,
+                je = _zeilen_je_pfad(cfg, db, session.info.article_number,
                                      [z for _, _, z in ziele])
             except Exception:
                 je = {}
@@ -622,14 +665,16 @@ def begin_enroll_session(cfg: dict, article_number: str, *,
     die Session selbstbeschreibend: bei spaeterer Fingerabdruck-Abweichung ist
     "alte Kalibrierung zurueckholen" ein echter Ausweg statt einer Sackgasse.
 
-    Prueft VOR dem Anlegen: Mount-Gleichheit (EnrollSessionError kind='mount')
-    und dass der Artikel existiert (KeyError, wie database.add_reference).
+    Prueft VOR dem Anlegen: Mount-Gleichheit (EnrollSessionError kind='mount'),
+    Schreibbarkeit von reference_dir (kind='schreibprobe') und dass der
+    Artikel existiert (KeyError, wie database.add_reference).
     Fail-fast, bevor ein einziger Shot existiert.
 
     SETZT den Fingerabdruck – prueft ihn hier nicht, es gibt noch keinen
     Vergleichswert.
     """
     _pruefe_mount(cfg)
+    _pruefe_schreibbar(cfg, article_number)
     db = Database(cfg)
     try:
         if db.get_article(article_number) is None:
@@ -799,19 +844,56 @@ def _zielpfade(cfg: dict, session: EnrollSession) -> list:
     return [(s.i, s.raw_path, ref / f"{ts}_{s.i:02d}.png") for s in session.shots]
 
 
-def _zeilen_je_pfad(db: Database, article_number: str, ziele: list) -> dict:
+def _referenzbild_absolut(cfg: dict, image_path) -> Path | None:
+    """Gespeicherten reference_features.image_path auf einen absoluten Pfad
+    normalisieren, OHNE Existenzpruefung — die Buchungslogik
+    (_zeilen_je_pfad) ist eine DB-Frage und darf nicht an einer extern
+    geloeschten Datei kippen. Existenz prueft NUR die Lese-Fassade
+    referenzbild_pfad.
+
+    Beide gueltigen Formen (R6, kein Backfill):
+      None/leer            -> None
+      relativ (Normalfall  -> gegen das AKTIVE reference_dir aufgeloest;
+        seit 2026-08-14,      gespeichert wird POSIX
+        "<artikel>/<name>")   ("/"-Trenner, Path versteht das auf
+                              beiden Plattformen)
+      absolut (Altbestand) -> unveraendert. Liegt er unter dem aktiven
+                              reference_dir, ist das rechnerisch identisch
+                              mit 'relativ behandeln' — deshalb keine
+                              eigene Fallunterscheidung.
+    """
+    if not image_path:
+        return None
+    p = Path(str(image_path))
+    if p.is_absolute():
+        return p
+    return resolve(cfg["paths"]["reference_dir"]) / p
+
+
+def _zeilen_je_pfad(cfg: dict, db: Database, article_number: str,
+                    ziele: list) -> dict:
     """ABFRAGEND, wirft nie: Zielpfad (str) -> zeigt eine reference_features-
     Zeile darauf? Einzige Stelle, die diese Zuordnung herstellt; speist den
     Rueckumzug (je Datei) und _pruefe_buchungsstand (aggregiert).
 
+    Normalisiert die gespeicherten Werte ueber _referenzbild_absolut: seit
+    2026-08-14 stehen reference_dir-relative Strings in der DB, der
+    Altbestand traegt absolute — beide muessen gegen die absoluten
+    Zielpfade des Umzugs vergleichbar sein. Kippte dieser Vergleich, waere
+    die DB-Schranke invertiert: commit buchte nach einem Absturz zwischen
+    Transaktion und Aufraeumen alle N Zeilen DOPPELT, und der Rueckumzug
+    zoege gebuchte Referenzen aus reference_dir.
+
     Nutzt references_with_meta statt eigener SQL – database.py bleibt die
     einzige Schicht, die SQLite kennt.
     """
-    vorhanden = {p for p, _ in db.references_with_meta(article_number) if p}
+    vorhanden = {str(_referenzbild_absolut(cfg, p))
+                 for p, _ in db.references_with_meta(article_number) if p}
     return {str(z): str(z) in vorhanden for z in ziele}
 
 
-def _pruefe_buchungsstand(db: Database, article_number: str, ziele: list) -> str:
+def _pruefe_buchungsstand(cfg: dict, db: Database, article_number: str,
+                          ziele: list) -> str:
     """WERFEND, fuer commit. Aggregiert _zeilen_je_pfad zu drei Faellen:
 
         keine Zeile     -> "leer"          (Normalfall: umziehen + buchen)
@@ -824,7 +906,7 @@ def _pruefe_buchungsstand(db: Database, article_number: str, ziele: list) -> str
     Selbstheilungsversuch. Jede Reparatur rechnete an reference_stats, und die
     kennt keinen Session-Begriff.
     """
-    je = _zeilen_je_pfad(db, article_number, ziele)
+    je = _zeilen_je_pfad(cfg, db, article_number, ziele)
     gebucht = [p for p, ja in je.items() if ja]
     if not gebucht:
         return "leer"
@@ -1001,12 +1083,17 @@ def commit_enroll_session(cfg: dict, session: EnrollSession) -> int:
 
     db = Database(cfg)
     try:
-        stand = _pruefe_buchungsstand(db, artikel, nur_ziele)
+        stand = _pruefe_buchungsstand(cfg, db, artikel, nur_ziele)
         if stand == "leer":
             _move_session_files(cfg, session, ziele)
+            # Gebucht wird reference_dir-RELATIV mit POSIX-Trenner
+            # ("<artikel>/<ts>_<i:02d>.png"): identische Einlernungen ergeben
+            # so auf jedem Rechner, in Sandbox und Worktree identische
+            # DB-Strings. Aufloesen NUR ueber referenzbild_pfad.
             db.add_references(
                 artikel,
-                [(s.features, str(z)) for s, (_, _, z) in zip(session.shots, ziele)])
+                [(s.features, f"{artikel}/{z.name}")
+                 for s, (_, _, z) in zip(session.shots, ziele)])
     finally:
         db.close()
     _raeume_nach_backups(cfg, session)
@@ -1027,7 +1114,7 @@ def plan_commit_enroll_session(cfg: dict, session: EnrollSession) -> dict:
     ziele = _zielpfade(cfg, session)
     db = Database(cfg)
     try:
-        stand = _pruefe_buchungsstand(db, session.info.article_number,
+        stand = _pruefe_buchungsstand(cfg, db, session.info.article_number,
                                       [z for _, _, z in ziele])
     finally:
         db.close()
@@ -1045,7 +1132,7 @@ def plan_discard_enroll_session(cfg: dict, session: EnrollSession) -> dict:
     ziele = _zielpfade(cfg, session)
     db = Database(cfg)
     try:
-        je_pfad = _zeilen_je_pfad(db, session.info.article_number,
+        je_pfad = _zeilen_je_pfad(cfg, db, session.info.article_number,
                                   [z for _, _, z in ziele])
     finally:
         db.close()
@@ -1067,7 +1154,7 @@ def discard_enroll_session(cfg: dict, session: EnrollSession, *,
 
     db = Database(cfg)
     try:
-        je_pfad = _zeilen_je_pfad(db, artikel, [z for _, _, z in ziele])
+        je_pfad = _zeilen_je_pfad(cfg, db, artikel, [z for _, _, z in ziele])
     finally:
         db.close()
     protokoll = _reverse_move(cfg, session, ziele, je_pfad)
@@ -1220,6 +1307,37 @@ def render_report_overlay(image: np.ndarray, report: MatchReport) -> np.ndarray:
 
 
 # ---------- Lese-Fassaden für UIs (Admin-Panel, Spec Abschnitt 4) ----------
+
+def referenzbild_pfad(cfg: dict, image_path) -> Path | None:
+    """Fassade (R9): gespeicherten reference_features.image_path in einen
+    absoluten, EXISTIERENDEN Pfad aufloesen — oder None. Die EINZIGE Stelle,
+    die Referenzbild-Pfade aufloest; UI-Module konstruieren keine Pfade.
+
+    Formen: None/leer -> None. Relativ (Normalfall seit 2026-08-14,
+    "<artikel>/<name>", POSIX) -> gegen das AKTIVE reference_dir dieser
+    Config. Absoluter Pfad -> unveraendert benutzt. Absolut ist ERSTENS der
+    Altbestand (R6: kein Backfill) und ZWEITENS — die EINE benannte
+    Ausnahme der Ein-Repraesentations-Regel — jede Buchung von
+    `enroll --images`: ein Bild ausserhalb von reference_dir ist
+    reference_dir-relativ nicht ausdrueckbar, und Kopieren waere ein
+    anderes Feature. Wer einen dritten Schreiber mit absoluten Pfaden
+    ergaenzt, braucht dieselbe Begruendung. Existiert die aufgeloeste Datei
+    nicht, kommt None — nie ein Pfad auf eine nicht vorhandene Datei.
+
+    GRENZE DER FASSADE: der gespeicherte String traegt nicht, gegen WELCHES
+    reference_dir er einmal galt. Fuer die DB-VOLLKOPIE eines
+    Testset-Buendels (docodetect/testset, db.sqlite3 im Snapshot) ist diese
+    Fassade deshalb NICHT gueltig: dessen Zeilen loesten hier gegen den
+    LOKALEN Bestand auf und koennten auf eine existierende, aber FALSCHE
+    Datei zeigen. Kein Buendel-Support — die Annahme ist nur sichtbar
+    gemacht.
+    """
+    p = _referenzbild_absolut(cfg, image_path)
+    if p is None or not p.is_file():
+        return None
+    return p
+
+
 # Gegenstück zu confirm_result & Co.: UIs importieren reporting.py auch zum
 # LESEN nie direkt, und Pfade löst ausschliesslich diese Schicht auf.
 

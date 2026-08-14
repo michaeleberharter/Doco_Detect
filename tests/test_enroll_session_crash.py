@@ -32,7 +32,8 @@ PROJEKT = Path(__file__).resolve().parent.parent
 
 from docodetect.database import Database  # noqa: E402
 from docodetect.pipeline import (commit_enroll_session,  # noqa: E402
-                                 list_enroll_sessions, load_enroll_session)
+                                 list_enroll_sessions, load_enroll_session,
+                                 referenzbild_pfad)
 from test_enroll_session import (ARTIKEL, _artikel_anlegen,  # noqa: E402
                                  _optik_anlegen, make_cfg)
 
@@ -176,9 +177,12 @@ def _refs(cfg):
 
 
 def _keine_toten_pfade(cfg):
-    """Nach JEDEM Abschusspunkt: keine DB-Zeile darf ins Leere zeigen."""
+    """Nach JEDEM Abschusspunkt: keine DB-Zeile darf ins Leere zeigen.
+    Aufgeloest wird wie ueberall ueber die Fassade (die Zeilen sind seit der
+    Relativ-Umstellung reference_dir-relativ gespeichert)."""
     for pfad, _ in _refs(cfg):
-        assert pfad and Path(pfad).is_file(), f"DB-Zeile zeigt ins Leere: {pfad}"
+        assert pfad and referenzbild_pfad(cfg, pfad) is not None, \
+            f"DB-Zeile zeigt ins Leere: {pfad}"
 
 
 def _dateien_vollzaehlig(s, cfg):

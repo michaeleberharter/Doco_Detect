@@ -308,6 +308,153 @@ def test_cli_delete_references_zweimal_in_derselben_sekunde(batch_env,
     assert (verworfen / "20260801-120000-2" / "zweite_runde.png").exists()
 
 
+def test_cli_delete_references_quarantaene_absoluter_altbestand(batch_env,
+                                                                monkeypatch):
+    """Schritt 5 der Windows-Sequenz trifft den ECHTEN Altbestand: Zeilen mit
+    ABSOLUTEM image_path (Stand vor der Relativ-Umstellung, z.B. die
+    LOEFFEL-3-Einlernung von vor der Optik-Korrektur — Beweismaterial für
+    Auflage vs. Optik). Die Quarantäne arbeitet ORDNER-basiert, liest
+    image_path also gar nicht — genau das belegt der Test: unabhängig von der
+    Pfad-Form der Zeilen wird der komplette Ordnerinhalt verschoben und nichts
+    verloren, auch keine Waisen-Datei ohne DB-Zeile. (Alle 25 echten
+    Altbestands-Pfade zeigen IN reference_dir; Pfade außerhalb gibt es im
+    Bestand nicht.)"""
+    import json
+
+    ref_ordner = _mit_einem_artikel(batch_env, monkeypatch)
+    db = Database(batch_env)
+    try:
+        feats = db.references_for("LOEFFEL-1")[0]
+        alt = ref_ordner / "1785264879302_00.png"
+        cv2.imwrite(str(alt), np.zeros((8, 8, 3), dtype=np.uint8))
+        db.add_reference("LOEFFEL-1", feats, str(alt))  # absolut, wie Altbestand
+    finally:
+        db.close()
+    waise = ref_ordner / "waise_ohne_zeile.png"
+    cv2.imwrite(str(waise), np.zeros((8, 8, 3), dtype=np.uint8))
+    dateien = sorted(p.name for p in ref_ordner.iterdir())
+
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+
+    assert not ref_ordner.exists()
+    verworfen = ref_ordner.parent.parent / "verworfen" / "LOEFFEL-1"
+    ziel = next(iter(verworfen.iterdir()))
+    angekommen = sorted(p.name for p in ziel.iterdir() if p.name != "info.json")
+    assert angekommen == dateien       # nichts verloren, auch die Waise nicht
+    info = json.loads((ziel / "info.json").read_text(encoding="utf-8"))
+    assert info["geloeschte_db_zeilen"] == 2
+    assert info["verschobene_dateien"] == len(dateien)
+
+
+# ---------- delete-article (CLI) ----------
+
+def test_cli_delete_article_verschiebt_fotos_statt_zu_loeschen(batch_env,
+                                                               monkeypatch):
+    """delete-article zieht mit delete-references gleich: Stammdaten und
+    DB-Zeilen weg, die Fotos vollständig unter verworfen/ — nicht mehr liegen
+    gelassen (der alte Vorbehalt stammt aus der Zeit vor den Einlernbildern)."""
+    import json
+
+    ref_ordner = _mit_einem_artikel(batch_env, monkeypatch)
+    fotos = sorted(p.name for p in ref_ordner.glob("*.png"))
+    assert fotos, "Vorbedingung: batch-create legt ein Foto ab"
+
+    cli.cmd_delete_article(Namespace(article_number="LOEFFEL-1"), batch_env)
+
+    db = Database(batch_env)
+    try:
+        assert db.get_article("LOEFFEL-1") is None
+    finally:
+        db.close()
+    assert not ref_ordner.exists()
+    verworfen = ref_ordner.parent.parent / "verworfen" / "LOEFFEL-1"
+    ziele = list(verworfen.iterdir())
+    assert len(ziele) == 1, "genau ein Zeitstempel-Ordner"
+    assert sorted(p.name for p in ziele[0].glob("*.png")) == fotos
+    info = json.loads((ziele[0] / "info.json").read_text(encoding="utf-8"))
+    assert info["grund"] == "delete-article (CLI)"
+    assert info["geloeschte_db_zeilen"] == 1
+    assert info["verschobene_dateien"] == len(fotos)
+
+
+def test_cli_delete_article_unbekannter_artikel_ist_exit_1(batch_env):
+    """Ein Tippfehler in der Nummer darf insbesondere KEINEN Foto-Ordner in
+    Quarantäne schieben — das Verschieben steht NACH der Existenz-Prüfung."""
+    with pytest.raises(SystemExit) as e:
+        cli.cmd_delete_article(Namespace(article_number="GIBTSNICHT"),
+                               batch_env)
+    assert e.value.code != 0
+    assert "nicht gefunden" in str(e.value)
+    verworfen = Path(batch_env["paths"]["reference_dir"]).parent / "verworfen"
+    assert not verworfen.exists()
+
+
+def test_verwerfen_meldet_zielort_wenn_info_json_scheitert(batch_env,
+                                                           monkeypatch,
+                                                           capsys):
+    """Die Fotos SIND nach dem Move verschoben — scheitert danach nur das
+    info.json (Platte voll, Windows-Sperre auf dem neuen Ordner), darf das
+    nicht als 'liess sich nicht verschieben' enden: der Bediener fände den
+    Zielort sonst nie. Erwartet: kein Abbruch, Zielort in der Ausgabe."""
+    ref_ordner = _mit_einem_artikel(batch_env, monkeypatch)
+    fotos = sorted(p.name for p in ref_ordner.glob("*.png"))
+
+    orig = Path.write_text
+
+    def kaputt(self, *a, **k):
+        if self.name == "info.json":
+            raise OSError(28, "No space left on device")
+        return orig(self, *a, **k)
+
+    monkeypatch.setattr(Path, "write_text", kaputt)
+    cli.cmd_delete_references(Namespace(article_number="LOEFFEL-1"), batch_env)
+
+    assert not ref_ordner.exists()
+    verworfen = ref_ordner.parent.parent / "verworfen" / "LOEFFEL-1"
+    ziel = next(iter(verworfen.iterdir()))
+    assert sorted(p.name for p in ziel.glob("*.png")) == fotos
+    out = capsys.readouterr().out
+    assert str(ziel) in out                       # Zielort wird genannt
+    assert "info.json war nicht schreibbar" in out
+
+
+def test_batch_enroll_r_verschiebt_fotos_der_ersten_runde(batch_env,
+                                                          monkeypatch):
+    """Der r-Zweig räumt auch die Platte: die Fotos der verworfenen Runde
+    liegen unter verworfen/, im Referenz-Ordner bleiben NUR die der zweiten
+    Runde — sonst wären alte und neue Aufnahmen nicht mehr unterscheidbar."""
+    import json
+
+    _answers(monkeypatch, ["", ""])
+    cli.cmd_batch_create(
+        Namespace(name_prefix="Löffel", count=1, height_mm=0.0, category=None),
+        batch_env)
+    ref_ordner = Path(batch_env["paths"]["reference_dir"]) / "LOEFFEL-1"
+    fotos_runde1 = sorted(p.name for p in ref_ordner.glob("*.png"))
+
+    _answers(monkeypatch, ["", "", "r", "", "", ""])   # Runde 1, r, Runde 2
+    cli.cmd_batch_enroll(Namespace(prefix="LOEFFEL", count=1, shots=1),
+                         batch_env)
+
+    verworfen = ref_ordner.parent.parent / "verworfen" / "LOEFFEL-1"
+    ziele = list(verworfen.iterdir())
+    assert len(ziele) == 1
+    weg = sorted(p.name for p in ziele[0].iterdir() if p.name != "info.json")
+    assert len(weg) == len(fotos_runde1) + 1   # create-Foto + Runde-1-Shot
+    info = json.loads((ziele[0] / "info.json").read_text(encoding="utf-8"))
+    assert info["grund"] == "batch-enroll r (neu einlernen)"
+    assert info["geloeschte_db_zeilen"] == 2   # create-Referenz + Runde-1-Shot
+    assert info["verschobene_dateien"] == len(weg)
+    assert info["zeilen_ohne_image_path"] == 0
+    # im Referenz-Ordner liegt NUR noch die zweite Runde
+    assert len(list(ref_ordner.glob("*.png"))) == 1
+    db = Database(batch_env)
+    try:
+        assert len(db.references_for("LOEFFEL-1")) == 1
+    finally:
+        db.close()
+
+
 # ---------- list-articles (CLI) ----------
 
 def _teller_ohne_referenzen(env, nummer="TELLER-1"):

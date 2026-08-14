@@ -173,9 +173,10 @@ class Database:
 
     def delete_article(self, article_number: str) -> bool:
         """Remove an article AND all its enrolled reference features – e.g. a
-        live-created article whose measurement turned out wrong. Reference
-        photos on disk (data/reference/<nr>/) are kept. Returns True if the
-        article existed."""
+        live-created article whose measurement turned out wrong. Touches NO
+        files: photo handling is the caller's job – the CLI counterparts move
+        data/reference/<nr>/ to verworfen/ (cli._verwerfe_referenzfotos,
+        move-don't-delete). Returns True if the article existed."""
         self.conn.execute(
             "DELETE FROM reference_features WHERE article_number = ?", (article_number,)
         )
@@ -220,10 +221,26 @@ class Database:
 
     # ---------- reference features ----------
 
+    @staticmethod
+    def _pruefe_bildpfad_form(image_path: str | None) -> None:
+        """R4-Wache an der einzigen Schreibgrenze: relative image_path sind
+        reference_dir-relativ mit POSIX-Trenner. Ein Backslash in relativer
+        Form ist immer ein Fehler — er entstuende auf der Windows-Box still
+        aus einem Path-Join und waere auf dem Mac in keiner Suite sichtbar
+        (die Zeile loeste dann nirgends mehr auf). Absolute Pfade
+        (Altbestand, enroll --images) bleiben unangetastet."""
+        if image_path and "\\" in image_path \
+                and not Path(image_path).is_absolute():
+            raise ValueError(
+                f"image_path traegt Backslash in relativer Form: "
+                f"{image_path!r} — relative Referenzbild-Pfade sind POSIX "
+                "('<artikel>/<name>', siehe pipeline.referenzbild_pfad).")
+
     def add_reference(self, article_number: str, features: Features,
                       image_path: str | None = None) -> None:
         if self.get_article(article_number) is None:
             raise KeyError(f"Unknown article_number '{article_number}' – import it first.")
+        self._pruefe_bildpfad_form(image_path)
         self.conn.execute(
             "INSERT INTO reference_features "
             "(article_number, image_path, features_json, created_unix) "
@@ -255,6 +272,9 @@ class Database:
         reference_stats neu, ist also reihenfolgeunabhaengig und idempotent.
 
         items = [(Features, image_path | None), ...] in Aufnahmereihenfolge.
+        image_path ist seit 2026-08-14 reference_dir-RELATIV mit
+        POSIX-Trenner ("<artikel>/<name>"); Altbestand traegt absolute
+        Pfade. Aufgeloest wird NUR ueber pipeline.referenzbild_pfad.
         Leere Liste: gibt 0 zurueck, ohne Transaktion und ohne
         _recompute_stats — nichts zu tun heisst nichts anfassen. Die Strenge
         sitzt eine Schicht hoeher: der Aufrufer im Einlernpfad lehnt eine
@@ -271,6 +291,8 @@ class Database:
             return 0
         if self.get_article(article_number) is None:
             raise KeyError(f"Unknown article_number '{article_number}' – import it first.")
+        for _feats, pfad in items:
+            self._pruefe_bildpfad_form(pfad)
         with self.conn:
             self.conn.executemany(
                 "INSERT INTO reference_features "
@@ -311,14 +333,28 @@ class Database:
     def delete_references(self, article_number: str) -> int:
         """Alle Referenzen EINES Artikels verwerfen, den Artikel selbst
         behalten – für „nochmal einlernen“ nach einer misslungenen Messreihe
-        (batch-enroll). Gibt die Zahl der entfernten Referenzen zurück;
-        Fotos unter data/reference/ bleiben liegen."""
+        (batch-enroll). Gibt die Zahl der entfernten Referenzen zurück.
+        Fasst NIE Dateien an: die CLI-Aufrufer verschieben die Fotos nach
+        verworfen/ (cli._verwerfe_referenzfotos, move-don't-delete)."""
         cur = self.conn.execute(
             "DELETE FROM reference_features WHERE article_number = ?",
             (article_number,))
         self._recompute_stats(article_number)   # leert reference_stats mit
         self.conn.commit()
         return cur.rowcount
+
+    def reference_path_stats(self, article_number: str) -> tuple[int, int]:
+        """(Zeilen, davon ohne image_path) EINES Artikels – bewusst OHNE
+        features_json anzufassen: die Lösch-Befehle brauchen nur die zwei
+        Zahlen, und ein kaputter Datensatz (genau der Fall, für den
+        delete-article das Werkzeug ist) darf das Löschen nicht an einem
+        Deserialisierungs-Fehler scheitern lassen."""
+        r = self.conn.execute(
+            "SELECT COUNT(*) AS n, "
+            "SUM(image_path IS NULL OR image_path = '') AS leer "
+            "FROM reference_features WHERE article_number = ?",
+            (article_number,)).fetchone()
+        return r["n"], r["leer"] or 0
 
     def reference_counts(self) -> dict:
         """article_number -> Anzahl Referenzen (eine Abfrage, fürs UI-Listing)."""

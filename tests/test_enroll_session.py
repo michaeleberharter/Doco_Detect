@@ -15,6 +15,7 @@ Ohne Qt, ohne Kamera, alles gegen Temp-Verzeichnisse und Temp-DBs.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -30,8 +31,8 @@ from docodetect.features import Features  # noqa: E402
 from docodetect.pipeline import (EnrollSessionError, append_shot,  # noqa: E402
                                  begin_enroll_session, commit_enroll_session,
                                  discard_enroll_session, list_enroll_sessions,
-                                 load_enroll_session, remeasure_session,
-                                 stage_frame)
+                                 load_enroll_session, referenzbild_pfad,
+                                 remeasure_session, stage_frame)
 
 ARTIKEL = "T-270"
 
@@ -590,7 +591,14 @@ def test_commit_verschiebt_und_bucht(cfg):
     assert not any(q.exists() for q in quellen), "die Quellen sind umgezogen"
 
     meta = _refs(cfg)
-    assert [p for p, _ in meta] == [str(_ziel(cfg, s, i)) for i in range(3)]
+    # Gebucht wird der reference_dir-RELATIVE POSIX-Pfad (R4) ...
+    assert [p for p, _ in meta] == [f"{ARTIKEL}/{s.info.ts}_{i:02d}.png"
+                                    for i in range(3)]
+    for p, _ in meta:
+        assert "\\" not in p and not Path(p).is_absolute()
+    # ... und die Fassade (R9) loest ihn auf die umgezogene Datei auf.
+    assert [referenzbild_pfad(cfg, p) for p, _ in meta] == \
+        [_ziel(cfg, s, i) for i in range(3)]
     assert not s.info.path.exists(), "Session-Ordner ist weggeraeumt"
 
 
@@ -826,6 +834,136 @@ def test_discard_meldet_verlorene_datei_statt_zu_scheitern(cfg):
     assert protokoll[1]["aktion"] == "VERLOREN"
 
 
+# ---------- relative Buchung: die beiden Inversionen an _zeilen_je_pfad ----
+
+
+def test_zweiter_commit_nach_zustand3_bucht_nicht_doppelt(cfg, monkeypatch):
+    """Inversion 1: Absturz zwischen Transaktion und Aufraeumen (Zustand 3),
+    dann Wiederaufnahme. Die RELATIV gespeicherten Zeilen muessen als
+    'vollstaendig' erkannt werden — kippte der Vergleich (relativ vs.
+    absoluter Zielpfad), buchte der zweite commit alle N Zeilen DOPPELT und
+    verfaelschte reference_stats."""
+    from docodetect import pipeline as pl
+    s = _sitzung(cfg, 2)
+    monkeypatch.setattr(pl, "_raeume_nach_backups", lambda c, sess: None)
+    assert commit_enroll_session(cfg, s) == 2
+    monkeypatch.undo()
+    assert s.info.path.exists(), "Zustand 3: Aufraeumen steht noch aus"
+    assert len(_refs(cfg)) == 2
+
+    assert commit_enroll_session(cfg, s) == 2      # Wiederaufnahme
+    assert len(_refs(cfg)) == 2, "KEINE Doppelbuchung"
+    assert not s.info.path.exists(), "jetzt aufgeraeumt"
+
+
+def test_discard_nach_zustand3_zieht_keine_gebuchten_referenzen(cfg,
+                                                                monkeypatch):
+    """Inversion 2: dieselbe Lage, aber VERWERFEN statt fortsetzen. Die
+    DB-Schranke muss die relativ gespeicherten Zeilen erkennen — sonst zoege
+    der Rueckumzug echte (gebuchte) Referenzen aus reference_dir. Das
+    Gegenstueck mit ABSOLUTER Altbestands-Zeile ist
+    test_discard_laesst_gebuchte_referenz_in_ruhe."""
+    from docodetect import pipeline as pl
+    s = _sitzung(cfg, 2)
+    monkeypatch.setattr(pl, "_raeume_nach_backups", lambda c, sess: None)
+    commit_enroll_session(cfg, s)
+    monkeypatch.undo()
+
+    ziel = discard_enroll_session(cfg, s)
+    for i in range(2):
+        assert _ziel(cfg, s, i).is_file(), "gebuchte Referenz bleibt liegen"
+    assert len(_refs(cfg)) == 2, "DB-Zeilen unangetastet"
+    protokoll = json.loads((ziel / "info.json").read_text())["rueckumzug"]
+    assert {e["aktion"] for e in protokoll} == {"gebucht_nicht_angefasst"}
+
+
+# ---------- referenzbild_pfad (R9-Fassade) ----------
+
+
+def test_referenzbild_pfad_fassade(cfg):
+    """R9/R6: relative Neuform, absoluter Altbestand, None, fehlende Datei.
+    Nie ein Pfad auf eine nicht vorhandene Datei."""
+    ref = Path(cfg["paths"]["reference_dir"])
+    (ref / ARTIKEL).mkdir(parents=True)
+    datei = ref / ARTIKEL / "123_00.png"
+    cv2.imwrite(str(datei), _frame(1))
+
+    assert referenzbild_pfad(cfg, None) is None
+    assert referenzbild_pfad(cfg, "") is None
+    # relativ (Neuform, POSIX) -> gegen das aktive reference_dir
+    assert referenzbild_pfad(cfg, f"{ARTIKEL}/123_00.png") == datei
+    # absolut (Altbestand) -> unveraendert benutzt
+    assert referenzbild_pfad(cfg, str(datei)) == datei
+    # fehlende Datei -> None statt Pfad ins Leere, in beiden Formen
+    assert referenzbild_pfad(cfg, f"{ARTIKEL}/999_00.png") is None
+    assert referenzbild_pfad(cfg, str(ref / ARTIKEL / "999_00.png")) is None
+
+
+def test_add_reference_verweigert_backslash_in_relativer_form(cfg):
+    """R4-Wache: eine Separator-Regression (Path-Join statt f-String in
+    einem Schreiber) entstuende nur auf Windows und waere auf dem Mac in
+    keiner Suite sichtbar — deshalb weist die DB-Schicht relative Pfade mit
+    Backslash auf JEDER Plattform zurueck. Absolute Pfade bleiben erlaubt."""
+    db = Database(cfg)
+    try:
+        with pytest.raises(ValueError, match="POSIX"):
+            db.add_reference(ARTIKEL, _feats(270.0), "T-270\\123_00.png")
+        with pytest.raises(ValueError, match="POSIX"):
+            db.add_references(ARTIKEL, [(_feats(270.0), "T-270\\1_00.png")])
+        assert _refs(cfg) == [], "nichts halb geschrieben"
+    finally:
+        db.close()
+
+
+# ---------- Schreibbarkeits-Probe (Fail-fast in begin) ----------
+
+
+def test_begin_scheitert_frueh_wenn_reference_dir_eine_datei_ist(cfg):
+    """Fail-fast-Ersatz fuer den entfallenen Root-Anker-Abbruch: steht an der
+    reference_dir-Position eine DATEI, scheitert begin_enroll_session sofort
+    (kind='schreibprobe') — nicht erst der Umzug nach der letzten Aufnahme.
+    Und: keine Session als Nebenwirkung."""
+    Path(cfg["paths"]["reference_dir"]).write_bytes(b"im Weg")
+    with pytest.raises(EnrollSessionError) as e:
+        begin_enroll_session(cfg, ARTIKEL, target_shots=2)
+    assert e.value.kind == "schreibprobe"
+    assert not (Path(cfg["paths"]["enroll_sessions_dir"]) / ARTIKEL).exists()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+    reason="chmod-Schreibsperre greift nur auf POSIX ohne root")
+def test_begin_scheitert_frueh_bei_unbeschreibbarem_reference_dir(cfg):
+    ref = Path(cfg["paths"]["reference_dir"])
+    ref.mkdir(parents=True)
+    ref.chmod(0o500)
+    try:
+        with pytest.raises(EnrollSessionError) as e:
+            begin_enroll_session(cfg, ARTIKEL, target_shots=2)
+        assert e.value.kind == "schreibprobe"
+    finally:
+        ref.chmod(0o700)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+    reason="chmod-Schreibsperre greift nur auf POSIX ohne root")
+def test_begin_scheitert_frueh_bei_unbeschreibbarem_artikelordner(cfg):
+    """reference_dir-Wurzel beschreibbar, aber der BESTEHENDE Artikelordner
+    (das tatsaechliche Buchungsziel) nicht: die Probe muss den Artikelordner
+    treffen — eine Wurzel-Probe liefe daran vorbei, und der Fehler fiele
+    erst beim Umzug nach der letzten Aufnahme."""
+    artikel_dir = Path(cfg["paths"]["reference_dir"]) / ARTIKEL
+    artikel_dir.mkdir(parents=True)
+    artikel_dir.chmod(0o500)
+    try:
+        with pytest.raises(EnrollSessionError) as e:
+            begin_enroll_session(cfg, ARTIKEL, target_shots=2)
+        assert e.value.kind == "schreibprobe"
+    finally:
+        artikel_dir.chmod(0o700)
+
+
 # ---------- remeasure_session ----------
 
 def _remeasure_mit(monkeypatch, feats_je_aufruf):
@@ -892,6 +1030,25 @@ def test_remeasure_verweigert_bei_geaenderter_optik(cfg, monkeypatch):
     with pytest.raises(EnrollSessionError) as e:
         remeasure_session(cfg, s)
     assert e.value.kind == "fingerprint"
+
+
+def test_remeasure_schreibt_weder_reference_dir_noch_image_path(cfg,
+                                                               monkeypatch):
+    """R8-Ergaenzung zur Referenzbild-Persistenz: Fortsetzen ist auch
+    gegenueber reference_dir und der DB strikt lesend — es entsteht weder
+    eine Datei unter reference_dir noch eine Zeile/ein image_path."""
+    s = _sitzung(cfg, 2, start=270.0)
+    ref = Path(cfg["paths"]["reference_dir"])
+    ref_vorher = sorted(str(p) for p in ref.rglob("*")) if ref.exists() else None
+    db_vorher = [(p, f.circle_diameter_mm) for p, f in _refs(cfg)]
+
+    _remeasure_mit(monkeypatch, [_feats(299.0), _feats(298.0)])
+    remeasure_session(cfg, s)
+
+    ref_nachher = sorted(str(p) for p in ref.rglob("*")) if ref.exists() else None
+    assert ref_nachher == ref_vorher, "reference_dir unangetastet"
+    assert [(p, f.circle_diameter_mm) for p, f in _refs(cfg)] == db_vorher, \
+        "keine DB-Zeile, kein image_path geschrieben"
 
 
 def test_remeasure_meldet_fortschritt(cfg, monkeypatch):

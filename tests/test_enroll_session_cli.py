@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from docodetect import cli  # noqa: E402
 from docodetect.database import Database  # noqa: E402
 from docodetect.pipeline import (append_shot, begin_enroll_session,  # noqa: E402
-                                 stage_frame)
+                                 referenzbild_pfad, stage_frame)
 from test_enroll_session import (ARTIKEL, _artikel_anlegen, _feats,  # noqa: E402
                                  _frame, _optik_anlegen, make_cfg)
 
@@ -275,7 +275,9 @@ def test_dry_run_und_echter_lauf_planen_dasselbe_COMMIT(cfg, capsys):
 
     _out, _e, code = _lauf(capsys, "commit-enroll-session", ARTIKEL)
     assert code == 0
-    gebucht = sorted(p for p, _ in _refs(cfg))
+    # Gebucht sind relative Pfade — fuer den Vergleich mit den absoluten
+    # Zielen des Umzugsplans ueber die Fassade aufloesen.
+    gebucht = sorted(str(referenzbild_pfad(cfg, p)) for p, _ in _refs(cfg))
     for zeile in geplant:
         ziel = zeile.split()[-1]
         assert ziel in gebucht, f"geplantes Ziel {ziel} wurde auch gebucht"
@@ -353,4 +355,5 @@ def test_rettungspfad_ohne_qt_vollstaendig(cfg, capsys, monkeypatch):
     assert len(_refs(cfg)) == 3
     assert not s.info.path.exists()
     for pfad, _f in _refs(cfg):
-        assert Path(pfad).is_file(), "keine Zeile zeigt ins Leere"
+        assert referenzbild_pfad(cfg, pfad) is not None, \
+            "keine Zeile zeigt ins Leere"

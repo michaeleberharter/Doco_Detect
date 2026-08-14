@@ -79,15 +79,18 @@ def _create_one(pipe, cfg, img, name, *, article_number=None, height_mm=0.0,
     img_path = None
     if store_photo:
         ref_dir = resolve(cfg["paths"]["reference_dir"]) / number
-        img_path = str(ref_dir / f"{int(time.time() * 1000)}.png")
+        img_path = ref_dir / f"{int(time.time() * 1000)}.png"
 
+    # In der DB steht der reference_dir-RELATIVE POSIX-Pfad (Aufloesen ueber
+    # pipeline.referenzbild_pfad); geschrieben wird auf den absoluten.
     article, feats, _ = pipe.create_article(
         img, name, article_number=number, height_mm=height_mm,
-        category=category, image_path=img_path)
+        category=category,
+        image_path=f"{number}/{img_path.name}" if img_path else None)
 
     if img_path:
-        Path(img_path).parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(img_path, img)
+        img_path.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(img_path), img)
     return article, feats
 
 
@@ -214,8 +217,26 @@ def cmd_batch_enroll(args, cfg):
                 _print_enroll_stats(pipe, number)
                 if input("    Enter = weiter, r = Artikel neu einlernen > "
                          ).strip().lower() == "r":
+                    _, n_ohne = pipe.db.reference_path_stats(number)
                     removed = pipe.db.delete_references(number)
-                    print(f"    {removed} Referenzen von {number} verworfen.")
+                    # Fotos mit verschieben (move-don't-delete wie
+                    # delete-references): liegen gelassen wären sie nach der
+                    # zweiten Runde nicht mehr von den neuen unterscheidbar.
+                    try:
+                        ziel, verschoben = _verwerfe_referenzfotos(
+                            cfg, number,
+                            info={"article_number": number,
+                                  "grund": "batch-enroll r (neu einlernen)",
+                                  "geloeschte_db_zeilen": removed,
+                                  "zeilen_ohne_image_path": n_ohne})
+                    except OSError as e:
+                        sys.exit(f"[batch-enroll] DB-Zeilen von {number} sind "
+                                 "entfernt, aber die Fotos liessen sich nicht "
+                                 f"verschieben: {e} — bis hierher "
+                                 f"{len(done)} Artikel fertig eingelernt.")
+                    print(f"    {removed} Referenzen von {number} verworfen"
+                          + (f", {verschoben} Fotos nach {ziel}."
+                             if ziel else "."))
                     continue
                 done.append((number, n))
                 i += 1
@@ -292,20 +313,46 @@ def cmd_list_articles(args, cfg):
 
 
 def cmd_delete_article(args, cfg):
+    """Artikel samt Stammdaten und Referenzen entfernen. Die Fotos werden –
+    wie bei `delete-references` – nach data/verworfen/ VERSCHOBEN, nicht
+    liegen gelassen: seit die Einlernbilder Beweismaterial sind, gilt für
+    beide Lösch-Befehle dasselbe move-don't-delete."""
     db = Database(cfg)
     db.init_schema()  # fresh DB: clean "not found" instead of OperationalError
     try:
+        n_zeilen, n_ohne = db.reference_path_stats(args.article_number)
         removed = db.delete_article(args.article_number)
     finally:
         db.close()
-    if removed:
-        print(f"[delete] {args.article_number} gelöscht (inkl. Referenzen; "
-              "Fotos unter data/reference/ bleiben liegen).")
-    else:
+    if not removed:
+        if n_zeilen:
+            # Darf nicht vorkommen (Referenzzeilen ohne Stammdaten-Zeile).
+            # delete_article hat die Referenzzeilen dennoch entfernt — laut
+            # melden, KEINE Selbstheilung, Fotos bleiben unangetastet.
+            sys.exit(f"[delete] INKONSISTENT: '{args.article_number}' hatte "
+                     f"{n_zeilen} Referenzzeilen, aber keine Stammdaten-Zeile. "
+                     "Die Referenzzeilen sind jetzt entfernt; Fotos bleiben "
+                     "unangetastet in reference_dir.")
         sys.exit(f"[delete] Artikel '{args.article_number}' nicht gefunden.")
+    print(f"[delete] {args.article_number} gelöscht "
+          f"(Stammdaten + {n_zeilen} Referenzen).")
+    # Erst die DB, dann die Dateien – gleiche Reihenfolge und Begründung wie
+    # bei delete-references (siehe dort).
+    try:
+        ziel, verschoben = _verwerfe_referenzfotos(
+            cfg, args.article_number,
+            info={"article_number": args.article_number,
+                  "grund": "delete-article (CLI)",
+                  "geloeschte_db_zeilen": n_zeilen,
+                  "zeilen_ohne_image_path": n_ohne})
+    except OSError as e:
+        sys.exit(f"[delete] DB-Zeilen sind entfernt, aber die Fotos liessen "
+                 f"sich nicht verschieben: {e}")
+    if ziel is not None:
+        print(f"[delete] {verschoben} Fotos verschoben nach {ziel}")
 
 
-def _verwerfe_referenzfotos(cfg, article_number: str):
+def _verwerfe_referenzfotos(cfg, article_number: str, info: dict | None = None):
     """Den Referenzfoto-Ordner eines Artikels VERSCHIEBEN statt löschen:
     <reference_dir>/<nr>/  ->  <reference_dir>/../verworfen/<nr>/<zeitstempel>/
 
@@ -313,7 +360,10 @@ def _verwerfe_referenzfotos(cfg, article_number: str):
     pre-commit aus dem Einlerndialog, hier post-commit aus der CLI) – bewusst
     derselbe Ort, damit verworfenes Material nur an EINER Stelle gesucht werden
     muss. Gibt (Zielordner, Zahl verschobener Dateien) zurück, (None, 0) wenn
-    es keinen Ordner gab."""
+    es keinen Ordner gab. `info` wird – um timestamp und verschobene_dateien
+    ergänzt – als info.json in den Zielordner geschrieben: der "warum
+    verworfen"-Beleg, den jeder Aufrufer mitliefert."""
+    import json
     import shutil
 
     ref_dir = resolve(cfg["paths"]["reference_dir"])
@@ -328,7 +378,20 @@ def _verwerfe_referenzfotos(cfg, article_number: str):
         n += 1
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dest))
-    return dest, sum(1 for p in dest.rglob("*") if p.is_file())
+    verschoben = sum(1 for p in dest.rglob("*") if p.is_file())
+    if info is not None:
+        # Eigener Schirm: die Fotos SIND verschoben. Ein OSError hier darf
+        # nicht in den "liess sich nicht verschieben"-Zweig des Aufrufers
+        # fallen — der meldete dann das Falsche und verschwiege den Zielort.
+        try:
+            (dest / "info.json").write_text(json.dumps(
+                {**info, "timestamp": dest.name,
+                 "verschobene_dateien": verschoben},
+                ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as e:
+            print(f"[verwerfen] Fotos liegen in {dest}, aber info.json war "
+                  f"nicht schreibbar: {e}")
+    return dest, verschoben
 
 
 def cmd_delete_references(args, cfg):
@@ -346,17 +409,17 @@ def cmd_delete_references(args, cfg):
       ist bereits erreicht. Ein unbekannter Artikel dagegen schon (Exit 1):
       `delete_references` gibt in beiden Fällen 0 zurück, ohne die
       Vorabprüfung liefe ein Tippfehler in der Nummer still durch."""
-    import json
-
     db = Database(cfg)
     db.init_schema()  # fresh DB: clean "not found" instead of OperationalError
     try:
         if db.get_article(args.article_number) is None:
             sys.exit(f"[delete-references] Artikel '{args.article_number}' "
                      "nicht gefunden.")
-        meta = db.references_with_meta(args.article_number)
-        ohne_pfad = sum(1 for pfad, _ in meta if not pfad)
-        if not meta:
+        # reference_path_stats statt references_with_meta: fuer zwei Zahlen
+        # keine features_json-Deserialisierung — ein kaputter Datensatz ist
+        # genau der Fall, in dem geloescht werden soll (wie delete-article).
+        n_zeilen, ohne_pfad = db.reference_path_stats(args.article_number)
+        if not n_zeilen:
             print(f"[delete-references] {args.article_number} hatte keine "
                   "Referenzen – nichts zu tun.")
             ordner = resolve(cfg["paths"]["reference_dir"]) / args.article_number
@@ -375,7 +438,12 @@ def cmd_delete_references(args, cfg):
     # Fotos noch da und der Artikel nur leer – der umgekehrte Fehlerfall
     # hinterliesse DB-Zeilen mit image_path auf verschobene Dateien.
     try:
-        ziel, verschoben = _verwerfe_referenzfotos(cfg, args.article_number)
+        ziel, verschoben = _verwerfe_referenzfotos(
+            cfg, args.article_number,
+            info={"article_number": args.article_number,
+                  "grund": "delete-references (CLI)",
+                  "geloeschte_db_zeilen": removed,
+                  "zeilen_ohne_image_path": ohne_pfad})
     except OSError as e:
         sys.exit(f"[delete-references] DB-Zeilen sind entfernt, aber die Fotos "
                  f"liessen sich nicht verschieben: {e}")
@@ -383,14 +451,6 @@ def cmd_delete_references(args, cfg):
         print("[delete-references] Kein Referenzfoto-Ordner vorhanden – "
               "nichts zu verschieben.")
     else:
-        (ziel / "info.json").write_text(json.dumps(
-            {"article_number": args.article_number,
-             "timestamp": ziel.name,
-             "grund": "delete-references (CLI)",
-             "geloeschte_db_zeilen": removed,
-             "verschobene_dateien": verschoben,
-             "zeilen_ohne_image_path": ohne_pfad},
-            ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[delete-references] {verschoben} Fotos verschoben nach {ziel}")
     if ohne_pfad:
         print(f"[delete-references] {ohne_pfad} der {removed} Zeilen hatten "
@@ -407,7 +467,13 @@ def cmd_enroll(args, cfg):
         if not paths:
             sys.exit(f"No images found in {args.images}")
         for p in paths:
-            feats, _ = pipe.enroll(load_image(p), args.article_number, str(p))
+            # Absolut buchen (Altbestands-Form): das Bild bleibt, wo es liegt
+            # — ausserhalb von reference_dir. Ein roher str(p) waere bei
+            # relativer --images-Angabe CWD-relativ und damit keine der zwei
+            # gueltigen Formen (referenzbild_pfad loeste ihn falsch gegen
+            # reference_dir auf).
+            feats, _ = pipe.enroll(load_image(p), args.article_number,
+                                   str(p.resolve()))
             print(f"  {p.name}: Ø {feats.circle_diameter_mm:.1f} mm (floor plane)")
         print(f"[enroll] {len(paths)} references stored for {args.article_number}")
         _print_enroll_stats(pipe, args.article_number)
@@ -444,7 +510,9 @@ def _enroll_shots(pipe, cfg, cam, article_number: str, shots: int) -> int:
         # Verlustloses PNG: Shots sollen kuenftige Kantenanalysen tragen.
         img_path = ref_dir / f"{ts}_{i:02d}.png"
         try:
-            feats, _ = pipe.enroll(img, article_number, str(img_path))
+            # DB-Wert reference_dir-relativ (POSIX), Datei-Write absolut.
+            feats, _ = pipe.enroll(img, article_number,
+                                   f"{article_number}/{img_path.name}")
         except SegmentationError as e:
             print(f"    [Fehlmessung] {e}")
             print("    -> nicht gespeichert, Shot wird wiederholt.")

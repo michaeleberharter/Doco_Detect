@@ -60,7 +60,7 @@ from .features import Features, scalar_value  # noqa: E402
 # (CLAUDE.md). Nur-Lesen, features.py bleibt die Quelle der Wahrheit.
 from .features import (_PROTO_SRC, _densify, _pca_axes, _pctl,  # noqa: E402
                        _proj)
-from .pipeline import Pipeline  # noqa: E402
+from .pipeline import Pipeline, referenzbild_pfad  # noqa: E402
 from .plotstyle import DIV, OUTLIER, SEQ, panel_label, style_context  # noqa: E402
 from .segmentation import SegmentationError  # noqa: E402
 
@@ -721,15 +721,20 @@ def render_sheet(m: SheetMetrics, geoms: list, out_path: Path,
 # ============================================================ Orchestrierung
 
 def _load_image(src, cfg) -> np.ndarray | None:
-    """src = np.ndarray (Qt-Frame) ODER Pfad-String (image_path) ODER None."""
+    """src = np.ndarray (Qt-Frame) ODER Pfad-String (image_path) ODER None.
+
+    Pfad-Strings loest AUSSCHLIESSLICH pipeline.referenzbild_pfad auf (R9):
+    reference_dir-relative Werte gegen das aktive reference_dir, absolute
+    Altbestands-Pfade unveraendert; nicht vorhandene Dateien -> None (der
+    Shot laeuft dann als bildlos mit, wie beim Altbestand ohne image_path).
+    Qt-Session-Rohpfade sind absolut und existieren — sie gehen unveraendert
+    durch dieselbe Fassade."""
     if src is None:
         return None
     if isinstance(src, np.ndarray):
         return src
-    p = Path(src)
-    if not p.is_absolute():
-        p = resolve(src)
-    if not p.exists():
+    p = referenzbild_pfad(cfg, src)
+    if p is None:
         return None
     img = cv2.imread(str(p))
     return img
